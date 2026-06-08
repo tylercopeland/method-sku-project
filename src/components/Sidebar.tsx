@@ -11,20 +11,18 @@ import {
   Layers,
   Store,
   ChevronLeft,
-  ChevronDown,
-  Rocket
+  ChevronDown
 } from 'lucide-react';
 import { useState } from 'react';
 
 interface SidebarProps {
   currentPage: string;
   onNavigate: (page: string) => void;
-  currentStyle?: string;
   isMobileOpen?: boolean;
   onMobileClose?: () => void;
 }
 
-export function Sidebar({ currentPage, onNavigate, currentStyle = 'appcues', isMobileOpen = false, onMobileClose }: SidebarProps) {
+export function Sidebar({ currentPage, onNavigate, isMobileOpen = false, onMobileClose }: SidebarProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMoreAppsOpen, setIsMoreAppsOpen] = useState(false);
 
@@ -33,8 +31,7 @@ export function Sidebar({ currentPage, onNavigate, currentStyle = 'appcues', isM
     onMobileClose?.();
   };
 
-  const allNavigationItems = [
-    { icon: Rocket, label: 'Onboarding', page: 'onboarding', fullscreenOnly: true },
+  const navigationItems = [
     { icon: LayoutGrid, label: 'Home', page: 'home' },
     { icon: Users, label: 'Customers & Leads', page: 'customers' },
     { icon: FileText, label: 'Activities', page: 'activities' },
@@ -46,10 +43,6 @@ export function Sidebar({ currentPage, onNavigate, currentStyle = 'appcues', isM
     { icon: List, label: 'Sales Receipts', page: 'sales-receipts' },
     { icon: Lock, label: 'Payments', page: 'payments' },
   ];
-
-  const navigationItems = allNavigationItems.filter(item =>
-    !item.fullscreenOnly || currentStyle === 'fullscreen'
-  );
 
   return (
     <>

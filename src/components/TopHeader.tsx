@@ -1,21 +1,25 @@
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectSeparator, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Search, Bell, Settings, Lightbulb, Menu } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Search, Bell, Settings, Lightbulb, Menu, CircleUser, Share2, Contact, LogOut } from 'lucide-react';
 import { HelpDrawer } from '@/components/HelpDrawer';
 import { useState } from 'react';
 
 interface TopHeaderProps {
   currentPageLabel?: string;
   onNavigate?: (page: string) => void;
-  currentStyle?: string;
-  onStyleChange?: (style: string) => void;
   onMobileMenuToggle?: () => void;
 }
 
-export function TopHeader({ currentPageLabel = 'Home', onNavigate, currentStyle = 'appcues', onStyleChange, onMobileMenuToggle }: TopHeaderProps) {
+export function TopHeader({ currentPageLabel = 'Home', onNavigate, onMobileMenuToggle }: TopHeaderProps) {
   const [isHelpDrawerOpen, setIsHelpDrawerOpen] = useState(false);
 
   return (
@@ -50,34 +54,6 @@ export function TopHeader({ currentPageLabel = 'Home', onNavigate, currentStyle 
               </div>
             </div>
 
-            {/* Style Selector - hidden on mobile */}
-            <div className="hidden lg:block">
-              <Select value={currentStyle} onValueChange={onStyleChange}>
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    <SelectLabel className="text-xs text-gray-400 font-normal">Direction</SelectLabel>
-                    <SelectItem value="banner-demo">Banner + Demo CTA</SelectItem>
-                    <SelectItem value="appcues-direction">Single Banner</SelectItem>
-                    <SelectItem value="recommendations-direction">Recommendations - Option 1</SelectItem>
-                    <SelectItem value="recommendations-direction-2">Recommendations - Option 2</SelectItem>
-                    <SelectItem value="recommendations-direction-3">Recommendations - Option 3</SelectItem>
-                    <SelectItem value="recommendations-direction-4">Recommendations - Option 4</SelectItem>
-                  </SelectGroup>
-                  <SelectSeparator />
-                  <SelectGroup>
-                    <SelectLabel className="text-xs text-gray-400 font-normal">Sandbox</SelectLabel>
-                    <SelectItem value="todos">Todos</SelectItem>
-                    <SelectItem value="banner">Banner</SelectItem>
-                    <SelectItem value="single-banner">Single Banner Steps</SelectItem>
-                    <SelectItem value="fullscreen">Fullscreen</SelectItem>
-                    <SelectItem value="recommendations">Recommendations</SelectItem>
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-            </div>
           </div>
 
           {/* Right side actions */}
@@ -110,11 +86,62 @@ export function TopHeader({ currentPageLabel = 'Home', onNavigate, currentStyle 
               <Settings className="w-5 h-5 text-gray-600" />
             </Button>
 
-            {/* User Avatar */}
-            <Avatar className="w-8 h-8">
-              <AvatarImage src="https://images.pexels.com/photos/774909/pexels-photo-774909.jpeg?auto=compress&cs=tinysrgb&w=100&h=100&dpr=2" />
-              <AvatarFallback>SJ</AvatarFallback>
-            </Avatar>
+            {/* User Avatar + Dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2">
+                  <Avatar className="w-9 h-9 ring-2 ring-blue-400 cursor-pointer">
+                    <AvatarFallback className="bg-blue-100 text-blue-700 font-semibold text-sm">
+                      TC
+                    </AvatarFallback>
+                  </Avatar>
+                </button>
+              </DropdownMenuTrigger>
+
+              <DropdownMenuContent align="end" sideOffset={8} className="w-72 p-0">
+                {/* Account header */}
+                <div className="flex items-center gap-3 px-4 py-4">
+                  <Avatar className="w-12 h-12 flex-shrink-0">
+                    <AvatarFallback className="bg-blue-100 text-blue-700 font-semibold">
+                      TC
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="min-w-0">
+                    <p className="font-semibold text-gray-900 truncate">Tylerr Copeland</p>
+                    <p className="text-sm text-gray-500 truncate">m11GlicksmanGlickLa…</p>
+                  </div>
+                </div>
+
+                <DropdownMenuSeparator className="my-0" />
+
+                {/* Menu items */}
+                <div className="py-2">
+                  <DropdownMenuItem className="px-4 py-2.5 text-blue-600 focus:text-blue-700 focus:bg-blue-50 cursor-pointer">
+                    <CircleUser className="w-5 h-5 mr-3 text-blue-600" />
+                    <span className="text-base">User Profile</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => onNavigate?.('account-settings')}
+                    className="px-4 py-2.5 text-blue-600 focus:text-blue-700 focus:bg-blue-50 cursor-pointer"
+                  >
+                    <Settings className="w-5 h-5 mr-3 text-blue-600" />
+                    <span className="text-base">Account Settings</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem className="px-4 py-2.5 text-blue-600 focus:text-blue-700 focus:bg-blue-50 cursor-pointer">
+                    <Share2 className="w-5 h-5 mr-3 text-blue-600" />
+                    <span className="text-base">Integrations</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem className="px-4 py-2.5 text-blue-600 focus:text-blue-700 focus:bg-blue-50 cursor-pointer">
+                    <Contact className="w-5 h-5 mr-3 text-blue-600" />
+                    <span className="text-base">Switch Account</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem className="px-4 py-2.5 text-blue-600 focus:text-blue-700 focus:bg-blue-50 cursor-pointer">
+                    <LogOut className="w-5 h-5 mr-3 text-blue-600" />
+                    <span className="text-base">Sign Out</span>
+                  </DropdownMenuItem>
+                </div>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       </header>
