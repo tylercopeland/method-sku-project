@@ -8,10 +8,10 @@ import { SubscriptionPage } from '@/components/SubscriptionPage';
 import type { ActiveSubscription } from '@/components/SubscriptionPage';
 import { AccountSettingsPage } from '@/components/AccountSettingsPage';
 import { UpgradeRequiredPage } from '@/components/UpgradeRequiredPage';
+import { AppStudioPage } from '@/components/AppStudioPage';
 import { OnboardingModal } from '@/components/OnboardingModal';
 import { useState, useEffect } from 'react';
-import { Agentation } from 'agentation';
-import { X } from 'lucide-react';
+import { X, GripVertical } from 'lucide-react';
 
 function App() {
   // In a real app, this would come from authentication/user context
@@ -26,6 +26,27 @@ function App() {
   const [showOnboarding, setShowOnboarding] = useState(true);
   // When entering the subscription page from an upgrade prompt, open on the change-plan grid.
   const [openToChangePlan, setOpenToChangePlan] = useState(false);
+  // Demo: render checkout (payment + order summary) inline as a page or in a modal.
+  const [checkoutMode, setCheckoutMode] = useState<'inline' | 'modal'>('inline');
+  // Draggable position of the demo-controls panel (null = default bottom-left).
+  const [demoPos, setDemoPos] = useState<{ x: number; y: number } | null>(null);
+
+  const startDemoDrag = (e: React.PointerEvent<HTMLElement>) => {
+    const panel = e.currentTarget.closest('[data-demo-panel]') as HTMLElement | null;
+    if (!panel) return;
+    const rect = panel.getBoundingClientRect();
+    const offsetX = e.clientX - rect.left;
+    const offsetY = e.clientY - rect.top;
+    const onMove = (ev: PointerEvent) => {
+      setDemoPos({ x: ev.clientX - offsetX, y: ev.clientY - offsetY });
+    };
+    const onUp = () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+  };
   const teamSize = 4; // Known at render time; drives seat math on the pricing cards.
   // Days remaining in the free trial (0 = expired). Drives banner + deferred-billing copy.
   const [trialDaysLeft, setTrialDaysLeft] = useState(10);
@@ -33,6 +54,8 @@ function App() {
   // The user is "in trial" until the trial runs out. While in trial, a new subscription
   // defers its first charge to the trial-end date instead of charging immediately.
   const isInTrial = trialDaysLeft > 0;
+  // Final stretch of the trial — switch to higher-urgency, continuity-framed copy.
+  const endingSoon = isInTrial && trialDaysLeft <= 3;
   const trialEndLabel = (() => {
     const d = new Date();
     d.setDate(d.getDate() + trialDaysLeft);
@@ -59,6 +82,7 @@ function App() {
   // Page label mapping for the top header
   const pageLabels: Record<string, string> = {
     'home': 'Home',
+    'app-studio': 'App Studio',
     'contacts': 'Contacts',
     'customers': 'Customers & Leads',
     'estimates': 'Estimates',
@@ -137,13 +161,15 @@ function App() {
           className={`${isInTrial ? 'bg-violet-600' : 'bg-red-600'} text-white px-4 sm:px-4 py-2 flex items-center justify-center relative flex-shrink-0`}
         >
           <span className="text-xs sm:text-sm font-medium text-center pr-6 sm:pr-0">
-            {isInTrial ? (
+            {!isInTrial ? (
+              <span>Your trial has expired. </span>
+            ) : endingSoon ? (
+              <span>Your trial ends in {trialDaysLeft} days. </span>
+            ) : (
               <>
                 <span className="hidden sm:inline">{trialDaysLeft} days left in your trial. </span>
                 <span className="sm:hidden">{trialDaysLeft} days left. </span>
               </>
-            ) : (
-              <span>Your trial has expired. </span>
             )}
             <button
               onClick={() => setCurrentPage('subscription')}
@@ -151,6 +177,9 @@ function App() {
             >
               Subscribe now
             </button>
+            {endingSoon && (
+              <span className="hidden sm:inline"> to keep everything you've set up.</span>
+            )}
           </span>
           {/* Only allow dismissing while there's comfortable time left in the trial. */}
           {isInTrial && trialDaysLeft > 3 && (
@@ -198,6 +227,7 @@ function App() {
               workflowDesignerOpened: true,
             }}
             initialStep={openToChangePlan ? 'plans' : 'manage'}
+            checkoutMode={checkoutMode}
             onSubscribed={(sub) => {
               setSubscription(sub);
               setShowTrialBanner(false);
@@ -211,6 +241,8 @@ function App() {
               setCurrentPage('subscription');
             }}
           />
+        ) : currentPage === 'app-studio' ? (
+          <AppStudioPage userName={adminUserName} />
         ) : currentPage === 'home' ? (
           <AdminDashboard
             userName={adminUserName}
@@ -244,8 +276,20 @@ function App() {
 
       {/* Demo controls (dev only) — switch trial state + reset subscription for presenting */}
       {import.meta.env.DEV && (
-        <div className="fixed bottom-4 left-4 z-[60] w-56 rounded-lg border border-gray-200 bg-white p-3 text-xs shadow-lg">
-          <p className="mb-2 font-semibold text-gray-700">Demo controls</p>
+        <div
+          data-demo-panel
+          style={demoPos ? { left: demoPos.x, top: demoPos.y } : undefined}
+          className={`fixed z-[60] w-56 rounded-lg border border-gray-200 bg-white p-3 text-xs shadow-lg ${
+            demoPos ? '' : 'bottom-4 left-4'
+          }`}
+        >
+          <p
+            onPointerDown={startDemoDrag}
+            className="mb-2 flex cursor-move select-none items-center gap-1 font-semibold text-gray-700"
+          >
+            <GripVertical className="h-3.5 w-3.5 text-gray-400" />
+            Demo controls
+          </p>
           <p className="mb-1 text-gray-500">Trial</p>
           <div className="mb-3 flex gap-1">
             {[
@@ -259,7 +303,7 @@ function App() {
                   setTrialDaysLeft(opt.days);
                   setShowTrialBanner(true);
                   // Expiring with no subscription locks the app to the Subscribe screen.
-                  if (opt.days === 0) setCurrentPage('subscription');
+                  if (opt.days === 0 && !subscription) setCurrentPage('subscription');
                 }}
                 className={`flex-1 rounded border px-2 py-1 transition-colors ${
                   trialDaysLeft === opt.days
@@ -287,6 +331,48 @@ function App() {
               </button>
             )}
           </div>
+          {subscription && (
+            <div className="border-t border-gray-100 pt-2 mt-2">
+              <p className="mb-1 text-gray-500">Plan (gates apps)</p>
+              <div className="flex gap-1">
+                {[
+                  { label: 'Essentials', id: 'essentials' },
+                  { label: 'Build', id: 'build' },
+                  { label: 'Scale', id: 'scale' },
+                ].map((opt) => (
+                  <button
+                    key={opt.id}
+                    onClick={() => setSubscription({ ...subscription, planId: opt.id })}
+                    className={`flex-1 rounded border px-2 py-1 transition-colors ${
+                      subscription.planId === opt.id
+                        ? 'border-blue-600 bg-blue-600 text-white'
+                        : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          <div className="border-t border-gray-100 pt-2 mt-2">
+            <p className="mb-1 text-gray-500">Checkout</p>
+            <div className="flex gap-1">
+              {(['inline', 'modal'] as const).map((mode) => (
+                <button
+                  key={mode}
+                  onClick={() => setCheckoutMode(mode)}
+                  className={`flex-1 rounded border px-2 py-1 capitalize transition-colors ${
+                    checkoutMode === mode
+                      ? 'border-blue-600 bg-blue-600 text-white'
+                      : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
+                  }`}
+                >
+                  {mode}
+                </button>
+              ))}
+            </div>
+          </div>
           <div className="border-t border-gray-100 pt-2 mt-2">
             <button
               onClick={() => {
@@ -303,8 +389,6 @@ function App() {
 
       {/* First-run onboarding — modal over Home, blocks the app until completed */}
       {showOnboarding && <OnboardingModal onComplete={() => setShowOnboarding(false)} />}
-
-      {import.meta.env.DEV && <Agentation endpoint="http://localhost:4747" />}
     </div>
   );
 }

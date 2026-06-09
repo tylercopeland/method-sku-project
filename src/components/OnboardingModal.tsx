@@ -82,6 +82,7 @@ export function OnboardingModal({ onComplete }: OnboardingModalProps) {
   const [role, setRole] = useState('Owner');
   const [qbVersion, setQbVersion] = useState<'desktop' | 'online'>('online');
   const [slot, setSlot] = useState<string | null>(null);
+  const [connectProgress, setConnectProgress] = useState(0);
 
   // The flow branches: Xero skips the QuickBooks-specific steps.
   const sequence: Step[] =
@@ -99,11 +100,21 @@ export function OnboardingModal({ onComplete }: OnboardingModalProps) {
     if (prev) setStep(prev);
   };
 
-  // The "connecting" screen auto-advances to the final step.
+  // The "connecting" screen counts a progress bar up to 100%, then advances to the final step.
   useEffect(() => {
-    if (step !== 'connecting') return;
-    const t = setTimeout(() => setStep('invite'), 2200);
-    return () => clearTimeout(t);
+    if (step !== 'connecting') {
+      setConnectProgress(0);
+      return;
+    }
+    setConnectProgress(0);
+    const interval = setInterval(() => {
+      setConnectProgress((p) => Math.min(100, p + 4));
+    }, 90);
+    const advance = setTimeout(() => setStep('invite'), 2500);
+    return () => {
+      clearInterval(interval);
+      clearTimeout(advance);
+    };
   }, [step]);
 
   return (
@@ -372,22 +383,24 @@ export function OnboardingModal({ onComplete }: OnboardingModalProps) {
           {step === 'connecting' && (
             <div className="py-6">
               <h2 className="text-2xl font-semibold text-gray-900 mb-8">QuickBooks is connecting...</h2>
-              <div className="flex items-center justify-center gap-4 mb-8">
-                <div className="space-y-3">
-                  <div className="rounded-lg border border-gray-200 px-6 py-3 shadow-sm">
-                    <span className="font-bold text-green-700">intuit</span>{' '}
-                    <span className="font-bold text-gray-700">quickbooks</span>
-                  </div>
-                  <div className="rounded-lg border border-gray-200 px-6 py-3 shadow-sm text-center">
-                    <span className="font-bold text-[#0a1f44]">method</span>
-                  </div>
+              <div className="flex flex-col items-center gap-3 mb-8">
+                <div className="rounded-lg border border-gray-200 px-6 py-3 shadow-sm">
+                  <span className="font-bold text-green-700">intuit</span>{' '}
+                  <span className="font-bold text-gray-700">quickbooks</span>
                 </div>
-                <RefreshCw className="w-8 h-8 text-blue-600 animate-spin" />
+                <div className="rounded-lg border border-gray-200 px-6 py-3 shadow-sm text-center">
+                  <span className="font-bold text-[#0a1f44]">method</span>
+                </div>
               </div>
               <div className="h-2 bg-gray-100 rounded-full overflow-hidden max-w-md mx-auto">
-                <div className="h-full bg-gradient-to-r from-blue-600 to-cyan-400 animate-pulse w-2/3" />
+                <div
+                  className="h-full bg-gradient-to-r from-blue-600 to-cyan-400 transition-[width] duration-100 ease-linear"
+                  style={{ width: `${connectProgress}%` }}
+                />
               </div>
-              <p className="text-center text-sm font-medium text-blue-600 mt-2">Connecting...</p>
+              <p className="text-center text-sm font-medium text-blue-600 mt-2">
+                Connecting… {connectProgress}%
+              </p>
             </div>
           )}
 

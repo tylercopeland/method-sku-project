@@ -35,7 +35,8 @@ import {
   ShoppingCart,
   ShoppingBag,
   Wallet,
-  FileSignature
+  FileSignature,
+  Palette
 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -234,6 +235,23 @@ export function EmptyStatePage({ page, showBanner = false, showSampleData = fals
             label: 'View Popular Integrations',
             onClick: () => console.log('View integrations')
           }
+        };
+
+      case 'app-studio':
+        return {
+          icon: <Palette className="w-6 h-6 text-violet-600" />,
+          accentIcon: Palette,
+          gradient: 'from-violet-500 to-fuchsia-600',
+          title: 'Build Custom Apps with App Studio',
+          description: 'Design screens, automate workflows, and build your own apps on top of Method — no code required.',
+          valueProps: [
+            'Drag-and-drop screen & workflow designer',
+            'AI app builder — describe it, Method builds it',
+            'Automate routines and approvals',
+            'Publish custom apps to your team',
+          ],
+          primaryAction: { label: 'Open App Studio', onClick: () => {} },
+          secondaryAction: { label: 'Watch a demo', onClick: () => {} },
         };
 
       case 'items':

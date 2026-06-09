@@ -1,6 +1,7 @@
 import { Button } from '@/components/ui/button';
 import {
   LayoutGrid,
+  Palette,
   UserPlus,
   Building2,
   FileText,
@@ -34,7 +35,7 @@ import {
   ChevronLeft,
   ChevronUp
 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 interface SidebarProps {
   currentPage: string;
@@ -51,6 +52,11 @@ export function Sidebar({ currentPage, onNavigate, isMobileOpen = false, onMobil
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMoreAppsOpen, setIsMoreAppsOpen] = useState(false);
 
+  // Reveal the overflow apps whenever some are locked, so the gating is visible.
+  useEffect(() => {
+    if (lockedApps.length > 0) setIsMoreAppsOpen(true);
+  }, [lockedApps.length]);
+
   const handleNavigate = (page: string) => {
     onNavigate(page);
     onMobileClose?.();
@@ -58,6 +64,7 @@ export function Sidebar({ currentPage, onNavigate, isMobileOpen = false, onMobil
 
   const navigationItems = [
     { icon: LayoutGrid, label: 'Home', page: 'home' },
+    { icon: Palette, label: 'App Studio', page: 'app-studio' },
     { icon: FileText, label: 'Activities', page: 'activities' },
     { icon: Receipt, label: 'Invoices', page: 'invoices' },
     { icon: ClipboardList, label: 'Estimates', page: 'estimates' },
@@ -87,11 +94,32 @@ export function Sidebar({ currentPage, onNavigate, isMobileOpen = false, onMobil
     { icon: FileSignature, label: 'Proposals', page: 'proposals' },
   ];
 
-  // Core apps are always visible; the rest sit behind a "View more" toggle.
-  const primaryItems = navigationItems.slice(0, 11);
-  const moreItems = navigationItems.slice(11);
+  // Home + App Studio stay pinned at the top; core apps are always visible;
+  // the rest sit behind a "View more" toggle.
+  const pinnedItems = navigationItems.slice(0, 2);
+  const primaryItems = navigationItems.slice(2, 12);
+  const moreItems = navigationItems.slice(12);
   // Keep the section expanded if the active page lives inside it.
   const activeInMore = moreItems.some((item) => item.page === currentPage);
+
+  const renderNavItem = (item: (typeof navigationItems)[number], index: number) => (
+    <Button
+      key={index}
+      variant="ghost"
+      onClick={() => handleNavigate(item.page)}
+      className={`w-full justify-start text-left p-3 h-auto ${
+        currentPage === item.page
+          ? 'bg-blue-700 text-white'
+          : 'text-blue-100 hover:bg-blue-700 hover:text-white'
+      }`}
+    >
+      <item.icon className="w-5 h-5 flex-shrink-0" />
+      {(!isCollapsed || isMobileOpen) && <span className="ml-3">{item.label}</span>}
+      {lockedApps.includes(item.page) && (!isCollapsed || isMobileOpen) && (
+        <Lock className="w-3.5 h-3.5 ml-auto text-blue-300" />
+      )}
+    </Button>
+  );
 
   return (
     <>
@@ -132,50 +160,21 @@ export function Sidebar({ currentPage, onNavigate, isMobileOpen = false, onMobil
         </div>
       </div>
 
-      {/* Navigation */}
-      <nav className={`flex-1 p-4 overflow-y-auto ${locked ? 'pointer-events-none opacity-50' : ''}`}>
+      {/* Pinned at top — does not scroll */}
+      <div className={`flex-shrink-0 px-4 pt-4 pb-2 space-y-2 ${locked ? 'pointer-events-none opacity-50' : ''}`}>
+        {pinnedItems.map(renderNavItem)}
+      </div>
+
+      {/* Navigation (scrollable) */}
+      <nav className={`flex-1 px-4 pb-4 overflow-y-auto ${locked ? 'pointer-events-none opacity-50' : ''}`}>
         <div className="space-y-2">
-          {primaryItems.map((item, index) => (
-            <Button
-              key={index}
-              variant="ghost"
-              onClick={() => handleNavigate(item.page)}
-              className={`w-full justify-start text-left p-3 h-auto ${
-                currentPage === item.page
-                  ? 'bg-blue-700 text-white'
-                  : 'text-blue-100 hover:bg-blue-700 hover:text-white'
-              }`}
-            >
-              <item.icon className="w-5 h-5 flex-shrink-0" />
-              {(!isCollapsed || isMobileOpen) && <span className="ml-3">{item.label}</span>}
-              {lockedApps.includes(item.page) && (!isCollapsed || isMobileOpen) && (
-                <Lock className="w-3.5 h-3.5 ml-auto text-blue-300" />
-              )}
-            </Button>
-          ))}
+          {primaryItems.map(renderNavItem)}
         </div>
 
         {/* Overflow apps revealed by "View more" */}
         {(isMoreAppsOpen || activeInMore) && (
           <div className="space-y-2 mt-2">
-            {moreItems.map((item, index) => (
-              <Button
-                key={index}
-                variant="ghost"
-                onClick={() => handleNavigate(item.page)}
-                className={`w-full justify-start text-left p-3 h-auto ${
-                  currentPage === item.page
-                    ? 'bg-blue-700 text-white'
-                    : 'text-blue-100 hover:bg-blue-700 hover:text-white'
-                }`}
-              >
-                <item.icon className="w-5 h-5 flex-shrink-0" />
-                {(!isCollapsed || isMobileOpen) && <span className="ml-3">{item.label}</span>}
-                {lockedApps.includes(item.page) && (!isCollapsed || isMobileOpen) && (
-                  <Lock className="w-3.5 h-3.5 ml-auto text-blue-300" />
-                )}
-              </Button>
-            ))}
+            {moreItems.map(renderNavItem)}
           </div>
         )}
 

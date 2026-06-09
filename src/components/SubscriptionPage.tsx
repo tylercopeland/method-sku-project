@@ -13,6 +13,7 @@ import {
   ShieldCheck,
   Lock,
   Users,
+  X,
 } from 'lucide-react';
 
 interface Plan {
@@ -31,20 +32,21 @@ interface Plan {
   highlighted?: boolean;
 }
 
-// Annual billing = 2 months free (you pay for 10 months).
-const MONTHS_BILLED_ANNUALLY = 10;
-const annualPerMonth = (monthly: number) => Math.round((monthly * MONTHS_BILLED_ANNUALLY) / 12);
+// Annual billing = 20% off the monthly rate.
+const ANNUAL_DISCOUNT = 0.2;
+const annualPerMonth = (monthly: number) => Math.round(monthly * (1 - ANNUAL_DISCOUNT));
+const annualYearly = (monthly: number) => Math.round(monthly * 12 * (1 - ANNUAL_DISCOUNT));
 
 const plans: Plan[] = [
   {
     id: 'essentials',
-    eyebrow: 'Essentials',
-    name: 'Solo & Simple',
+    eyebrow: 'Solo operators',
+    name: 'Essentials',
     description:
       'Full Method for a single user. Perfect for independent operators who want power without complexity.',
     monthlyPrice: 50,
     seats: 1,
-    seatsNote: 'add teammates to upgrade',
+    seatsNote: 'Additional seats available',
     includedLabel: "What's included",
     features: [
       'All stock apps — CRM, invoicing, proposals, cases',
@@ -59,14 +61,14 @@ const plans: Plan[] = [
   },
   {
     id: 'build',
-    eyebrow: 'Build',
-    name: 'Your Team, Your Way',
+    eyebrow: 'Growing teams',
+    name: 'Build',
     description:
       'Custom workflows, AI-assisted building, and guided setup — for teams ready to run Method their way.',
     monthlyPrice: 200,
     seats: 3,
     extraSeatPrice: 59,
-    seatsNote: '+$59/user after',
+    seatsNote: 'Additional seats: $59/user',
     includedLabel: 'Everything in Essentials, plus',
     features: [
       'Full screen & workflow designer',
@@ -83,14 +85,14 @@ const plans: Plan[] = [
   },
   {
     id: 'scale',
-    eyebrow: 'Scale',
-    name: 'Done For You',
+    eyebrow: 'Established businesses',
+    name: 'Scale',
     description:
       'A dedicated Method expert builds, maintains and grows your setup alongside your business.',
     monthlyPrice: 500,
     seats: 8,
     contactSales: true,
-    seatsNote: 'multi-entity support',
+    seatsNote: 'Custom seat pricing',
     includedLabel: 'Everything in Build, plus',
     features: [
       'Dedicated Expert Partner (DEP) — named contact',
@@ -150,6 +152,8 @@ interface SubscriptionPageProps {
   };
   /** For subscribed users, which view to open on: the manage card or the change-plan grid. */
   initialStep?: 'manage' | 'plans';
+  /** Render the checkout (payment + order summary) inline as a page, or in a modal. */
+  checkoutMode?: 'inline' | 'modal';
 }
 
 export function SubscriptionPage({
@@ -161,6 +165,7 @@ export function SubscriptionPage({
   teamSize = 1,
   trialUsage,
   initialStep = 'manage',
+  checkoutMode = 'inline',
 }: SubscriptionPageProps) {
   const [billingCycle, setBillingCycle] = useState<BillingCycle>(
     activeSubscription?.billingCycle ?? 'annual'
@@ -190,10 +195,10 @@ export function SubscriptionPage({
       ? annualPerMonth(selectedPlan.monthlyPrice)
       : selectedPlan.monthlyPrice
     : 0;
-  // Annual = pay for 10 months up front (2 months free); monthly is billed per month.
+  // Annual = the full year at a 20% discount; monthly is billed per month.
   const total = selectedPlan
     ? billingCycle === 'annual'
-      ? selectedPlan.monthlyPrice * MONTHS_BILLED_ANNUALLY
+      ? annualYearly(selectedPlan.monthlyPrice)
       : selectedPlan.monthlyPrice
     : 0;
 
@@ -429,21 +434,28 @@ export function SubscriptionPage({
   }
 
   // ----------------------------- CHECKOUT -----------------------------
-  if (step === 'checkout' && selectedPlan) {
-    return (
-      <div className="flex-1 overflow-y-auto p-3 sm:p-6">
-        <div className="max-w-4xl mx-auto">
-          <button
-            onClick={() => setStep('plans')}
-            className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 mb-5"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Back to plans
-          </button>
+  // Shared checkout content — rendered inline (full page) or inside a modal.
+  const checkoutBody = selectedPlan ? (
+    <>
+          {checkoutMode === 'inline' && (
+            <button
+              onClick={() => setStep('plans')}
+              className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 mb-5"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Back to plans
+            </button>
+          )}
 
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
             {/* Payment form */}
-            <div className="lg:col-span-3 bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+            <div
+              className={`lg:col-span-3 ${
+                checkoutMode === 'modal'
+                  ? 'lg:border-r lg:border-gray-200 lg:pr-8'
+                  : 'bg-white rounded-xl border border-gray-200 shadow-sm p-6'
+              }`}
+            >
               <div className="flex items-center gap-2 mb-1">
                 <CreditCard className="w-5 h-5 text-blue-600" />
                 <h2 className="text-lg font-semibold text-gray-900">
@@ -588,7 +600,13 @@ export function SubscriptionPage({
 
             {/* Order summary */}
             <div className="lg:col-span-2">
-              <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 sticky top-6">
+              <div
+                className={
+                  checkoutMode === 'modal'
+                    ? 'lg:pl-2'
+                    : 'bg-white rounded-xl border border-gray-200 shadow-sm p-6 sticky top-6'
+                }
+              >
                 <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">
                   Order summary
                 </h3>
@@ -660,7 +678,13 @@ export function SubscriptionPage({
               </div>
             </div>
           </div>
-        </div>
+    </>
+  ) : null;
+
+  if (step === 'checkout' && selectedPlan && checkoutMode === 'inline') {
+    return (
+      <div className="flex-1 overflow-y-auto p-3 sm:p-6">
+        <div className="max-w-4xl mx-auto">{checkoutBody}</div>
       </div>
     );
   }
@@ -706,7 +730,7 @@ export function SubscriptionPage({
               Annually
             </span>
             <span className="bg-green-100 text-green-800 text-xs font-semibold px-2 py-0.5 rounded-full">
-              2 months free
+              20% off
             </span>
           </div>
         </div>
@@ -718,22 +742,24 @@ export function SubscriptionPage({
             const isCurrent = isChangingPlan && plan.id === activeSubscription?.planId;
             const isUpgrade = isChangingPlan && currentPlanIndex >= 0 && index > currentPlanIndex;
 
-            // Pricing (annual = 2 months free), and the honest total for this user's team.
+            // Pricing (annual = 20% off).
             const price = billingCycle === 'annual' ? annualPerMonth(plan.monthlyPrice) : plan.monthlyPrice;
-            const yearly = plan.monthlyPrice * MONTHS_BILLED_ANNUALLY;
-            const coversTeam = teamSize <= plan.seats;
+            const yearly = annualYearly(plan.monthlyPrice);
 
-            // Button copy: per-plan CTA when fresh; current/upgrade/downgrade when changing.
-            // Sales-assisted plans always read "Talk to sales".
+            // Button copy: sales-assisted plans always read "Talk to sales"; changing shows
+            // current/upgrade/downgrade; a fresh subscribe uses the plan CTA during the trial
+            // but switches to "Subscribe to {Plan}" once the trial has expired.
             const ctaLabel = isContactSales
               ? plan.ctaLabel
-              : !isChangingPlan
+              : isChangingPlan
+              ? isCurrent
+                ? 'Current plan'
+                : isUpgrade
+                ? `Upgrade to ${plan.name}`
+                : `Downgrade to ${plan.name}`
+              : isInTrial
               ? plan.ctaLabel
-              : isCurrent
-              ? 'Current plan'
-              : isUpgrade
-              ? `Upgrade to ${plan.name}`
-              : `Downgrade to ${plan.name}`;
+              : `Subscribe to ${plan.name}`;
             // In change mode, highlight the plan you're currently on instead of "Best for…".
             const highlight = isChangingPlan ? isCurrent : plan.highlighted;
             const showArrow = !isChangingPlan && plan.highlighted;
@@ -804,13 +830,12 @@ export function SubscriptionPage({
                   >
                     <Users className="w-5 h-5" />
                   </div>
-                  <p className="text-sm text-gray-600 leading-snug">
-                    <span className="font-bold text-gray-900 text-base">
-                      {plan.seats} {plan.seats === 1 ? 'seat' : 'seats'}
-                    </span>{' '}
-                    included · {plan.seatsNote}
-                    {coversTeam && plan.seats > 1 ? ' · covers your team' : ''}
-                  </p>
+                  <div className="leading-snug">
+                    <p className="text-sm font-bold text-gray-900">
+                      {plan.seats} {plan.seats === 1 ? 'seat' : 'seats'} included
+                    </p>
+                    <p className="text-sm text-gray-600">{plan.seatsNote}</p>
+                  </div>
                 </div>
 
                 <div className="border-t border-gray-100 mb-4" />
@@ -861,6 +886,26 @@ export function SubscriptionPage({
           })}
         </div>
       </div>
+
+      {/* Modal checkout (demo: checkoutMode === 'modal') */}
+      {step === 'checkout' && checkoutMode === 'modal' && checkoutBody && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-gray-900/40 backdrop-blur-sm p-4">
+          <div className="relative w-full max-w-4xl max-h-[92vh] overflow-y-auto bg-white rounded-2xl shadow-2xl">
+            <div className="sticky top-0 z-10 flex items-center justify-between border-b border-gray-200 bg-white px-6 sm:px-8 py-4">
+              <h2 className="text-lg font-semibold text-gray-900">
+                {selectedPlan && (isChangingPlan ? 'Change your plan' : `Subscribe to ${selectedPlan.name}`)}
+              </h2>
+              <button
+                onClick={() => setStep('plans')}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-6 sm:p-8">{checkoutBody}</div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
