@@ -17,7 +17,25 @@ import {
   Plus,
   Eye,
   Edit,
-  MoreHorizontal
+  MoreHorizontal,
+  Package,
+  Briefcase,
+  Mail,
+  Megaphone,
+  Heart,
+  Wrench,
+  Clock,
+  Truck,
+  Hammer,
+  CalendarDays,
+  Boxes,
+  Gift,
+  Folder,
+  GraduationCap,
+  ShoppingCart,
+  ShoppingBag,
+  Wallet,
+  FileSignature
 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -40,6 +58,9 @@ interface EmptyStateConfig {
     label: string;
     onClick: () => void;
   };
+  // Drives the right-hand illustration for pages without a hardcoded illustration.
+  accentIcon?: React.ComponentType<{ className?: string }>;
+  gradient?: string;
 }
 
 export function EmptyStatePage({ page, showBanner = false, showSampleData = false }: EmptyStatePageProps) {
@@ -215,11 +236,319 @@ export function EmptyStatePage({ page, showBanner = false, showSampleData = fals
           }
         };
 
+      case 'items':
+        return {
+          icon: <Package className="w-6 h-6 text-amber-600" />,
+          accentIcon: Package,
+          gradient: 'from-amber-500 to-amber-600',
+          title: 'Build Your Product & Service Catalog',
+          description: 'Items keeps every product and service you sell in one place, with pricing, descriptions, and QuickBooks sync.',
+          valueProps: [
+            'Store products and services with pricing',
+            'Sync items two-way with QuickBooks',
+            'Add items to estimates and invoices fast',
+            'Track what sells best',
+          ],
+          primaryAction: { label: 'Add Your First Item', onClick: () => {} },
+          secondaryAction: { label: 'Import from QuickBooks', onClick: () => {} },
+        };
+
+      case 'accounts':
+        return {
+          icon: <Briefcase className="w-6 h-6 text-slate-600" />,
+          accentIcon: Briefcase,
+          gradient: 'from-slate-500 to-slate-600',
+          title: 'Organize Your Accounts',
+          description: 'Accounts gives you a clear view of every company you work with — customers, vendors, and partners.',
+          valueProps: [
+            'Group contacts under their company',
+            'See every interaction in one place',
+            'Track relationships and activity',
+            'Keep your book of business organized',
+          ],
+          primaryAction: { label: 'Create Your First Account', onClick: () => {} },
+          secondaryAction: { label: 'Import Accounts', onClick: () => {} },
+        };
+
+      case 'send-email':
+        return {
+          icon: <Mail className="w-6 h-6 text-blue-600" />,
+          accentIcon: Mail,
+          gradient: 'from-blue-500 to-blue-600',
+          title: 'Send Email Without Leaving Method',
+          description: 'Send personalized emails to customers and leads, with every message logged against their record.',
+          valueProps: [
+            'Email directly from any record',
+            'Use templates to save time',
+            'Track opens and replies',
+            'Keep a full communication history',
+          ],
+          primaryAction: { label: 'Send Your First Email', onClick: () => {} },
+          secondaryAction: { label: 'Connect Your Inbox', onClick: () => {} },
+        };
+
+      case 'email-campaigns':
+        return {
+          icon: <Megaphone className="w-6 h-6 text-pink-600" />,
+          accentIcon: Megaphone,
+          gradient: 'from-pink-500 to-pink-600',
+          title: 'Reach Your Whole List at Once',
+          description: 'Email Campaigns lets you design, send, and measure marketing emails to segmented lists.',
+          valueProps: [
+            'Build campaigns with a drag-and-drop editor',
+            'Target segments of your customer list',
+            'Schedule sends in advance',
+            'Track opens, clicks, and conversions',
+          ],
+          primaryAction: { label: 'Create a Campaign', onClick: () => {} },
+          secondaryAction: { label: 'Browse Templates', onClick: () => {} },
+        };
+
+      case 'donor-pages':
+        return {
+          icon: <Heart className="w-6 h-6 text-rose-600" />,
+          accentIcon: Heart,
+          gradient: 'from-rose-500 to-rose-600',
+          title: 'Collect Donations Online',
+          description: 'Donor Pages give your supporters a simple, branded page to give — with every gift recorded in Method.',
+          valueProps: [
+            'Create branded donation pages',
+            'Accept one-time and recurring gifts',
+            'Record donors and donations automatically',
+            'Send receipts and thank-yous',
+          ],
+          primaryAction: { label: 'Create a Donor Page', onClick: () => {} },
+          secondaryAction: { label: 'See an Example', onClick: () => {} },
+        };
+
+      case 'work-orders':
+        return {
+          icon: <Wrench className="w-6 h-6 text-blue-600" />,
+          accentIcon: Wrench,
+          gradient: 'from-blue-500 to-blue-600',
+          title: 'Streamline Your Work Orders',
+          description: 'Create, assign, and track every job from request through completion — all in one place.',
+          valueProps: [
+            'Assign work to the right crew member',
+            'Track status from open to done',
+            'Attach photos, notes, and customer details',
+            'Convert completed work into invoices',
+          ],
+          primaryAction: { label: 'Create a Work Order', onClick: () => {} },
+          secondaryAction: { label: 'Learn More', onClick: () => {} },
+        };
+
+      case 'time-tracking':
+        return {
+          icon: <Clock className="w-6 h-6 text-indigo-600" />,
+          accentIcon: Clock,
+          gradient: 'from-indigo-500 to-indigo-600',
+          title: 'Track Time, Bill Accurately',
+          description: 'Capture billable hours so payroll and invoices are always accurate.',
+          valueProps: [
+            'Log time against jobs and customers',
+            'Approve and export timesheets',
+            'Turn hours into invoices automatically',
+            "See where your team's time goes",
+          ],
+          primaryAction: { label: 'Track Your First Hours', onClick: () => {} },
+          secondaryAction: { label: 'Learn More', onClick: () => {} },
+        };
+
+      case 'field-crew':
+        return {
+          icon: <Truck className="w-6 h-6 text-teal-600" />,
+          accentIcon: Truck,
+          gradient: 'from-teal-500 to-teal-600',
+          title: 'Empower Your Field Crew',
+          description: 'Give your team a mobile app to see their jobs, capture details, and update status from anywhere.',
+          valueProps: [
+            "Mobile access to today's jobs",
+            'Capture signatures, photos, and notes',
+            'Update job status in real time',
+            'Keep the office and field in sync',
+          ],
+          primaryAction: { label: 'Invite Your Crew', onClick: () => {} },
+          secondaryAction: { label: 'Learn More', onClick: () => {} },
+        };
+
+      case 'jobs':
+        return {
+          icon: <Hammer className="w-6 h-6 text-orange-600" />,
+          accentIcon: Hammer,
+          gradient: 'from-orange-500 to-orange-600',
+          title: 'Manage Every Job End-to-End',
+          description: 'Run multi-stage projects with tasks, costs, and timelines in one view.',
+          valueProps: [
+            'Break jobs into trackable tasks',
+            'Monitor costs and profitability',
+            'Keep timelines on schedule',
+            'See job progress at a glance',
+          ],
+          primaryAction: { label: 'Create Your First Job', onClick: () => {} },
+          secondaryAction: { label: 'Learn More', onClick: () => {} },
+        };
+
+      case 'schedules':
+        return {
+          icon: <CalendarDays className="w-6 h-6 text-purple-600" />,
+          accentIcon: CalendarDays,
+          gradient: 'from-purple-500 to-purple-600',
+          title: 'Plan and Dispatch with Ease',
+          description: 'Coordinate your team with a shared, drag-and-drop schedule.',
+          valueProps: [
+            "Visualize your team's week",
+            'Dispatch the right person, fast',
+            'Avoid double-booking',
+            'Keep everyone on the same page',
+          ],
+          primaryAction: { label: 'Open the Scheduler', onClick: () => {} },
+          secondaryAction: { label: 'Learn More', onClick: () => {} },
+        };
+
+      case 'inventory':
+        return {
+          icon: <Boxes className="w-6 h-6 text-green-600" />,
+          accentIcon: Boxes,
+          gradient: 'from-green-500 to-green-600',
+          title: 'Know Your Inventory',
+          description: 'Track stock levels, costs, and reorder points across every location.',
+          valueProps: [
+            'Track quantities in real time',
+            'Set reorder points and alerts',
+            'Manage costs and margins',
+            'Sync items with QuickBooks',
+          ],
+          primaryAction: { label: 'Add Inventory', onClick: () => {} },
+          secondaryAction: { label: 'Learn More', onClick: () => {} },
+        };
+
+      case 'donations':
+        return {
+          icon: <Gift className="w-6 h-6 text-rose-600" />,
+          accentIcon: Gift,
+          gradient: 'from-rose-500 to-rose-600',
+          title: 'Track Every Donation',
+          description: 'Record gifts, manage donors, and keep a complete giving history for your organization.',
+          valueProps: [
+            'Log one-time and recurring gifts',
+            'Link donations to donor records',
+            'Issue receipts automatically',
+            'Report on giving over time',
+          ],
+          primaryAction: { label: 'Record a Donation', onClick: () => {} },
+          secondaryAction: { label: 'Import Donations', onClick: () => {} },
+        };
+
+      case 'cases':
+        return {
+          icon: <Folder className="w-6 h-6 text-cyan-600" />,
+          accentIcon: Folder,
+          gradient: 'from-cyan-500 to-cyan-600',
+          title: 'Resolve Customer Issues Faster',
+          description: 'Cases helps you capture, assign, and resolve customer requests so nothing falls through the cracks.',
+          valueProps: [
+            'Capture issues from any channel',
+            'Assign and prioritize cases',
+            'Track status to resolution',
+            'See the full history per customer',
+          ],
+          primaryAction: { label: 'Open Your First Case', onClick: () => {} },
+          secondaryAction: { label: 'Learn More', onClick: () => {} },
+        };
+
+      case 'classes':
+        return {
+          icon: <GraduationCap className="w-6 h-6 text-violet-600" />,
+          accentIcon: GraduationCap,
+          gradient: 'from-violet-500 to-violet-600',
+          title: 'Organize Work with Classes',
+          description: 'Classes let you categorize transactions and records by department, location, or program.',
+          valueProps: [
+            'Segment records by class',
+            'Report on performance by class',
+            'Keep books aligned with QuickBooks',
+            'Stay organized as you grow',
+          ],
+          primaryAction: { label: 'Create a Class', onClick: () => {} },
+          secondaryAction: { label: 'Learn More', onClick: () => {} },
+        };
+
+      case 'sales-orders':
+        return {
+          icon: <ShoppingCart className="w-6 h-6 text-emerald-600" />,
+          accentIcon: ShoppingCart,
+          gradient: 'from-emerald-500 to-emerald-600',
+          title: 'Manage Orders from Quote to Fulfillment',
+          description: "Sales Orders track what customers have ordered, what's fulfilled, and what's left to invoice.",
+          valueProps: [
+            'Convert estimates into orders',
+            'Track fulfillment status',
+            'Turn orders into invoices',
+            'Keep inventory in sync',
+          ],
+          primaryAction: { label: 'Create a Sales Order', onClick: () => {} },
+          secondaryAction: { label: 'Learn More', onClick: () => {} },
+        };
+
+      case 'purchase-orders':
+        return {
+          icon: <ShoppingBag className="w-6 h-6 text-amber-600" />,
+          accentIcon: ShoppingBag,
+          gradient: 'from-amber-500 to-amber-600',
+          title: 'Streamline Your Purchasing',
+          description: "Purchase Orders help you order from vendors, track what's received, and control spend.",
+          valueProps: [
+            'Create and send POs to vendors',
+            'Track received vs. outstanding items',
+            'Control costs and approvals',
+            'Sync purchases with QuickBooks',
+          ],
+          primaryAction: { label: 'Create a Purchase Order', onClick: () => {} },
+          secondaryAction: { label: 'Learn More', onClick: () => {} },
+        };
+
+      case 'bills':
+        return {
+          icon: <Wallet className="w-6 h-6 text-red-600" />,
+          accentIcon: Wallet,
+          gradient: 'from-red-500 to-red-600',
+          title: 'Stay on Top of What You Owe',
+          description: 'Bills keeps your payables organized so you never miss a due date.',
+          valueProps: [
+            'Record bills from vendors',
+            'Track due dates and balances',
+            'Schedule and apply payments',
+            'Sync with QuickBooks',
+          ],
+          primaryAction: { label: 'Add Your First Bill', onClick: () => {} },
+          secondaryAction: { label: 'Learn More', onClick: () => {} },
+        };
+
+      case 'proposals':
+        return {
+          icon: <FileSignature className="w-6 h-6 text-sky-600" />,
+          accentIcon: FileSignature,
+          gradient: 'from-sky-500 to-sky-600',
+          title: 'Win More Work with Polished Proposals',
+          description: 'Proposals helps you create, send, and track professional proposals that close deals.',
+          valueProps: [
+            'Build proposals from templates',
+            'Send and track engagement',
+            'Convert accepted proposals to estimates',
+            'Get e-signature approval',
+          ],
+          primaryAction: { label: 'Create a Proposal', onClick: () => {} },
+          secondaryAction: { label: 'Browse Templates', onClick: () => {} },
+        };
+
       default:
         return {
           icon: <Sparkles className="w-6 h-6 text-gray-400" />,
-          title: 'Coming Soon',
-          description: 'This feature is under development and will be available soon.',
+          accentIcon: Sparkles,
+          gradient: 'from-gray-400 to-gray-500',
+          title: 'Page not found',
+          description: "We couldn't find the page you're looking for. Try selecting an app from the sidebar.",
           valueProps: []
         };
     }
@@ -289,6 +618,7 @@ export function EmptyStatePage({ page, showBanner = false, showSampleData = fals
   };
 
   const config = getEmptyStateConfig();
+  const AccentIcon = config.accentIcon ?? Sparkles;
   const sampleData = showSampleData ? getSampleData() : null;
 
   return (
@@ -515,8 +845,8 @@ export function EmptyStatePage({ page, showBanner = false, showSampleData = fals
                           </div>
                         )}
                         {!['activities', 'vendors', 'opportunities', 'web-to-lead', 'invoices', 'sales-receipts', 'payments', 'marketplace'].includes(page) && (
-                          <div className="w-full h-full bg-gradient-to-br from-gray-400 to-gray-500 rounded-2xl flex items-center justify-center shadow-lg hover:shadow-xl transition-shadow duration-300">
-                            <Sparkles className="w-16 h-16 text-white" />
+                          <div className={`w-full h-full bg-gradient-to-br ${config.gradient ?? 'from-gray-400 to-gray-500'} rounded-2xl flex items-center justify-center shadow-lg hover:shadow-xl transition-shadow duration-300`}>
+                            <AccentIcon className="w-16 h-16 text-white" />
                           </div>
                         )}
                       </div>

@@ -2,71 +2,107 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import {
   Check,
   Sparkles,
   CreditCard,
   Loader2,
   ArrowLeft,
+  ArrowRight,
   ShieldCheck,
   Lock,
+  Users,
 } from 'lucide-react';
 
 interface Plan {
   id: string;
+  eyebrow: string;
   name: string;
   description: string;
   monthlyPrice: number;
-  annualPrice: number;
+  seats: number;
+  extraSeatPrice?: number; // monthly $/user charged beyond the included seats
+  contactSales?: boolean; // sales-assisted plan — no self-serve checkout or hard price
+  seatsNote: string; // text shown after "N seats included ·"
+  includedLabel: string;
   features: string[];
+  ctaLabel: string;
   highlighted?: boolean;
 }
 
+// Annual billing = 2 months free (you pay for 10 months).
+const MONTHS_BILLED_ANNUALLY = 10;
+const annualPerMonth = (monthly: number) => Math.round((monthly * MONTHS_BILLED_ANNUALLY) / 12);
+
 const plans: Plan[] = [
   {
-    id: 'starter',
-    name: 'Starter',
-    description: 'For solo operators getting organized.',
-    monthlyPrice: 25,
-    annualPrice: 20,
+    id: 'essentials',
+    eyebrow: 'Essentials',
+    name: 'Solo & Simple',
+    description:
+      'Full Method for a single user. Perfect for independent operators who want power without complexity.',
+    monthlyPrice: 50,
+    seats: 1,
+    seatsNote: 'add teammates to upgrade',
+    includedLabel: "What's included",
     features: [
-      '1 user',
-      'Customers & leads',
-      'Estimates & invoices',
-      'QuickBooks sync',
-      'Email support',
+      'All stock apps — CRM, invoicing, proposals, cases',
+      'QuickBooks sync (full, two-way)',
+      'Unlimited contacts',
+      'Custom fields on existing screens',
+      'Email sender — up to 1,000 / mo',
+      'Method Pay',
+      'Help centre + ticket support',
     ],
+    ctaLabel: 'Start with Essentials',
   },
   {
-    id: 'pro',
-    name: 'Pro',
-    description: 'For growing teams that need automation.',
-    monthlyPrice: 49,
-    annualPrice: 39,
+    id: 'build',
+    eyebrow: 'Build',
+    name: 'Your Team, Your Way',
+    description:
+      'Custom workflows, AI-assisted building, and guided setup — for teams ready to run Method their way.',
+    monthlyPrice: 200,
+    seats: 3,
+    extraSeatPrice: 59,
+    seatsNote: '+$59/user after',
+    includedLabel: 'Everything in Essentials, plus',
     features: [
-      'Up to 5 users',
-      'Everything in Starter',
-      'Workflow automation',
-      'Web to lead forms',
-      'Activity tracking & reminders',
-      'Priority support',
+      'Full screen & workflow designer',
+      'AI app builder — describe it, Method builds it',
+      'Automations & app routines',
+      'API access',
+      'Multi-user apps — Field Crew, Jobs, Schedules, Inventory',
+      'Higher email + SMS limits',
+      'Dedicated onboarding session',
+      'CSM setup guidance + priority support',
     ],
+    ctaLabel: 'Continue with Build',
     highlighted: true,
   },
   {
-    id: 'enterprise',
-    name: 'Enterprise',
-    description: 'For established businesses at scale.',
-    monthlyPrice: 99,
-    annualPrice: 79,
+    id: 'scale',
+    eyebrow: 'Scale',
+    name: 'Done For You',
+    description:
+      'A dedicated Method expert builds, maintains and grows your setup alongside your business.',
+    monthlyPrice: 500,
+    seats: 8,
+    contactSales: true,
+    seatsNote: 'multi-entity support',
+    includedLabel: 'Everything in Build, plus',
     features: [
-      'Unlimited users',
-      'Everything in Pro',
-      'Custom fields & apps',
-      'Advanced reporting',
-      'Dedicated success manager',
-      'Phone support',
+      'Dedicated Expert Partner (DEP) — named contact',
+      'Included build hours every month',
+      'They build it — you approve it',
+      'Multi-entity support',
+      'Quarterly business review',
+      'Proactive workflow audits',
+      'Migration & data support',
+      'Custom SLA',
     ],
+    ctaLabel: 'Talk to sales',
   },
 ];
 
@@ -104,6 +140,16 @@ interface SubscriptionPageProps {
   isInTrial?: boolean;
   /** Human-readable trial end / first-charge date, e.g. "June 14, 2026". */
   trialEndLabel?: string;
+  /** Known team size — drives seat math and the headcount fallback recommendation. */
+  teamSize?: number;
+  /** What the user has done during the trial — drives a behavior-based recommendation. */
+  trialUsage?: {
+    customAppsBuilt?: number;
+    automationsCreated?: number;
+    workflowDesignerOpened?: boolean;
+  };
+  /** For subscribed users, which view to open on: the manage card or the change-plan grid. */
+  initialStep?: 'manage' | 'plans';
 }
 
 export function SubscriptionPage({
@@ -112,6 +158,9 @@ export function SubscriptionPage({
   activeSubscription,
   isInTrial = false,
   trialEndLabel = '',
+  teamSize = 1,
+  trialUsage,
+  initialStep = 'manage',
 }: SubscriptionPageProps) {
   const [billingCycle, setBillingCycle] = useState<BillingCycle>(
     activeSubscription?.billingCycle ?? 'annual'
@@ -119,8 +168,9 @@ export function SubscriptionPage({
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(
     activeSubscription?.planId ?? null
   );
-  // If the user already subscribed, land on the management view instead of the plan grid.
-  const [step, setStep] = useState<Step>(activeSubscription ? 'manage' : 'plans');
+  // If the user already subscribed, open on the requested view (manage by default,
+  // or the change-plan grid when deep-linked from an upgrade prompt).
+  const [step, setStep] = useState<Step>(activeSubscription ? initialStep : 'plans');
   const [processing, setProcessing] = useState(false);
 
   // Card form state (controlled inputs, matching the app's convention)
@@ -132,14 +182,26 @@ export function SubscriptionPage({
     zip: '',
   });
 
+  const [salesContacted, setSalesContacted] = useState<string | null>(null);
+
   const selectedPlan = plans.find((p) => p.id === selectedPlanId) ?? null;
   const unitPrice = selectedPlan
     ? billingCycle === 'annual'
-      ? selectedPlan.annualPrice
+      ? annualPerMonth(selectedPlan.monthlyPrice)
       : selectedPlan.monthlyPrice
     : 0;
-  // Annual is billed up front for the year; monthly is billed per month.
-  const total = billingCycle === 'annual' ? unitPrice * 12 : unitPrice;
+  // Annual = pay for 10 months up front (2 months free); monthly is billed per month.
+  const total = selectedPlan
+    ? billingCycle === 'annual'
+      ? selectedPlan.monthlyPrice * MONTHS_BILLED_ANNUALLY
+      : selectedPlan.monthlyPrice
+    : 0;
+
+  // Recommendation rationale: prefer trial behavior, fall back to headcount.
+  const builtApps = trialUsage?.customAppsBuilt ?? 0;
+  const builtAutomations = trialUsage?.automationsCreated ?? 0;
+  const usedBuildFeatures = builtApps > 0 || builtAutomations > 0 || Boolean(trialUsage?.workflowDesignerOpened);
+  const recommendationBadge = usedBuildFeatures ? 'Recommended for you' : `Best for your team of ${teamSize}`;
 
   // Change-plan context: when an active subscription exists, the plan grid and
   // checkout switch into "change plan" mode (current plan highlighted, others
@@ -224,19 +286,13 @@ export function SubscriptionPage({
                     <ShieldCheck className="w-3.5 h-3.5" />
                     Active
                   </span>
-                  {isInTrial && (
-                    <span className="inline-flex items-center gap-1 bg-blue-50 text-blue-700 text-xs font-semibold px-2 py-0.5 rounded-full">
-                      <Sparkles className="w-3.5 h-3.5" />
-                      Trial · free until {trialEndLabel}
-                    </span>
-                  )}
                 </div>
                 <p className="text-sm text-gray-500">{selectedPlan.description}</p>
               </div>
               <div className="text-right flex-shrink-0">
                 <p className="text-2xl font-bold text-gray-900">
                   ${unitPrice}
-                  <span className="text-sm font-normal text-gray-500">/user/mo</span>
+                  <span className="text-sm font-normal text-gray-500">/mo</span>
                 </p>
                 <p className="text-xs text-gray-400">
                   Billed {billingCycle === 'annual' ? 'annually' : 'monthly'}
@@ -546,7 +602,7 @@ export function SubscriptionPage({
                   </div>
                   <p className="font-semibold text-gray-900">
                     ${unitPrice}
-                    <span className="text-xs font-normal text-gray-500">/user/mo</span>
+                    <span className="text-xs font-normal text-gray-500">/mo</span>
                   </p>
                 </div>
 
@@ -612,10 +668,10 @@ export function SubscriptionPage({
   // ------------------------------ PLANS ------------------------------
   return (
     <div className="flex-1 overflow-y-auto p-3 sm:p-6">
-      <div className="max-w-5xl mx-auto">
+      <div className="max-w-6xl mx-auto">
         {/* Header */}
-        <div className="text-center mb-8">
-          {isChangingPlan ? (
+        <div className="text-center mb-10">
+          {isChangingPlan && (
             <button
               onClick={() => setStep('manage')}
               className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-4"
@@ -623,134 +679,186 @@ export function SubscriptionPage({
               <ArrowLeft className="w-4 h-4" />
               Back to your subscription
             </button>
-          ) : (
-            <div className="inline-flex items-center gap-1.5 bg-blue-50 text-blue-700 text-xs font-semibold px-3 py-1 rounded-full mb-4">
-              <Sparkles className="w-3.5 h-3.5" />
-              7 days left in your trial
-            </div>
           )}
-          <h1 className="text-3xl font-semibold text-gray-900 mb-2">
-            {isChangingPlan ? 'Change your plan' : 'Choose your plan'}
+          <h1 className="text-3xl sm:text-4xl font-semibold text-gray-900 mb-3">
+            {isChangingPlan ? 'Change your plan' : "The right plan for where you're headed"}
           </h1>
-          <p className="text-gray-600 max-w-xl mx-auto">
+          <p className="text-gray-500 max-w-xl mx-auto">
             {isChangingPlan
               ? `You're currently on the ${currentPlan?.name} plan. Upgrade or downgrade anytime — changes apply right away.`
-              : 'Keep everything you set up during your trial. Pick the plan that fits your business — upgrade, downgrade, or cancel anytime.'}
+              : 'All plans include every stock app, QuickBooks sync, and unlimited contacts.'}
           </p>
 
           {/* Billing toggle */}
-          <div className="inline-flex items-center bg-gray-100 rounded-lg p-1 mt-6">
-            <button
-              onClick={() => setBillingCycle('monthly')}
-              className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${
-                billingCycle === 'monthly'
-                  ? 'bg-white text-gray-900 shadow-sm'
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
+          <div className="inline-flex items-center gap-3 mt-7">
+            <span
+              className={`text-sm font-medium ${billingCycle === 'monthly' ? 'text-gray-900' : 'text-gray-500'}`}
             >
               Monthly
-            </button>
-            <button
-              onClick={() => setBillingCycle('annual')}
-              className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors flex items-center gap-1.5 ${
-                billingCycle === 'annual'
-                  ? 'bg-white text-gray-900 shadow-sm'
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
+            </span>
+            <Switch
+              checked={billingCycle === 'annual'}
+              onCheckedChange={(checked) => setBillingCycle(checked ? 'annual' : 'monthly')}
+            />
+            <span
+              className={`text-sm font-medium ${billingCycle === 'annual' ? 'text-gray-900' : 'text-gray-500'}`}
             >
-              Annual
-              <span className="text-xs font-semibold text-green-600">Save 20%</span>
-            </button>
+              Annually
+            </span>
+            <span className="bg-green-100 text-green-800 text-xs font-semibold px-2 py-0.5 rounded-full">
+              2 months free
+            </span>
           </div>
         </div>
 
         {/* Plans */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 items-stretch">
           {plans.map((plan, index) => {
-            const price = billingCycle === 'annual' ? plan.annualPrice : plan.monthlyPrice;
+            const isContactSales = !!plan.contactSales;
             const isCurrent = isChangingPlan && plan.id === activeSubscription?.planId;
             const isUpgrade = isChangingPlan && currentPlanIndex >= 0 && index > currentPlanIndex;
-            // Button copy: subscribe (fresh), current (disabled), or upgrade/downgrade.
-            const actionLabel = !isChangingPlan
-              ? `Subscribe to ${plan.name}`
+
+            // Pricing (annual = 2 months free), and the honest total for this user's team.
+            const price = billingCycle === 'annual' ? annualPerMonth(plan.monthlyPrice) : plan.monthlyPrice;
+            const yearly = plan.monthlyPrice * MONTHS_BILLED_ANNUALLY;
+            const coversTeam = teamSize <= plan.seats;
+
+            // Button copy: per-plan CTA when fresh; current/upgrade/downgrade when changing.
+            // Sales-assisted plans always read "Talk to sales".
+            const ctaLabel = isContactSales
+              ? plan.ctaLabel
+              : !isChangingPlan
+              ? plan.ctaLabel
               : isCurrent
               ? 'Current plan'
               : isUpgrade
               ? `Upgrade to ${plan.name}`
               : `Downgrade to ${plan.name}`;
-            // In change mode, highlight the plan you're currently on instead of "Most popular".
+            // In change mode, highlight the plan you're currently on instead of "Best for…".
             const highlight = isChangingPlan ? isCurrent : plan.highlighted;
+            const showArrow = !isChangingPlan && plan.highlighted;
+            const contacted = isContactSales && salesContacted === plan.id;
 
             return (
               <div
                 key={plan.id}
-                className={`relative bg-white rounded-xl border p-6 flex flex-col ${
+                className={`relative bg-white rounded-2xl border p-6 sm:p-7 flex flex-col ${
                   highlight
-                    ? 'border-blue-600 shadow-md ring-1 ring-blue-600'
+                    ? 'border-blue-600 shadow-lg ring-1 ring-blue-600'
                     : 'border-gray-200 shadow-sm'
                 }`}
               >
                 {isCurrent ? (
-                  <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-xs font-semibold px-3 py-1 rounded-full">
+                  <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-[11px] font-bold uppercase tracking-wide px-4 py-1 rounded-full whitespace-nowrap">
                     Current plan
                   </span>
                 ) : !isChangingPlan && plan.highlighted ? (
-                  <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-xs font-semibold px-3 py-1 rounded-full">
-                    Most popular
+                  <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-[11px] font-bold uppercase tracking-wide px-4 py-1 rounded-full whitespace-nowrap">
+                    {recommendationBadge}
                   </span>
                 ) : null}
 
-                <h3 className="text-lg font-semibold text-gray-900">{plan.name}</h3>
-                <p className="text-sm text-gray-500 mt-1 mb-4">{plan.description}</p>
-
-                <div className="mb-5">
-                  <span className="text-4xl font-bold text-gray-900">${price}</span>
-                  <span className="text-gray-500 text-sm">/user/mo</span>
-                  {billingCycle === 'annual' && (
-                    <p className="text-xs text-gray-400 mt-1">Billed annually</p>
-                  )}
-                </div>
-
-                <Button
-                  onClick={() => !isCurrent && handleSubscribe(plan.id)}
-                  disabled={isCurrent}
-                  className={`w-full mb-6 ${
-                    isCurrent
-                      ? 'bg-gray-100 text-gray-500 border border-gray-200 cursor-default hover:bg-gray-100'
-                      : highlight
-                      ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                      : 'bg-white text-blue-600 border border-blue-600 hover:bg-blue-50'
+                {/* Eyebrow + name */}
+                <p
+                  className={`text-xs font-bold uppercase tracking-wide mb-2 ${
+                    highlight ? 'text-blue-600' : 'text-gray-500'
                   }`}
                 >
-                  {actionLabel}
-                </Button>
+                  {plan.eyebrow}
+                </p>
+                <h3 className="text-xl font-semibold text-gray-900 mb-4">{plan.name}</h3>
 
-                <ul className="space-y-3">
+                {/* Price */}
+                {isContactSales ? (
+                  <>
+                    <div className="flex items-baseline mb-1">
+                      <span className="text-4xl font-bold text-gray-900 tracking-tight">Let's talk</span>
+                    </div>
+                    <p className="text-xs text-gray-500 mb-5">Tailored to your business</p>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex items-baseline gap-1 mb-1">
+                      <span className="text-2xl font-medium text-gray-900">$</span>
+                      <span className="text-5xl font-bold text-gray-900 tracking-tight">{price}</span>
+                      <span className="text-gray-500 text-sm">/ mo</span>
+                    </div>
+                    <p className="text-xs text-gray-500 mb-4">
+                      {billingCycle === 'annual'
+                        ? `Billed annually · $${yearly.toLocaleString()}/yr`
+                        : 'Billed monthly'}
+                    </p>
+                  </>
+                )}
+
+                {/* Seats — the highlighted focal point */}
+                <div
+                  className={`rounded-xl px-4 py-3 mb-5 flex items-center gap-3 ${
+                    highlight ? 'bg-blue-50' : 'bg-gray-50'
+                  }`}
+                >
+                  <div
+                    className={`flex items-center justify-center w-10 h-10 rounded-lg flex-shrink-0 ${
+                      highlight ? 'bg-blue-100 text-blue-700' : 'bg-white text-gray-500'
+                    }`}
+                  >
+                    <Users className="w-5 h-5" />
+                  </div>
+                  <p className="text-sm text-gray-600 leading-snug">
+                    <span className="font-bold text-gray-900 text-base">
+                      {plan.seats} {plan.seats === 1 ? 'seat' : 'seats'}
+                    </span>{' '}
+                    included · {plan.seatsNote}
+                    {coversTeam && plan.seats > 1 ? ' · covers your team' : ''}
+                  </p>
+                </div>
+
+                <div className="border-t border-gray-100 mb-4" />
+
+                <p className="text-xs font-bold uppercase tracking-wide text-gray-500 mb-3">
+                  {plan.includedLabel}
+                </p>
+
+                <ul className="space-y-2.5 mb-6">
                   {plan.features.map((feature) => (
-                    <li key={feature} className="flex items-start gap-2.5 text-sm text-gray-600">
+                    <li key={feature} className="flex items-start gap-2.5 text-sm text-gray-700">
                       <Check className="w-4 h-4 text-green-600 flex-shrink-0 mt-0.5" />
                       {feature}
                     </li>
                   ))}
                 </ul>
+
+                <Button
+                  onClick={() => {
+                    if (isContactSales) {
+                      setSalesContacted(plan.id);
+                    } else if (!isCurrent) {
+                      handleSubscribe(plan.id);
+                    }
+                  }}
+                  disabled={isCurrent || contacted}
+                  className={`w-full mt-auto ${
+                    isCurrent
+                      ? 'bg-gray-100 text-gray-500 border border-gray-200 cursor-default hover:bg-gray-100'
+                      : highlight
+                      ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                      : isContactSales
+                      ? 'bg-white text-gray-900 border border-gray-900 hover:bg-gray-50'
+                      : 'bg-white text-blue-600 border border-blue-600 hover:bg-blue-50'
+                  }`}
+                >
+                  {contacted ? "We'll be in touch" : ctaLabel}
+                  {showArrow && <ArrowRight className="w-4 h-4 ml-1.5" />}
+                </Button>
+
+                {contacted && (
+                  <p className="text-center text-xs text-gray-500 mt-3">
+                    A Method expert will reach out shortly.
+                  </p>
+                )}
               </div>
             );
           })}
-        </div>
-
-        {/* Footer note */}
-        <div className="text-center mt-8 space-y-3">
-          <p className="text-sm text-gray-500">
-            All plans include a 30-day money-back guarantee. Questions?{' '}
-            <button className="text-blue-600 hover:underline font-medium">
-              Talk to sales
-            </button>
-          </p>
-          {onBack && (
-            <Button variant="ghost" onClick={onBack} className="text-gray-500">
-              Maybe later
-            </Button>
-          )}
         </div>
       </div>
     </div>

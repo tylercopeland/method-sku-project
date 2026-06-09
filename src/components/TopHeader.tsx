@@ -1,5 +1,4 @@
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -9,7 +8,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Search, Bell, Settings, Lightbulb, Menu, CircleUser, Share2, Contact, LogOut } from 'lucide-react';
+import { Bell, Settings, Lightbulb, Menu, CircleUser, Share2, Contact, LogOut } from 'lucide-react';
 import { HelpDrawer } from '@/components/HelpDrawer';
 import { useState } from 'react';
 
@@ -42,18 +41,6 @@ export function TopHeader({ currentPageLabel = 'Home', onNavigate, onMobileMenuT
             <h1 className="text-base sm:text-lg font-semibold text-gray-900 truncate">
               {currentPageLabel}
             </h1>
-
-            {/* Search - hidden on mobile */}
-            <div className="hidden md:block max-w-md">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                <Input
-                  placeholder="Search..."
-                  className="pl-10 bg-gray-50 border-gray-200 focus:bg-white"
-                />
-              </div>
-            </div>
-
           </div>
 
           {/* Right side actions */}
@@ -79,11 +66,6 @@ export function TopHeader({ currentPageLabel = 'Home', onNavigate, onMobileMenuT
               className="hidden sm:flex p-2"
             >
               <Lightbulb className="w-5 h-5 text-gray-600" />
-            </Button>
-
-            {/* Settings - hidden on mobile */}
-            <Button variant="ghost" size="sm" className="hidden sm:flex p-2">
-              <Settings className="w-5 h-5 text-gray-600" />
             </Button>
 
             {/* User Avatar + Dropdown */}

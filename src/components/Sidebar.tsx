@@ -1,17 +1,38 @@
 import { Button } from '@/components/ui/button';
 import {
   LayoutGrid,
-  Users,
+  UserPlus,
+  Building2,
   FileText,
   Lightbulb,
   List,
   Receipt,
+  ReceiptText,
   ClipboardList,
+  CreditCard,
+  Package,
+  Briefcase,
+  Mail,
+  Megaphone,
+  Heart,
+  Wrench,
+  Clock,
+  Truck,
+  Hammer,
+  CalendarDays,
+  Boxes,
+  Gift,
+  Folder,
+  GraduationCap,
+  ShoppingCart,
+  ShoppingBag,
+  Wallet,
+  FileSignature,
   Lock,
   Layers,
   Store,
   ChevronLeft,
-  ChevronDown
+  ChevronUp
 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -20,9 +41,13 @@ interface SidebarProps {
   onNavigate: (page: string) => void;
   isMobileOpen?: boolean;
   onMobileClose?: () => void;
+  /** When locked (e.g. expired trial), navigation is disabled. */
+  locked?: boolean;
+  /** Page keys gated behind a higher plan — shown with a lock; still clickable (routes to upgrade). */
+  lockedApps?: string[];
 }
 
-export function Sidebar({ currentPage, onNavigate, isMobileOpen = false, onMobileClose }: SidebarProps) {
+export function Sidebar({ currentPage, onNavigate, isMobileOpen = false, onMobileClose, locked = false, lockedApps = [] }: SidebarProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMoreAppsOpen, setIsMoreAppsOpen] = useState(false);
 
@@ -33,16 +58,40 @@ export function Sidebar({ currentPage, onNavigate, isMobileOpen = false, onMobil
 
   const navigationItems = [
     { icon: LayoutGrid, label: 'Home', page: 'home' },
-    { icon: Users, label: 'Customers & Leads', page: 'customers' },
     { icon: FileText, label: 'Activities', page: 'activities' },
-    { icon: Users, label: 'Vendors', page: 'vendors' },
-    { icon: Lightbulb, label: 'Opportunities', page: 'opportunities' },
-    { icon: List, label: 'Web to Lead', page: 'web-to-lead' },
     { icon: Receipt, label: 'Invoices', page: 'invoices' },
     { icon: ClipboardList, label: 'Estimates', page: 'estimates' },
-    { icon: List, label: 'Sales Receipts', page: 'sales-receipts' },
-    { icon: Lock, label: 'Payments', page: 'payments' },
+    { icon: UserPlus, label: 'Customers & Leads', page: 'customers' },
+    { icon: Building2, label: 'Vendors', page: 'vendors' },
+    { icon: List, label: 'Web to Lead', page: 'web-to-lead' },
+    { icon: Lightbulb, label: 'Opportunities', page: 'opportunities' },
+    { icon: CreditCard, label: 'Payments', page: 'payments' },
+    { icon: ReceiptText, label: 'Sales Receipts', page: 'sales-receipts' },
+    { icon: Package, label: 'Items', page: 'items' },
+    { icon: Briefcase, label: 'Accounts', page: 'accounts' },
+    { icon: Mail, label: 'Send Email', page: 'send-email' },
+    { icon: Megaphone, label: 'Email Campaigns', page: 'email-campaigns' },
+    { icon: Heart, label: 'Donor Pages', page: 'donor-pages' },
+    { icon: Wrench, label: 'Work Orders', page: 'work-orders' },
+    { icon: Clock, label: 'Time Tracking', page: 'time-tracking' },
+    { icon: Truck, label: 'Field Crew', page: 'field-crew' },
+    { icon: Hammer, label: 'Jobs', page: 'jobs' },
+    { icon: CalendarDays, label: 'Schedules', page: 'schedules' },
+    { icon: Boxes, label: 'Inventory', page: 'inventory' },
+    { icon: Gift, label: 'Donations', page: 'donations' },
+    { icon: Folder, label: 'Cases', page: 'cases' },
+    { icon: GraduationCap, label: 'Classes', page: 'classes' },
+    { icon: ShoppingCart, label: 'Sales Orders', page: 'sales-orders' },
+    { icon: ShoppingBag, label: 'Purchase Orders', page: 'purchase-orders' },
+    { icon: Wallet, label: 'Bills', page: 'bills' },
+    { icon: FileSignature, label: 'Proposals', page: 'proposals' },
   ];
+
+  // Core apps are always visible; the rest sit behind a "View more" toggle.
+  const primaryItems = navigationItems.slice(0, 11);
+  const moreItems = navigationItems.slice(11);
+  // Keep the section expanded if the active page lives inside it.
+  const activeInMore = moreItems.some((item) => item.page === currentPage);
 
   return (
     <>
@@ -84,9 +133,9 @@ export function Sidebar({ currentPage, onNavigate, isMobileOpen = false, onMobil
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 p-4 overflow-y-auto">
+      <nav className={`flex-1 p-4 overflow-y-auto ${locked ? 'pointer-events-none opacity-50' : ''}`}>
         <div className="space-y-2">
-          {navigationItems.map((item, index) => (
+          {primaryItems.map((item, index) => (
             <Button
               key={index}
               variant="ghost"
@@ -99,39 +148,53 @@ export function Sidebar({ currentPage, onNavigate, isMobileOpen = false, onMobil
             >
               <item.icon className="w-5 h-5 flex-shrink-0" />
               {(!isCollapsed || isMobileOpen) && <span className="ml-3">{item.label}</span>}
+              {lockedApps.includes(item.page) && (!isCollapsed || isMobileOpen) && (
+                <Lock className="w-3.5 h-3.5 ml-auto text-blue-300" />
+              )}
             </Button>
           ))}
         </div>
 
-        {/* More Apps */}
-        <div className="mt-4">
-          {isCollapsed && !isMobileOpen ? (
-            <Button
-              variant="ghost"
-              className="w-full justify-center text-left p-3 h-auto text-blue-100 hover:bg-blue-700 hover:text-white"
-            >
-              <Layers className="w-5 h-5 flex-shrink-0" />
-            </Button>
-          ) : (
-            <>
+        {/* Overflow apps revealed by "View more" */}
+        {(isMoreAppsOpen || activeInMore) && (
+          <div className="space-y-2 mt-2">
+            {moreItems.map((item, index) => (
               <Button
+                key={index}
                 variant="ghost"
-                onClick={() => setIsMoreAppsOpen(!isMoreAppsOpen)}
-                className="w-full justify-between text-left p-3 h-auto text-blue-100 hover:bg-blue-700 hover:text-white"
+                onClick={() => handleNavigate(item.page)}
+                className={`w-full justify-start text-left p-3 h-auto ${
+                  currentPage === item.page
+                    ? 'bg-blue-700 text-white'
+                    : 'text-blue-100 hover:bg-blue-700 hover:text-white'
+                }`}
               >
-                <div className="flex items-center">
-                  <Layers className="w-5 h-5 flex-shrink-0" />
-                  <span className="ml-3">More Apps</span>
-                </div>
-                <ChevronDown className={`w-4 h-4 transition-transform ${isMoreAppsOpen ? 'rotate-180' : ''}`} />
+                <item.icon className="w-5 h-5 flex-shrink-0" />
+                {(!isCollapsed || isMobileOpen) && <span className="ml-3">{item.label}</span>}
+                {lockedApps.includes(item.page) && (!isCollapsed || isMobileOpen) && (
+                  <Lock className="w-3.5 h-3.5 ml-auto text-blue-300" />
+                )}
               </Button>
-              {isMoreAppsOpen && (
-                <div className="ml-8 mt-2 space-y-1">
-                  {/* Additional apps can be added here */}
-                </div>
-              )}
-            </>
-          )}
+            ))}
+          </div>
+        )}
+
+        {/* View more / less toggle */}
+        <div className="mt-2">
+          <Button
+            variant="ghost"
+            onClick={() => setIsMoreAppsOpen(!isMoreAppsOpen)}
+            className={`w-full ${isCollapsed && !isMobileOpen ? 'justify-center' : 'justify-start'} text-left p-3 h-auto text-blue-100 hover:bg-blue-700 hover:text-white`}
+          >
+            {isMoreAppsOpen || activeInMore ? (
+              <ChevronUp className="w-5 h-5 flex-shrink-0" />
+            ) : (
+              <Layers className="w-5 h-5 flex-shrink-0" />
+            )}
+            {(!isCollapsed || isMobileOpen) && (
+              <span className="ml-3">{isMoreAppsOpen || activeInMore ? 'View less' : 'View more'}</span>
+            )}
+          </Button>
         </div>
 
         {/* App Marketplace */}
