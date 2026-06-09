@@ -207,6 +207,8 @@ export function SubscriptionPage({
   const builtAutomations = trialUsage?.automationsCreated ?? 0;
   const usedBuildFeatures = builtApps > 0 || builtAutomations > 0 || Boolean(trialUsage?.workflowDesignerOpened);
   const recommendationBadge = usedBuildFeatures ? 'Recommended for you' : `Best for your team of ${teamSize}`;
+  // The recommended plan scales with team size: solo → Essentials, small team → Build, larger → Scale.
+  const recommendedPlanId = teamSize <= 1 ? 'essentials' : teamSize <= 4 ? 'build' : 'scale';
 
   // Change-plan context: when an active subscription exists, the plan grid and
   // checkout switch into "change plan" mode (current plan highlighted, others
@@ -742,9 +744,18 @@ export function SubscriptionPage({
             const isCurrent = isChangingPlan && plan.id === activeSubscription?.planId;
             const isUpgrade = isChangingPlan && currentPlanIndex >= 0 && index > currentPlanIndex;
 
-            // Pricing (annual = 20% off).
+            // Pricing (annual = 20% off), and the effective total for this team size.
             const price = billingCycle === 'annual' ? annualPerMonth(plan.monthlyPrice) : plan.monthlyPrice;
             const yearly = annualYearly(plan.monthlyPrice);
+            const extraSeats = Math.max(0, teamSize - plan.seats);
+            const extraUnit = plan.extraSeatPrice
+              ? billingCycle === 'annual'
+                ? annualPerMonth(plan.extraSeatPrice)
+                : plan.extraSeatPrice
+              : 0;
+            const teamMonthly = price + extraSeats * extraUnit;
+            const showTeamTotal = Boolean(plan.extraSeatPrice) && extraSeats > 0;
+            const isRecommended = plan.id === recommendedPlanId;
 
             // Button copy: sales-assisted plans always read "Talk to sales"; changing shows
             // current/upgrade/downgrade; a fresh subscribe uses the plan CTA during the trial
@@ -760,9 +771,9 @@ export function SubscriptionPage({
               : isInTrial
               ? plan.ctaLabel
               : `Subscribe to ${plan.name}`;
-            // In change mode, highlight the plan you're currently on instead of "Best for…".
-            const highlight = isChangingPlan ? isCurrent : plan.highlighted;
-            const showArrow = !isChangingPlan && plan.highlighted;
+            // In change mode, highlight the current plan; otherwise the team-size recommendation.
+            const highlight = isChangingPlan ? isCurrent : isRecommended;
+            const showArrow = !isChangingPlan && isRecommended;
             const contacted = isContactSales && salesContacted === plan.id;
 
             return (
@@ -778,7 +789,7 @@ export function SubscriptionPage({
                   <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-[11px] font-bold uppercase tracking-wide px-4 py-1 rounded-full whitespace-nowrap">
                     Current plan
                   </span>
-                ) : !isChangingPlan && plan.highlighted ? (
+                ) : !isChangingPlan && isRecommended ? (
                   <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-[11px] font-bold uppercase tracking-wide px-4 py-1 rounded-full whitespace-nowrap">
                     {recommendationBadge}
                   </span>
@@ -809,11 +820,18 @@ export function SubscriptionPage({
                       <span className="text-5xl font-bold text-gray-900 tracking-tight">{price}</span>
                       <span className="text-gray-500 text-sm">/ mo</span>
                     </div>
-                    <p className="text-xs text-gray-500 mb-4">
+                    <p className="text-xs text-gray-500 mb-1">
                       {billingCycle === 'annual'
                         ? `Billed annually · $${yearly.toLocaleString()}/yr`
                         : 'Billed monthly'}
                     </p>
+                    {showTeamTotal ? (
+                      <p className="text-xs font-medium text-blue-700 mb-3">
+                        {teamSize} users · ${teamMonthly.toLocaleString()}/mo
+                      </p>
+                    ) : (
+                      <div className="mb-3" />
+                    )}
                   </>
                 )}
 

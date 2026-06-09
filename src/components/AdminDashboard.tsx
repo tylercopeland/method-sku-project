@@ -1,12 +1,15 @@
 import { WelcomeBanner } from '@/components/WelcomeBanner';
 import { ChecklistPanel } from '@/components/ChecklistPanel';
 import { QuickLinksBar } from '@/components/QuickLinksBar';
+import { AppsGrid } from '@/components/AppsGrid';
 import { useState } from 'react';
 
 interface AdminDashboardProps {
   userName: string;
   onNavigateToEstimates: (filter?: string) => void;
   onNavigateToCustomers: (filter?: string) => void;
+  lockedApps?: string[];
+  onUpgrade?: () => void;
 }
 
 const dashboardTabs = [
@@ -15,7 +18,7 @@ const dashboardTabs = [
   { id: 'insights', label: 'Insights', beta: true },
 ];
 
-export function AdminDashboard({ userName, onNavigateToEstimates, onNavigateToCustomers }: AdminDashboardProps) {
+export function AdminDashboard({ userName, onNavigateToEstimates, onNavigateToCustomers, lockedApps = [], onUpgrade }: AdminDashboardProps) {
   const [activeTab, setActiveTab] = useState('home');
 
   return (
@@ -44,27 +47,33 @@ export function AdminDashboard({ userName, onNavigateToEstimates, onNavigateToCu
           ))}
         </div>
 
-        {/* Welcome Banner with Integrated Insights and Videos */}
-        <div className="mb-4 sm:mb-8">
-          <WelcomeBanner
-            userName={userName}
-            onNavigateToEstimates={onNavigateToEstimates}
-            onNavigateToCustomers={onNavigateToCustomers}
-          />
-        </div>
+        {activeTab === 'apps' ? (
+          <AppsGrid lockedApps={lockedApps} onUpgrade={onUpgrade} />
+        ) : (
+          <>
+            {/* Welcome Banner with Integrated Insights and Videos */}
+            <div className="mb-4 sm:mb-8">
+              <WelcomeBanner
+                userName={userName}
+                onNavigateToEstimates={onNavigateToEstimates}
+                onNavigateToCustomers={onNavigateToCustomers}
+              />
+            </div>
 
-        {/* Main Content Grid - My Tasks and Quick Links */}
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 sm:gap-8 mb-4 sm:mb-8">
-          {/* My Tasks / Todos - 3/4 width */}
-          <div className="lg:col-span-3">
-            <ChecklistPanel defaultFilter="activities" />
-          </div>
+            {/* Main Content Grid - My Tasks and Quick Links */}
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 sm:gap-8 mb-4 sm:mb-8">
+              {/* My Tasks / Todos - 3/4 width */}
+              <div className="lg:col-span-3">
+                <ChecklistPanel defaultFilter="activities" />
+              </div>
 
-          {/* Quick Links - 1/4 width */}
-          <div className="lg:col-span-1">
-            <QuickLinksBar />
-          </div>
-        </div>
+              {/* Quick Links - 1/4 width */}
+              <div className="lg:col-span-1">
+                <QuickLinksBar />
+              </div>
+            </div>
+          </>
+        )}
       </div>
     </main>
   );

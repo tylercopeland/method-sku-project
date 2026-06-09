@@ -8,7 +8,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Bell, Settings, Lightbulb, Menu, CircleUser, Share2, Contact, LogOut } from 'lucide-react';
+import { Search, Bell, Settings, Lightbulb, Menu, CircleUser, Share2, Contact, LogOut } from 'lucide-react';
 import { HelpDrawer } from '@/components/HelpDrawer';
 import { useState } from 'react';
 
@@ -45,6 +45,11 @@ export function TopHeader({ currentPageLabel = 'Home', onNavigate, onMobileMenuT
 
           {/* Right side actions */}
           <div className="flex items-center gap-1 sm:gap-4">
+            {/* Search */}
+            <Button variant="ghost" size="sm" className="p-2">
+              <Search className="w-5 h-5 text-gray-600" />
+            </Button>
+
             {/* Notifications */}
             <div className="relative">
               <Button variant="ghost" size="sm" className="relative p-2 sm:p-2">

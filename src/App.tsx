@@ -9,9 +9,10 @@ import type { ActiveSubscription } from '@/components/SubscriptionPage';
 import { AccountSettingsPage } from '@/components/AccountSettingsPage';
 import { UpgradeRequiredPage } from '@/components/UpgradeRequiredPage';
 import { AppStudioPage } from '@/components/AppStudioPage';
+import { AppMarketplacePage } from '@/components/AppMarketplacePage';
 import { OnboardingModal } from '@/components/OnboardingModal';
 import { useState, useEffect } from 'react';
-import { X, GripVertical } from 'lucide-react';
+import { X, GripVertical, ChevronDown } from 'lucide-react';
 
 function App() {
   // In a real app, this would come from authentication/user context
@@ -28,8 +29,9 @@ function App() {
   const [openToChangePlan, setOpenToChangePlan] = useState(false);
   // Demo: render checkout (payment + order summary) inline as a page or in a modal.
   const [checkoutMode, setCheckoutMode] = useState<'inline' | 'modal'>('inline');
-  // Draggable position of the demo-controls panel (null = default bottom-left).
+  // Draggable position + collapsed state of the demo-controls panel.
   const [demoPos, setDemoPos] = useState<{ x: number; y: number } | null>(null);
+  const [demoCollapsed, setDemoCollapsed] = useState(false);
 
   const startDemoDrag = (e: React.PointerEvent<HTMLElement>) => {
     const panel = e.currentTarget.closest('[data-demo-panel]') as HTMLElement | null;
@@ -47,7 +49,8 @@ function App() {
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', onUp);
   };
-  const teamSize = 4; // Known at render time; drives seat math on the pricing cards.
+  // Team size — drives the recommended plan and seat-based pricing on the cards.
+  const [teamSize, setTeamSize] = useState(1);
   // Days remaining in the free trial (0 = expired). Drives banner + deferred-billing copy.
   const [trialDaysLeft, setTrialDaysLeft] = useState(10);
 
@@ -118,7 +121,7 @@ function App() {
 
   // Determine if current page should show empty state
   const emptyStatePages = [
-    'activities', 'vendors', 'opportunities', 'web-to-lead', 'invoices', 'sales-receipts', 'payments', 'marketplace',
+    'activities', 'vendors', 'opportunities', 'web-to-lead', 'invoices', 'sales-receipts', 'payments',
     'items', 'accounts', 'send-email', 'email-campaigns', 'donor-pages', 'work-orders', 'time-tracking',
     'field-crew', 'jobs', 'schedules', 'inventory', 'donations', 'cases', 'classes', 'sales-orders',
     'purchase-orders', 'bills', 'proposals',
@@ -243,11 +246,18 @@ function App() {
           />
         ) : currentPage === 'app-studio' ? (
           <AppStudioPage userName={adminUserName} />
+        ) : currentPage === 'marketplace' ? (
+          <AppMarketplacePage onBack={navigateToHome} />
         ) : currentPage === 'home' ? (
           <AdminDashboard
             userName={adminUserName}
             onNavigateToEstimates={navigateToEstimates}
             onNavigateToCustomers={navigateToCustomers}
+            lockedApps={lockedApps}
+            onUpgrade={() => {
+              setOpenToChangePlan(true);
+              setCurrentPage('subscription');
+            }}
           />
         ) : currentPage === 'customers' || currentPage === 'contacts' ? (
           <div className="flex-1 overflow-y-auto p-3 sm:p-6">
@@ -283,13 +293,24 @@ function App() {
             demoPos ? '' : 'bottom-4 left-4'
           }`}
         >
-          <p
-            onPointerDown={startDemoDrag}
-            className="mb-2 flex cursor-move select-none items-center gap-1 font-semibold text-gray-700"
-          >
-            <GripVertical className="h-3.5 w-3.5 text-gray-400" />
-            Demo controls
-          </p>
+          <div className="flex items-center justify-between mb-2">
+            <span
+              onPointerDown={startDemoDrag}
+              className="flex cursor-move select-none items-center gap-1 font-semibold text-gray-700"
+            >
+              <GripVertical className="h-3.5 w-3.5 text-gray-400" />
+              Demo controls
+            </span>
+            <button
+              onClick={() => setDemoCollapsed(!demoCollapsed)}
+              className="p-0.5 text-gray-400 hover:text-gray-600"
+              aria-label={demoCollapsed ? 'Expand demo controls' : 'Collapse demo controls'}
+            >
+              <ChevronDown className={`h-4 w-4 transition-transform ${demoCollapsed ? '-rotate-90' : ''}`} />
+            </button>
+          </div>
+          {!demoCollapsed && (
+            <>
           <p className="mb-1 text-gray-500">Trial</p>
           <div className="mb-3 flex gap-1">
             {[
@@ -356,6 +377,24 @@ function App() {
             </div>
           )}
           <div className="border-t border-gray-100 pt-2 mt-2">
+            <p className="mb-1 text-gray-500">Users</p>
+            <div className="flex gap-1">
+              {[1, 4, 8].map((n) => (
+                <button
+                  key={n}
+                  onClick={() => setTeamSize(n)}
+                  className={`flex-1 rounded border px-2 py-1 transition-colors ${
+                    teamSize === n
+                      ? 'border-blue-600 bg-blue-600 text-white'
+                      : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
+                  }`}
+                >
+                  {n}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="border-t border-gray-100 pt-2 mt-2">
             <p className="mb-1 text-gray-500">Checkout</p>
             <div className="flex gap-1">
               {(['inline', 'modal'] as const).map((mode) => (
@@ -384,6 +423,8 @@ function App() {
               Replay onboarding
             </button>
           </div>
+            </>
+          )}
         </div>
       )}
 
