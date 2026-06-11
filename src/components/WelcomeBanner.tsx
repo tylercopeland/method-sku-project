@@ -22,6 +22,7 @@ interface ChecklistStep {
   shortTitle: string;
   description: string;
   detailIcon: React.ReactNode;
+  image?: string; // optional illustration shown in place of the icon box
   actionLabel: string;
   videoId: string;
   videoTitle: string;
@@ -44,6 +45,7 @@ const checklistSteps: ChecklistStep[] = [
     shortTitle: 'Add lead',
     description: 'Start by adding a lead so you can see how work flows through Method, from first contact to estimate and invoice.',
     detailIcon: <Users className="w-5 h-5 text-blue-600" />,
+    image: '/lead-onboarding.jpg',
     actionLabel: 'Add lead',
     videoId: 'add-lead-video',
     videoTitle: 'Adding & Managing Leads',
@@ -54,6 +56,7 @@ const checklistSteps: ChecklistStep[] = [
     shortTitle: 'Log activity',
     description: 'Log a call, note, or meeting to see how Method helps you stay on top of follow-ups and next steps.',
     detailIcon: <MessageCircle className="w-5 h-5 text-blue-600" />,
+    image: '/activity-onboarding.jpg',
     actionLabel: 'Log activity',
     videoId: 'log-activity-video',
     videoTitle: 'Tracking Customer Activities',
@@ -64,6 +67,7 @@ const checklistSteps: ChecklistStep[] = [
     shortTitle: 'Create estimate',
     description: 'Create an estimate for your new lead and see how Method helps you move from customer conversations to real opportunities.',
     detailIcon: <FileText className="w-5 h-5 text-blue-600" />,
+    image: '/estimate-onboarding.jpg',
     actionLabel: 'Create estimate',
     videoId: 'send-first-estimate',
     videoTitle: 'Creating & Sending Estimates',
@@ -74,6 +78,7 @@ const checklistSteps: ChecklistStep[] = [
     shortTitle: 'Create invoice',
     description: 'Convert your estimate into an invoice to see how Method helps you move from quote to payment.',
     detailIcon: <Calendar className="w-5 h-5 text-blue-600" />,
+    image: '/invoice-onboarding.jpg',
     actionLabel: 'Create invoice',
     videoId: 'convert-invoice-video',
     videoTitle: 'Converting Estimates to Invoices',
@@ -86,6 +91,8 @@ export function WelcomeBanner({ userName, onNavigateToEstimates, onNavigateToCus
   const [activeChecklistStep, setActiveChecklistStep] = useState(1);
   const [completedChecklistSteps, setCompletedChecklistSteps] = useState<Set<number>>(new Set([0]));
   const [isChecklistHidden, setIsChecklistHidden] = useState(false);
+  // Prototype: the onboarding banner advances on each CTA, then dismisses on the last step.
+  const [onboardingDismissed, setOnboardingDismissed] = useState(false);
   const [videoModal, setVideoModal] = useState<{ isOpen: boolean; title: string; videoId: string }>({
     isOpen: false,
     title: '',
@@ -269,7 +276,7 @@ export function WelcomeBanner({ userName, onNavigateToEstimates, onNavigateToCus
           </TooltipProvider>
         </div>
 
-        {showMethodPayBanner && isChecklistHidden ? (
+        {onboardingDismissed ? null : showMethodPayBanner && isChecklistHidden ? (
           /* Collapsed Single Banner */
           <div className="mb-6 rounded-xl overflow-hidden border border-gray-200 bg-gradient-to-r from-blue-50 to-blue-100 px-4 py-3 flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -301,11 +308,21 @@ export function WelcomeBanner({ userName, onNavigateToEstimates, onNavigateToCus
               <div className="mb-6 rounded-xl overflow-hidden border border-gray-200 bg-white">
                 <div className="bg-gradient-to-r from-blue-50 to-blue-100 px-5 py-6">
                   <div className="flex items-stretch gap-5">
-                    <div className="w-[160px] min-h-[120px] bg-blue-200/30 rounded-lg flex items-center justify-center flex-shrink-0">
-                      <div className="scale-[2.5]">
-                        {currentStep.detailIcon}
+                    {currentStep.image ? (
+                      <div className="w-[160px] min-h-[120px] rounded-lg overflow-hidden flex-shrink-0 bg-white">
+                        <img
+                          src={currentStep.image}
+                          alt=""
+                          className="w-full h-full object-cover"
+                        />
                       </div>
-                    </div>
+                    ) : (
+                      <div className="w-[160px] min-h-[120px] bg-blue-200/30 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <div className="scale-[2.5]">
+                          {currentStep.detailIcon}
+                        </div>
+                      </div>
+                    )}
                     <div className="flex-1 flex flex-col">
                       <div className="flex items-center justify-between mb-1">
                         <span className="text-xs text-gray-500">Onboarding Step {currentStepNum} of {totalSteps}</span>
@@ -318,17 +335,17 @@ export function WelcomeBanner({ userName, onNavigateToEstimates, onNavigateToCus
                       </p>
                       <Button
                         onClick={() => {
-                          // Navigate based on step type
-                          if (currentStep.id === 'add-lead' && onNavigateToCustomers) {
-                            onNavigateToCustomers('add-lead');
-                          }
+                          // Prototype: mark this step done, then advance to the next banner —
+                          // or dismiss the banner entirely once the last step is actioned.
                           setCompletedChecklistSteps(prev => {
                             const next = new Set(prev);
                             next.add(activeChecklistStep);
                             return next;
                           });
-                          if (activeChecklistStep < totalSteps - 1) {
+                          if (singleBannerIndex < totalSteps - 1) {
                             setActiveChecklistStep(activeChecklistStep + 1);
+                          } else {
+                            setOnboardingDismissed(true);
                           }
                         }}
                         className="bg-blue-600 hover:bg-blue-700 text-white w-fit"

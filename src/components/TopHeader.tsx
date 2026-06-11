@@ -1,6 +1,5 @@
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -8,7 +7,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Search, Bell, Settings, Lightbulb, Menu, CircleUser, Share2, Contact, LogOut } from 'lucide-react';
+import { Search, Plus, Settings, Lightbulb, Menu, CircleUser, Share2, Contact, LogOut } from 'lucide-react';
 import { HelpDrawer } from '@/components/HelpDrawer';
 import { useState } from 'react';
 
@@ -50,16 +49,10 @@ export function TopHeader({ currentPageLabel = 'Home', onNavigate, onMobileMenuT
               <Search className="w-5 h-5 text-gray-600" />
             </Button>
 
-            {/* Notifications */}
+            {/* Quick create */}
             <div className="relative">
               <Button variant="ghost" size="sm" className="relative p-2 sm:p-2">
-                <Bell className="w-5 h-5 text-gray-600" />
-                <Badge
-                  variant="destructive"
-                  className="absolute -top-1 -right-1 w-5 h-5 p-0 flex items-center justify-center text-xs"
-                >
-                  4
-                </Badge>
+                <Plus className="w-5 h-5 text-gray-600" />
               </Button>
             </div>
 

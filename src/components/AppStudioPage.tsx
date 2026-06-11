@@ -1,14 +1,11 @@
-import { Sparkles, Paperclip, MessageSquare, FileText, Utensils, Table } from 'lucide-react';
+import { Sparkles, Paperclip, MessageSquare } from 'lucide-react';
 
 interface AppStudioPageProps {
   userName: string;
 }
 
-const aiApps = [
-  { name: 'Invoice Manager', icon: FileText, updated: '5/6/2026, 11:22 AM' },
-  { name: 'Lunch Order Tracker', icon: Utensils, updated: '4/14/2026, 12:29 PM' },
-  { name: 'Super Duper Cat Walker Deluxe', icon: Table, updated: '2/25/2026, 12:13 PM' },
-];
+// First-time experience: no apps have been built yet.
+const aiApps: { name: string; icon: typeof Sparkles; updated: string }[] = [];
 
 export function AppStudioPage({ userName }: AppStudioPageProps) {
   return (
@@ -34,7 +31,7 @@ export function AppStudioPage({ userName }: AppStudioPageProps) {
           <div className="rounded-2xl border border-gray-300 p-4 focus-within:border-gray-400 transition-colors">
             <textarea
               placeholder="Explain how you work, and we'll build the tools for you…"
-              className="w-full h-40 resize-none outline-none text-gray-700 placeholder-gray-400 bg-transparent"
+              className="w-full h-20 resize-none outline-none text-gray-700 placeholder-gray-400 bg-transparent"
             />
             <div className="flex items-center justify-between">
               <button className="text-gray-400 hover:text-gray-600 p-1.5" aria-label="Attach a file">
@@ -61,27 +58,39 @@ export function AppStudioPage({ userName }: AppStudioPageProps) {
             </button>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            {aiApps.map((app) => (
-              <div key={app.name} className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
-                <div className="flex items-start gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-gray-50 border border-gray-100 flex items-center justify-center flex-shrink-0">
-                    <app.icon className="w-5 h-5 text-gray-500" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between gap-2">
-                      <h3 className="font-bold text-gray-900 text-sm leading-tight">{app.name}</h3>
-                      <span className="inline-flex items-center gap-1 bg-blue-50 text-blue-700 text-xs font-medium px-2 py-0.5 rounded-full flex-shrink-0">
-                        <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
-                        Complete
-                      </span>
+          {aiApps.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              {aiApps.map((app) => (
+                <div key={app.name} className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-gray-50 border border-gray-100 flex items-center justify-center flex-shrink-0">
+                      <app.icon className="w-5 h-5 text-gray-500" />
                     </div>
-                    <p className="text-xs text-gray-500 mt-3">Updated {app.updated}</p>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-2">
+                        <h3 className="font-bold text-gray-900 text-sm leading-tight">{app.name}</h3>
+                        <span className="inline-flex items-center gap-1 bg-blue-50 text-blue-700 text-xs font-medium px-2 py-0.5 rounded-full flex-shrink-0">
+                          <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                          Complete
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-3">Updated {app.updated}</p>
+                    </div>
                   </div>
                 </div>
+              ))}
+            </div>
+          ) : (
+            <div className="rounded-xl border border-dashed border-purple-200 bg-white/60 py-10 px-6 text-center">
+              <div className="mx-auto w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center mb-3">
+                <Sparkles className="w-5 h-5 text-purple-600" />
               </div>
-            ))}
-          </div>
+              <p className="text-sm font-semibold text-gray-900">No apps yet</p>
+              <p className="text-sm text-gray-500 mt-1">
+                Describe how you work above and Method AI will build your first app here.
+              </p>
+            </div>
+          )}
         </div>
       </div>
     </div>

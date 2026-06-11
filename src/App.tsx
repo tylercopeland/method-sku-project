@@ -10,6 +10,7 @@ import { AccountSettingsPage } from '@/components/AccountSettingsPage';
 import { UpgradeRequiredPage } from '@/components/UpgradeRequiredPage';
 import { AppStudioPage } from '@/components/AppStudioPage';
 import { AppMarketplacePage } from '@/components/AppMarketplacePage';
+import { ApplicationsAccessPage } from '@/components/ApplicationsAccessPage';
 import { OnboardingModal } from '@/components/OnboardingModal';
 import { useState, useEffect } from 'react';
 import { X, GripVertical, ChevronDown } from 'lucide-react';
@@ -28,7 +29,13 @@ function App() {
   // When entering the subscription page from an upgrade prompt, open on the change-plan grid.
   const [openToChangePlan, setOpenToChangePlan] = useState(false);
   // Demo: render checkout (payment + order summary) inline as a page or in a modal.
-  const [checkoutMode, setCheckoutMode] = useState<'inline' | 'modal'>('inline');
+  const [checkoutMode, setCheckoutMode] = useState<'inline' | 'modal'>('modal');
+  // Demo: whether App Studio is accessible (shown in the sidebar). Off by default;
+  // toggled on via demo controls. While off, the sidebar shows no App Studio menu item.
+  const [appStudioEnabled, setAppStudioEnabled] = useState(false);
+  // Applications Access deep-link: which user, scrolled to which app they came from.
+  const [accessUser, setAccessUser] = useState<string | null>(null);
+  const [accessScrollApp, setAccessScrollApp] = useState<string | undefined>(undefined);
   // Draggable position + collapsed state of the demo-controls panel.
   const [demoPos, setDemoPos] = useState<{ x: number; y: number } | null>(null);
   const [demoCollapsed, setDemoCollapsed] = useState(false);
@@ -53,6 +60,8 @@ function App() {
   const [teamSize, setTeamSize] = useState(1);
   // Days remaining in the free trial (0 = expired). Drives banner + deferred-billing copy.
   const [trialDaysLeft, setTrialDaysLeft] = useState(10);
+  // Whether a (non-subscribed) trial user has canceled — account closes at trial end.
+  const [trialCanceled, setTrialCanceled] = useState(false);
 
   // The user is "in trial" until the trial runs out. While in trial, a new subscription
   // defers its first charge to the trial-end date instead of charging immediately.
@@ -115,6 +124,7 @@ function App() {
     'bills': 'Bills',
     'proposals': 'Proposals',
     'marketplace': 'App Marketplace',
+    'applications-access': 'Account Settings',
     'subscription': 'Subscription',
     'account-settings': 'Account Settings',
   };
@@ -161,31 +171,50 @@ function App() {
       {/* Trial Banner */}
       {showTrialBanner && !subscription && (
         <div
-          className={`${isInTrial ? 'bg-violet-600' : 'bg-red-600'} text-white px-4 sm:px-4 py-2 flex items-center justify-center relative flex-shrink-0`}
+          className={`${
+            trialCanceled ? 'bg-amber-600' : isInTrial ? 'bg-violet-600' : 'bg-red-600'
+          } text-white px-4 sm:px-4 py-2 flex items-center justify-center relative flex-shrink-0`}
         >
           <span className="text-xs sm:text-sm font-medium text-center pr-6 sm:pr-0">
-            {!isInTrial ? (
-              <span>Your trial has expired. </span>
-            ) : endingSoon ? (
-              <span>Your trial ends in {trialDaysLeft} days. </span>
+            {trialCanceled ? (
+              <>
+                <span>
+                  Your trial is canceled — access ends{' '}
+                  {isInTrial ? `in ${trialDaysLeft} days. ` : 'now. '}
+                </span>
+                <button
+                  onClick={() => setTrialCanceled(false)}
+                  className="underline hover:no-underline font-semibold"
+                >
+                  Reactivate
+                </button>
+              </>
             ) : (
               <>
-                <span className="hidden sm:inline">{trialDaysLeft} days left in your trial. </span>
-                <span className="sm:hidden">{trialDaysLeft} days left. </span>
+                {!isInTrial ? (
+                  <span>Your trial has expired. </span>
+                ) : endingSoon ? (
+                  <span>Your trial ends in {trialDaysLeft} days. </span>
+                ) : (
+                  <>
+                    <span className="hidden sm:inline">{trialDaysLeft} days left in your trial. </span>
+                    <span className="sm:hidden">{trialDaysLeft} days left. </span>
+                  </>
+                )}
+                <button
+                  onClick={() => setCurrentPage('subscription')}
+                  className="underline hover:no-underline font-semibold"
+                >
+                  Subscribe now
+                </button>
+                {endingSoon && (
+                  <span className="hidden sm:inline"> to keep everything you've set up.</span>
+                )}
               </>
-            )}
-            <button
-              onClick={() => setCurrentPage('subscription')}
-              className="underline hover:no-underline font-semibold"
-            >
-              Subscribe now
-            </button>
-            {endingSoon && (
-              <span className="hidden sm:inline"> to keep everything you've set up.</span>
             )}
           </span>
           {/* Only allow dismissing while there's comfortable time left in the trial. */}
-          {isInTrial && trialDaysLeft > 3 && (
+          {isInTrial && trialDaysLeft > 3 && !trialCanceled && (
             <button
               onClick={() => setShowTrialBanner(false)}
               className="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 text-white/80 hover:text-white p-1"
@@ -205,6 +234,7 @@ function App() {
           onMobileClose={() => setIsMobileSidebarOpen(false)}
           locked={isLocked}
           lockedApps={lockedApps}
+          appStudioEnabled={appStudioEnabled}
         />
 
       {/* Main Content */}
@@ -235,6 +265,21 @@ function App() {
               setSubscription(sub);
               setShowTrialBanner(false);
             }}
+            onCancel={() => {
+              // Paid subscriber → cancel at period end; trial user → close at trial end.
+              if (subscription) {
+                setSubscription({ ...subscription, cancelAtPeriodEnd: true });
+              } else {
+                setTrialCanceled(true);
+              }
+            }}
+            onResume={() => {
+              if (subscription) {
+                setSubscription({ ...subscription, cancelAtPeriodEnd: false });
+              } else {
+                setTrialCanceled(false);
+              }
+            }}
           />
         ) : premiumLocked && premiumApps.includes(currentPage) ? (
           <UpgradeRequiredPage
@@ -244,16 +289,31 @@ function App() {
               setCurrentPage('subscription');
             }}
           />
-        ) : currentPage === 'app-studio' ? (
+        ) : currentPage === 'app-studio' && appStudioEnabled ? (
           <AppStudioPage userName={adminUserName} />
+        ) : currentPage === 'applications-access' && accessUser ? (
+          <ApplicationsAccessPage
+            user={accessUser}
+            scrollToApp={accessScrollApp}
+            onBack={() => setCurrentPage('marketplace')}
+            onNavigate={handlePageNavigation}
+          />
         ) : currentPage === 'marketplace' ? (
-          <AppMarketplacePage onBack={navigateToHome} />
+          <AppMarketplacePage
+            onBack={navigateToHome}
+            onOpenUserAccess={(user, appName) => {
+              setAccessUser(user);
+              setAccessScrollApp(appName);
+              setCurrentPage('applications-access');
+            }}
+          />
         ) : currentPage === 'home' ? (
           <AdminDashboard
             userName={adminUserName}
             onNavigateToEstimates={navigateToEstimates}
             onNavigateToCustomers={navigateToCustomers}
             lockedApps={lockedApps}
+            onOpenApp={(page) => setCurrentPage(page)}
             onUpgrade={() => {
               setOpenToChangePlan(true);
               setCurrentPage('subscription');
@@ -323,6 +383,7 @@ function App() {
                 onClick={() => {
                   setTrialDaysLeft(opt.days);
                   setShowTrialBanner(true);
+                  setTrialCanceled(false);
                   // Expiring with no subscription locks the app to the Subscribe screen.
                   if (opt.days === 0 && !subscription) setCurrentPage('subscription');
                 }}
@@ -408,6 +469,31 @@ function App() {
                   }`}
                 >
                   {mode}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="border-t border-gray-100 pt-2 mt-2">
+            <p className="mb-1 text-gray-500">App Studio access</p>
+            <div className="flex gap-1">
+              {([
+                { label: 'On', value: true },
+                { label: 'Off', value: false },
+              ] as const).map((opt) => (
+                <button
+                  key={opt.label}
+                  onClick={() => {
+                    setAppStudioEnabled(opt.value);
+                    // If we're turning it off while viewing it, step back to Home.
+                    if (!opt.value && currentPage === 'app-studio') navigateToHome();
+                  }}
+                  className={`flex-1 rounded border px-2 py-1 transition-colors ${
+                    appStudioEnabled === opt.value
+                      ? 'border-blue-600 bg-blue-600 text-white'
+                      : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
+                  }`}
+                >
+                  {opt.label}
                 </button>
               ))}
             </div>

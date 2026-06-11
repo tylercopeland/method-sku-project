@@ -11,9 +11,11 @@ import {
   ArrowLeft,
   ArrowRight,
   ShieldCheck,
-  Lock,
   Users,
   X,
+  AlertTriangle,
+  Heart,
+  PhoneCall,
 } from 'lucide-react';
 
 interface Plan {
@@ -109,13 +111,25 @@ const plans: Plan[] = [
 ];
 
 type BillingCycle = 'monthly' | 'annual';
-type Step = 'plans' | 'checkout' | 'success' | 'manage';
+type Step = 'plans' | 'checkout' | 'success' | 'manage' | 'cancel' | 'canceled' | 'downgrade';
 
 export interface ActiveSubscription {
   planId: string;
   billingCycle: BillingCycle;
   cardLast4: string;
+  /** Set when the user has canceled but still has access through the end of the paid period. */
+  cancelAtPeriodEnd?: boolean;
 }
+
+// Why someone is leaving — collected on the cancel screen for retention/feedback.
+const CANCEL_REASONS = [
+  'Too expensive',
+  'Missing features I need',
+  'Switching to another tool',
+  "I'm not using it enough",
+  'Just exploring — not ready yet',
+  'Other',
+];
 
 // --- Cosmetic formatting helpers (presentation only, no real validation) ---
 const formatCardNumber = (value: string) =>
@@ -137,6 +151,10 @@ const onlyDigits = (value: string, max: number) =>
 interface SubscriptionPageProps {
   onBack?: () => void;
   onSubscribed?: (subscription: ActiveSubscription) => void;
+  /** Confirm a cancellation — the parent decides whether it's a trial or paid subscription. */
+  onCancel?: (reason: string) => void;
+  /** Reverse a pending cancellation (re-activate the trial or subscription). */
+  onResume?: () => void;
   activeSubscription?: ActiveSubscription | null;
   /** Whether the user is still within their free trial (first charge deferred to trial end). */
   isInTrial?: boolean;
@@ -159,6 +177,8 @@ interface SubscriptionPageProps {
 export function SubscriptionPage({
   onBack,
   onSubscribed,
+  onCancel,
+  onResume,
   activeSubscription,
   isInTrial = false,
   trialEndLabel = '',
@@ -189,26 +209,47 @@ export function SubscriptionPage({
 
   const [salesContacted, setSalesContacted] = useState<string | null>(null);
 
+  // Cancel flow: selected reason (retention) + optional free-text detail.
+  const [cancelReason, setCancelReason] = useState('');
+  const [cancelDetail, setCancelDetail] = useState('');
+
+  // Downgrade flow: downgrades are sales-assisted (data migration), so they route to
+  // a "talk to sales" request rather than self-serve checkout.
+  const [salesRequested, setSalesRequested] = useState(false);
+  const [downgradeContact, setDowngradeContact] = useState({ email: '', phone: '', note: '' });
+
   const selectedPlan = plans.find((p) => p.id === selectedPlanId) ?? null;
   const unitPrice = selectedPlan
     ? billingCycle === 'annual'
       ? annualPerMonth(selectedPlan.monthlyPrice)
       : selectedPlan.monthlyPrice
     : 0;
-  // Annual = the full year at a 20% discount; monthly is billed per month.
-  const total = selectedPlan
+  // Seat math for the selected plan: charge extra for any users beyond the included seats.
+  const includedSeats = selectedPlan?.seats ?? 0;
+  const extraSeatsCount = selectedPlan ? Math.max(0, teamSize - includedSeats) : 0;
+  const extraSeatMonthly = selectedPlan?.extraSeatPrice
     ? billingCycle === 'annual'
-      ? annualYearly(selectedPlan.monthlyPrice)
-      : selectedPlan.monthlyPrice
+      ? annualPerMonth(selectedPlan.extraSeatPrice)
+      : selectedPlan.extraSeatPrice
     : 0;
+  const seatsMonthly = extraSeatsCount * extraSeatMonthly;
+  const hasExtraSeats = extraSeatsCount > 0 && extraSeatMonthly > 0;
+  // Effective amounts include seats; these are what the customer is actually charged.
+  const effectiveMonthly = unitPrice + seatsMonthly;
+  const total = billingCycle === 'annual' ? effectiveMonthly * 12 : effectiveMonthly;
+  // Annual savings vs. paying the same seats month-to-month for a year.
+  const fullMonthlyAllSeats = selectedPlan
+    ? selectedPlan.monthlyPrice + extraSeatsCount * (selectedPlan.extraSeatPrice ?? 0)
+    : 0;
+  const annualSavings = Math.max(0, fullMonthlyAllSeats * 12 - total);
 
   // Recommendation rationale: prefer trial behavior, fall back to headcount.
   const builtApps = trialUsage?.customAppsBuilt ?? 0;
   const builtAutomations = trialUsage?.automationsCreated ?? 0;
   const usedBuildFeatures = builtApps > 0 || builtAutomations > 0 || Boolean(trialUsage?.workflowDesignerOpened);
   const recommendationBadge = usedBuildFeatures ? 'Recommended for you' : `Best for your team of ${teamSize}`;
-  // The recommended plan scales with team size: solo → Essentials, small team → Build, larger → Scale.
-  const recommendedPlanId = teamSize <= 1 ? 'essentials' : teamSize <= 4 ? 'build' : 'scale';
+  // The middle plan (Build) is always highlighted as the default recommendation.
+  const recommendedPlanId = 'build';
 
   // Change-plan context: when an active subscription exists, the plan grid and
   // checkout switch into "change plan" mode (current plan highlighted, others
@@ -227,6 +268,93 @@ export function SubscriptionPage({
         ? 'upgrade'
         : 'downgrade'
       : 'new';
+
+  // Next renewal date for an active paid subscription (one cycle from today).
+  const nextBilling = new Date();
+  if ((activeSubscription?.billingCycle ?? billingCycle) === 'annual') {
+    nextBilling.setFullYear(nextBilling.getFullYear() + 1);
+  } else {
+    nextBilling.setMonth(nextBilling.getMonth() + 1);
+  }
+  const nextBillingLabel = nextBilling.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
+
+  // Cancel flow: what is being canceled and when access actually ends.
+  // - In trial: access runs to the trial-end date, no charge ever happens.
+  // - Paid subscriber: access runs to the end of the current paid period.
+  // - Expired trial (no sub): nothing left to keep — closes right away.
+  const cancelMode: 'subscription' | 'trial' = activeSubscription ? 'subscription' : 'trial';
+  const accessEndsLabel = isInTrial
+    ? trialEndLabel
+    : activeSubscription
+    ? nextBillingLabel
+    : 'today';
+  const isCanceling = Boolean(activeSubscription?.cancelAtPeriodEnd);
+
+  const handleConfirmCancel = () => {
+    onCancel?.(cancelDetail.trim() || cancelReason);
+    setStep('canceled');
+  };
+
+  // Success confirmation content — shared by the inline (full-page) and modal experiences.
+  const successContent = selectedPlan ? (
+    <>
+      <div className="mx-auto w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mb-5">
+        <ShieldCheck className="w-8 h-8 text-green-600" />
+      </div>
+      <h1 className="text-2xl font-semibold text-gray-900 mb-2">
+        {isChangingPlan
+          ? `Your plan has been updated — ${selectedPlan.name} is now active`
+          : `You're all set — ${selectedPlan.name} is active`}
+      </h1>
+      <p className="text-gray-600 mb-6">
+        {isChangingPlan
+          ? isInTrial
+            ? `Your new plan is active right away. You won't be charged until ${trialEndLabel}.`
+            : 'Your new plan is active right away. Your billing will reflect the change on your next invoice.'
+          : isInTrial
+          ? `Your account is unlocked — enjoy the rest of your trial. You won't be charged until ${trialEndLabel}.`
+          : 'Your account is unlocked and everything from your trial is saved. Welcome aboard!'}
+      </p>
+
+      <div className="bg-gray-50 rounded-xl border border-gray-200 p-4 text-left mb-6">
+        <div className="flex justify-between text-sm mb-1.5">
+          <span className="text-gray-500">Plan</span>
+          <span className="font-medium text-gray-900">
+            {selectedPlan.name} ({billingCycle === 'annual' ? 'Annual' : 'Monthly'})
+          </span>
+        </div>
+        {hasExtraSeats && (
+          <div className="flex justify-between text-sm mb-1.5">
+            <span className="text-gray-500">Users</span>
+            <span className="font-medium text-gray-900">
+              {teamSize} ({includedSeats} included + {extraSeatsCount} × ${extraSeatMonthly}/mo)
+            </span>
+          </div>
+        )}
+        {isInTrial ? (
+          <div className="flex justify-between text-sm">
+            <span className="text-gray-500">First charge</span>
+            <span className="font-medium text-gray-900">
+              ${total.toLocaleString()} on {trialEndLabel}
+            </span>
+          </div>
+        ) : (
+          <div className="flex justify-between text-sm">
+            <span className="text-gray-500">{isChangingPlan ? 'New rate' : 'Charged today'}</span>
+            <span className="font-medium text-gray-900">${total.toLocaleString()}</span>
+          </div>
+        )}
+      </div>
+
+      <Button onClick={onBack} className="w-full bg-blue-600 hover:bg-blue-700 text-white">
+        Go to your dashboard
+      </Button>
+    </>
+  ) : null;
 
   const handleSubscribe = (planId: string) => {
     setSelectedPlanId(planId);
@@ -263,18 +391,6 @@ export function SubscriptionPage({
 
   // --------------------------- MANAGE (current subscription) ---------------------------
   if (step === 'manage' && selectedPlan) {
-    const nextBilling = new Date();
-    if (billingCycle === 'annual') {
-      nextBilling.setFullYear(nextBilling.getFullYear() + 1);
-    } else {
-      nextBilling.setMonth(nextBilling.getMonth() + 1);
-    }
-    const nextBillingLabel = nextBilling.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    });
-
     return (
       <div className="flex-1 overflow-y-auto p-3 sm:p-6">
         <div className="max-w-2xl mx-auto">
@@ -283,22 +399,52 @@ export function SubscriptionPage({
             <p className="text-gray-500">Manage your plan and billing details.</p>
           </div>
 
+          {/* Pending-cancellation notice — access continues until the period ends */}
+          {isCanceling && (
+            <div className="mb-5 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4">
+              <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-amber-900">
+                  Your subscription is set to cancel
+                </p>
+                <p className="text-sm text-amber-800">
+                  You'll keep {selectedPlan.name} access until{' '}
+                  {isInTrial ? trialEndLabel : nextBillingLabel}. After that your account
+                  will close and billing stops.
+                </p>
+                <Button
+                  onClick={() => onResume?.()}
+                  className="mt-3 h-8 bg-amber-600 hover:bg-amber-700 text-white text-sm"
+                >
+                  Resume subscription
+                </Button>
+              </div>
+            </div>
+          )}
+
           {/* Current plan card */}
           <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
             <div className="flex items-start justify-between gap-4 p-6 border-b border-gray-100">
               <div>
                 <div className="flex flex-wrap items-center gap-2 mb-1">
                   <h2 className="text-xl font-semibold text-gray-900">{selectedPlan.name}</h2>
-                  <span className="inline-flex items-center gap-1 bg-green-50 text-green-700 text-xs font-semibold px-2 py-0.5 rounded-full">
-                    <ShieldCheck className="w-3.5 h-3.5" />
-                    Active
-                  </span>
+                  {isCanceling ? (
+                    <span className="inline-flex items-center gap-1 bg-amber-50 text-amber-700 text-xs font-semibold px-2 py-0.5 rounded-full">
+                      <AlertTriangle className="w-3.5 h-3.5" />
+                      Canceling
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 bg-green-50 text-green-700 text-xs font-semibold px-2 py-0.5 rounded-full">
+                      <ShieldCheck className="w-3.5 h-3.5" />
+                      Active
+                    </span>
+                  )}
                 </div>
                 <p className="text-sm text-gray-500">{selectedPlan.description}</p>
               </div>
               <div className="text-right flex-shrink-0">
                 <p className="text-2xl font-bold text-gray-900">
-                  ${unitPrice}
+                  ${effectiveMonthly.toLocaleString()}
                   <span className="text-sm font-normal text-gray-500">/mo</span>
                 </p>
                 <p className="text-xs text-gray-400">
@@ -313,6 +459,18 @@ export function SubscriptionPage({
                 <span className="text-sm text-gray-500">Billing cycle</span>
                 <span className="text-sm font-medium text-gray-900">
                   {billingCycle === 'annual' ? 'Annual' : 'Monthly'}
+                </span>
+              </div>
+              <div className="flex justify-between items-center px-6 py-4">
+                <span className="text-sm text-gray-500">Users</span>
+                <span className="flex items-center gap-2 text-sm font-medium text-gray-900">
+                  <Users className="w-4 h-4 text-gray-400" />
+                  {teamSize} {teamSize === 1 ? 'user' : 'users'}
+                  {hasExtraSeats && (
+                    <span className="text-xs font-normal text-gray-400">
+                      ({includedSeats} included + {extraSeatsCount} × ${extraSeatMonthly}/mo)
+                    </span>
+                  )}
                 </span>
               </div>
               <div className="flex justify-between items-center px-6 py-4">
@@ -355,81 +513,361 @@ export function SubscriptionPage({
           </div>
 
           {/* Actions */}
-          <div className="flex flex-col sm:flex-row gap-3 mt-6">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 mt-6">
             <Button
               onClick={() => setStep('plans')}
               className="bg-blue-600 hover:bg-blue-700 text-white"
             >
               Change plan
             </Button>
-            {onBack && (
-              <Button variant="ghost" onClick={onBack} className="text-gray-500">
-                Back to dashboard
-              </Button>
+            {!isCanceling && (
+              <button
+                onClick={() => {
+                  setCancelReason('');
+                  setCancelDetail('');
+                  setStep('cancel');
+                }}
+                className="text-sm text-gray-400 hover:text-red-600 sm:ml-auto transition-colors"
+              >
+                Cancel subscription
+              </button>
             )}
           </div>
-          <p className="text-xs text-gray-400 mt-4">
-            Demo — no real card is charged.
-          </p>
         </div>
       </div>
     );
   }
 
-  // ----------------------------- SUCCESS -----------------------------
-  if (step === 'success' && selectedPlan) {
+  // ----------------------------- SUCCESS (inline / full-page) -----------------------------
+  // In modal mode the same confirmation renders inside the modal (see PLANS return below).
+  if (step === 'success' && selectedPlan && checkoutMode === 'inline') {
     return (
       <div className="flex-1 overflow-y-auto p-3 sm:p-6 flex items-center justify-center">
         <div className="max-w-md w-full text-center bg-white rounded-2xl border border-gray-200 shadow-sm p-8 animate-in fade-in zoom-in-95 duration-300">
-          <div className="mx-auto w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mb-5">
-            <ShieldCheck className="w-8 h-8 text-green-600" />
+          {successContent}
+        </div>
+      </div>
+    );
+  }
+
+  // ----------------------------- CANCEL (confirm) -----------------------------
+  if (step === 'cancel') {
+    const losingPlan = currentPlan ?? selectedPlan;
+    const loseFeatures = losingPlan?.features ?? [
+      'Your custom apps, fields, and automations',
+      'QuickBooks sync and everything it keeps in step',
+      'Team access and saved workflows',
+    ];
+    const backStep: Step = cancelMode === 'subscription' ? 'manage' : 'plans';
+
+    return (
+      <div className="flex-1 overflow-y-auto p-3 sm:p-6">
+        <div className="max-w-xl mx-auto">
+          <button
+            onClick={() => setStep(backStep)}
+            className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 mb-5"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            {cancelMode === 'subscription' ? 'Back to your subscription' : 'Back to plans'}
+          </button>
+
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+            {/* Header */}
+            <div className="p-6 sm:p-8 border-b border-gray-100">
+              <h1 className="text-2xl font-semibold text-gray-900 mb-2">
+                {cancelMode === 'subscription'
+                  ? 'Cancel your subscription?'
+                  : 'Cancel your free trial?'}
+              </h1>
+              <p className="text-gray-600">
+                {isInTrial ? (
+                  <>
+                    You won't be charged. You'll keep full access until your trial ends on{' '}
+                    <span className="font-medium text-gray-900">{trialEndLabel}</span>, then your
+                    account will close.
+                  </>
+                ) : cancelMode === 'subscription' ? (
+                  <>
+                    You'll keep {losingPlan?.name} access until{' '}
+                    <span className="font-medium text-gray-900">{nextBillingLabel}</span>. We won't
+                    renew after that, and you won't be charged again.
+                  </>
+                ) : (
+                  <>Your trial has ended, so your Method account will close now.</>
+                )}
+              </p>
+            </div>
+
+            {/* What you'll lose */}
+            <div className="px-6 sm:px-8 py-5 bg-gray-50/60 border-b border-gray-100">
+              <p className="text-sm font-semibold text-gray-900 mb-3">
+                What you'll lose when {cancelMode === 'subscription' ? 'it ends' : 'your account closes'}
+              </p>
+              <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {loseFeatures.map((feature) => (
+                  <li key={feature} className="flex items-start gap-2 text-sm text-gray-600">
+                    <X className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />
+                    {feature}
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* Reason */}
+            <div className="p-6 sm:p-8">
+              <p className="text-sm font-semibold text-gray-900 mb-3">
+                Mind sharing why you're leaving?
+              </p>
+              <div className="space-y-2 mb-4">
+                {CANCEL_REASONS.map((reason) => (
+                  <label
+                    key={reason}
+                    className={`flex items-center gap-3 rounded-lg border px-3 py-2.5 text-sm cursor-pointer transition-colors ${
+                      cancelReason === reason
+                        ? 'border-blue-600 bg-blue-50 text-gray-900'
+                        : 'border-gray-200 text-gray-700 hover:bg-gray-50'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="cancel-reason"
+                      value={reason}
+                      checked={cancelReason === reason}
+                      onChange={() => setCancelReason(reason)}
+                      className="accent-blue-600"
+                    />
+                    {reason}
+                  </label>
+                ))}
+              </div>
+              <textarea
+                value={cancelDetail}
+                onChange={(e) => setCancelDetail(e.target.value)}
+                placeholder="Anything else we could have done better? (optional)"
+                rows={3}
+                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none"
+              />
+
+              {/* Actions */}
+              <div className="flex flex-col-reverse sm:flex-row sm:items-center gap-3 mt-6">
+                <Button
+                  variant="outline"
+                  onClick={handleConfirmCancel}
+                  disabled={!cancelReason}
+                  className="text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700 disabled:opacity-50"
+                >
+                  {cancelMode === 'subscription' ? 'Cancel subscription' : 'Close my account'}
+                </Button>
+                <Button
+                  onClick={() => setStep(backStep)}
+                  className="bg-blue-600 hover:bg-blue-700 text-white sm:ml-auto"
+                >
+                  <Heart className="w-4 h-4 mr-1.5" />
+                  {cancelMode === 'subscription' ? 'Keep my subscription' : 'Keep my trial'}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ----------------------------- CANCELED (outcome) -----------------------------
+  if (step === 'canceled') {
+    return (
+      <div className="flex-1 overflow-y-auto p-3 sm:p-6 flex items-center justify-center">
+        <div className="max-w-md w-full text-center bg-white rounded-2xl border border-gray-200 shadow-sm p-8 animate-in fade-in zoom-in-95 duration-300">
+          <div className="mx-auto w-16 h-16 rounded-full bg-amber-100 flex items-center justify-center mb-5">
+            <AlertTriangle className="w-8 h-8 text-amber-600" />
           </div>
           <h1 className="text-2xl font-semibold text-gray-900 mb-2">
-            {isChangingPlan
-              ? `Your plan has been updated — ${selectedPlan.name} is now active`
-              : `You're all set — ${selectedPlan.name} is active`}
+            {cancelMode === 'subscription'
+              ? 'Your subscription is canceled'
+              : 'Your trial is canceled'}
           </h1>
           <p className="text-gray-600 mb-6">
-            {isChangingPlan
-              ? isInTrial
-                ? `Your new plan is active right away. You won't be charged until ${trialEndLabel}.`
-                : 'Your new plan is active right away. Your billing will reflect the change on your next invoice.'
-              : isInTrial
-              ? `Your account is unlocked — enjoy the rest of your trial. You won't be charged until ${trialEndLabel}.`
-              : 'Your account is unlocked and everything from your trial is saved. Welcome aboard!'}
+            {accessEndsLabel === 'today' ? (
+              <>Your account has been closed. We're sorry to see you go — your door's always open.</>
+            ) : (
+              <>
+                You'll keep full access until{' '}
+                <span className="font-medium text-gray-900">{accessEndsLabel}</span>. After that
+                your account closes and {cancelMode === 'subscription' ? 'billing stops' : 'no charge is made'}.
+                Changed your mind? You can reactivate anytime before then.
+              </>
+            )}
           </p>
 
-          <div className="bg-gray-50 rounded-xl border border-gray-200 p-4 text-left mb-6">
-            <div className="flex justify-between text-sm mb-1.5">
-              <span className="text-gray-500">Plan</span>
-              <span className="font-medium text-gray-900">
-                {selectedPlan.name} ({billingCycle === 'annual' ? 'Annual' : 'Monthly'})
-              </span>
-            </div>
-            {isInTrial ? (
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-500">First charge</span>
-                <span className="font-medium text-gray-900">
-                  ${total.toLocaleString()} on {trialEndLabel}
-                </span>
-              </div>
-            ) : (
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-500">{isChangingPlan ? 'New rate' : 'Charged today'}</span>
-                <span className="font-medium text-gray-900">${total.toLocaleString()}</span>
-              </div>
+          <div className="space-y-3">
+            <Button
+              onClick={() => {
+                onResume?.();
+                setStep(cancelMode === 'subscription' ? 'manage' : 'plans');
+              }}
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              {cancelMode === 'subscription' ? 'Reactivate my subscription' : 'Reactivate my trial'}
+            </Button>
+            {onBack && (
+              <Button variant="ghost" onClick={onBack} className="w-full text-gray-500">
+                Back to dashboard
+              </Button>
             )}
           </div>
+          <p className="text-xs text-gray-400 mt-5">Demo — nothing is permanently changed.</p>
+        </div>
+      </div>
+    );
+  }
 
-          <Button
-            onClick={onBack}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+  // ----------------------------- DOWNGRADE (sales-assisted) -----------------------------
+  if (step === 'downgrade' && selectedPlan) {
+    // Confirmation view once a call has been requested.
+    if (salesRequested) {
+      return (
+        <div className="flex-1 overflow-y-auto p-3 sm:p-6 flex items-center justify-center">
+          <div className="max-w-md w-full text-center bg-white rounded-2xl border border-gray-200 shadow-sm p-8 animate-in fade-in zoom-in-95 duration-300">
+            <div className="mx-auto w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center mb-5">
+              <PhoneCall className="w-8 h-8 text-blue-600" />
+            </div>
+            <h1 className="text-2xl font-semibold text-gray-900 mb-2">
+              We've got your request
+            </h1>
+            <p className="text-gray-600 mb-6">
+              A Method specialist will reach out within one business day to help you move from{' '}
+              {currentPlan?.name} to {selectedPlan.name} without losing your apps or data. You'll
+              stay on {currentPlan?.name} until your downgrade is finalized.
+            </p>
+            <div className="space-y-3">
+              <Button
+                onClick={() => setStep('manage')}
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                Back to your subscription
+              </Button>
+              {onBack && (
+                <Button variant="ghost" onClick={onBack} className="w-full text-gray-500">
+                  Back to dashboard
+                </Button>
+              )}
+            </div>
+            <p className="text-xs text-gray-400 mt-5">Demo — no request is actually sent.</p>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="flex-1 overflow-y-auto p-3 sm:p-6">
+        <div className="max-w-xl mx-auto">
+          <button
+            onClick={() => setStep('plans')}
+            className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 mb-5"
           >
-            Go to your dashboard
-          </Button>
-          <p className="text-xs text-gray-400 mt-4">
-            Demo — no real card was charged.
-          </p>
+            <ArrowLeft className="w-4 h-4" />
+            Back to plans
+          </button>
+
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+            {/* Header */}
+            <div className="p-6 sm:p-8 border-b border-gray-100">
+              <div className="flex mb-4">
+                <div className="p-3 bg-blue-50 rounded-xl border border-blue-100">
+                  <Users className="w-6 h-6 text-blue-600" />
+                </div>
+              </div>
+              <h1 className="text-2xl font-semibold text-gray-900 mb-2">
+                Let's talk before you downgrade
+              </h1>
+              <p className="text-gray-600">
+                Moving from {currentPlan?.name} to {selectedPlan.name} means turning off features
+                your team may rely on. A Method specialist will help you migrate safely — so nothing
+                important is lost — and won't change your plan until you're ready.
+              </p>
+            </div>
+
+            {/* What changes */}
+            {currentPlan && currentPlan.features.length > 0 && (
+              <div className="px-6 sm:px-8 py-5 bg-gray-50/60 border-b border-gray-100">
+                <p className="text-sm font-semibold text-gray-900 mb-3">
+                  What you'd be turning off
+                </p>
+                <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {currentPlan.features.map((feature) => (
+                    <li key={feature} className="flex items-start gap-2 text-sm text-gray-600">
+                      <X className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />
+                      {feature}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Contact form */}
+            <div className="p-6 sm:p-8">
+              <p className="text-sm font-semibold text-gray-900 mb-4">
+                How can our team reach you?
+              </p>
+              <div className="space-y-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="dg-email">Work email</Label>
+                  <Input
+                    id="dg-email"
+                    type="email"
+                    placeholder="you@company.com"
+                    value={downgradeContact.email}
+                    onChange={(e) =>
+                      setDowngradeContact({ ...downgradeContact, email: e.target.value })
+                    }
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="dg-phone">Phone (optional)</Label>
+                  <Input
+                    id="dg-phone"
+                    type="tel"
+                    placeholder="(555) 000-0000"
+                    value={downgradeContact.phone}
+                    onChange={(e) =>
+                      setDowngradeContact({ ...downgradeContact, phone: e.target.value })
+                    }
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="dg-note">What's prompting the change? (optional)</Label>
+                  <textarea
+                    id="dg-note"
+                    value={downgradeContact.note}
+                    onChange={(e) =>
+                      setDowngradeContact({ ...downgradeContact, note: e.target.value })
+                    }
+                    placeholder="Tell us a bit about what you're looking for."
+                    rows={3}
+                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none"
+                  />
+                </div>
+              </div>
+
+              <div className="flex flex-col-reverse sm:flex-row sm:items-center gap-3 mt-6">
+                <Button
+                  variant="ghost"
+                  onClick={() => setStep('manage')}
+                  className="text-gray-500"
+                >
+                  Keep my current plan
+                </Button>
+                <Button
+                  onClick={() => setSalesRequested(true)}
+                  disabled={!downgradeContact.email.trim()}
+                  className="bg-blue-600 hover:bg-blue-700 text-white sm:ml-auto disabled:opacity-50"
+                >
+                  <PhoneCall className="w-4 h-4 mr-1.5" />
+                  Request a call from sales
+                </Button>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -593,11 +1031,6 @@ export function SubscriptionPage({
                   `Subscribe & pay $${total.toLocaleString()}`
                 )}
               </Button>
-
-              <p className="flex items-center justify-center gap-1.5 text-xs text-gray-400 mt-4">
-                <Lock className="w-3 h-3" />
-                Demo — no real card is charged.
-              </p>
             </div>
 
             {/* Order summary */}
@@ -617,7 +1050,8 @@ export function SubscriptionPage({
                   <div>
                     <p className="font-semibold text-gray-900">{selectedPlan.name} plan</p>
                     <p className="text-xs text-gray-500">
-                      Billed {billingCycle === 'annual' ? 'annually' : 'monthly'}
+                      Billed {billingCycle === 'annual' ? 'annually' : 'monthly'} ·{' '}
+                      {includedSeats} {includedSeats === 1 ? 'seat' : 'seats'} included
                     </p>
                   </div>
                   <p className="font-semibold text-gray-900">
@@ -626,14 +1060,44 @@ export function SubscriptionPage({
                   </p>
                 </div>
 
+                {/* Per-seat line — shown when the team exceeds the plan's included seats */}
+                {hasExtraSeats && (
+                  <div className="flex justify-between items-start mb-3">
+                    <div className="flex items-center gap-1.5 text-sm text-gray-600">
+                      <Users className="w-4 h-4 text-gray-400" />
+                      <span>
+                        {extraSeatsCount} additional {extraSeatsCount === 1 ? 'seat' : 'seats'}
+                        <span className="text-xs text-gray-400"> · ${extraSeatMonthly}/mo each</span>
+                      </span>
+                    </div>
+                    <p className="font-semibold text-gray-900">
+                      ${seatsMonthly.toLocaleString()}
+                      <span className="text-xs font-normal text-gray-500">/mo</span>
+                    </p>
+                  </div>
+                )}
+
                 {billingCycle === 'annual' && (
                   <div className="flex items-center gap-1.5 text-xs text-green-600 font-medium mb-3">
                     <Sparkles className="w-3.5 h-3.5" />
-                    You're saving 20% with annual billing
+                    You're saving ${annualSavings.toLocaleString()}/yr (20%) with annual billing
                   </div>
                 )}
 
                 <div className="border-t border-gray-100 my-4" />
+
+                {/* Effective monthly across all seats, before the billed total below */}
+                {hasExtraSeats && (
+                  <div className="flex justify-between items-baseline mb-3 text-sm">
+                    <span className="text-gray-600">
+                      {teamSize} users · {selectedPlan.name}
+                    </span>
+                    <span className="font-semibold text-gray-900">
+                      ${effectiveMonthly.toLocaleString()}
+                      <span className="text-xs font-normal text-gray-500">/mo</span>
+                    </span>
+                  </div>
+                )}
 
                 {isInTrial && !isChangingPlan ? (
                   <>
@@ -715,26 +1179,28 @@ export function SubscriptionPage({
               : 'All plans include every stock app, QuickBooks sync, and unlimited contacts.'}
           </p>
 
-          {/* Billing toggle */}
-          <div className="inline-flex items-center gap-3 mt-7">
-            <span
-              className={`text-sm font-medium ${billingCycle === 'monthly' ? 'text-gray-900' : 'text-gray-500'}`}
-            >
-              Monthly
-            </span>
-            <Switch
-              checked={billingCycle === 'annual'}
-              onCheckedChange={(checked) => setBillingCycle(checked ? 'annual' : 'monthly')}
-            />
-            <span
-              className={`text-sm font-medium ${billingCycle === 'annual' ? 'text-gray-900' : 'text-gray-500'}`}
-            >
-              Annually
-            </span>
-            <span className="bg-green-100 text-green-800 text-xs font-semibold px-2 py-0.5 rounded-full">
-              20% off
-            </span>
-          </div>
+          {/* Billing toggle — hidden for already-subscribed users (their cycle is fixed) */}
+          {!isChangingPlan && (
+            <div className="inline-flex items-center gap-3 mt-7">
+              <span
+                className={`text-sm font-medium ${billingCycle === 'monthly' ? 'text-gray-900' : 'text-gray-500'}`}
+              >
+                Monthly
+              </span>
+              <Switch
+                checked={billingCycle === 'annual'}
+                onCheckedChange={(checked) => setBillingCycle(checked ? 'annual' : 'monthly')}
+              />
+              <span
+                className={`text-sm font-medium ${billingCycle === 'annual' ? 'text-gray-900' : 'text-gray-500'}`}
+              >
+                Annually
+              </span>
+              <span className="bg-green-100 text-green-800 text-xs font-semibold px-2 py-0.5 rounded-full">
+                20% off
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Plans */}
@@ -743,6 +1209,9 @@ export function SubscriptionPage({
             const isContactSales = !!plan.contactSales;
             const isCurrent = isChangingPlan && plan.id === activeSubscription?.planId;
             const isUpgrade = isChangingPlan && currentPlanIndex >= 0 && index > currentPlanIndex;
+            // A downgrade to a self-serve tier (Scale stays sales-assisted via contactSales).
+            const isDowngrade =
+              isChangingPlan && currentPlanIndex >= 0 && index < currentPlanIndex && !plan.contactSales;
 
             // Pricing (annual = 20% off), and the effective total for this team size.
             const price = billingCycle === 'annual' ? annualPerMonth(plan.monthlyPrice) : plan.monthlyPrice;
@@ -875,6 +1344,12 @@ export function SubscriptionPage({
                   onClick={() => {
                     if (isContactSales) {
                       setSalesContacted(plan.id);
+                    } else if (isDowngrade) {
+                      // Downgrades are handled with a specialist, not self-serve.
+                      setSelectedPlanId(plan.id);
+                      setSalesRequested(false);
+                      setDowngradeContact({ email: '', phone: '', note: '' });
+                      setStep('downgrade');
                     } else if (!isCurrent) {
                       handleSubscribe(plan.id);
                     }
@@ -903,24 +1378,52 @@ export function SubscriptionPage({
             );
           })}
         </div>
+
+        {/* Trial users: a quiet exit to close the account instead of subscribing */}
+        {!isChangingPlan && (
+          <div className="text-center mt-10">
+            <button
+              onClick={() => {
+                setCancelReason('');
+                setCancelDetail('');
+                setStep('cancel');
+              }}
+              className="text-sm text-gray-400 hover:text-red-600 transition-colors"
+            >
+              {isInTrial ? 'Not the right fit? Cancel your account' : 'Cancel your account'}
+            </button>
+          </div>
+        )}
       </div>
 
-      {/* Modal checkout (demo: checkoutMode === 'modal') */}
-      {step === 'checkout' && checkoutMode === 'modal' && checkoutBody && (
+      {/* Modal checkout + its success confirmation (demo: checkoutMode === 'modal') */}
+      {(step === 'checkout' || step === 'success') && checkoutMode === 'modal' && selectedPlan && (
         <div className="fixed inset-0 z-[80] flex items-center justify-center bg-gray-900/40 backdrop-blur-sm p-4">
           <div className="relative w-full max-w-4xl max-h-[92vh] overflow-y-auto bg-white rounded-2xl shadow-2xl">
             <div className="sticky top-0 z-10 flex items-center justify-between border-b border-gray-200 bg-white px-6 sm:px-8 py-4">
               <h2 className="text-lg font-semibold text-gray-900">
-                {selectedPlan && (isChangingPlan ? 'Change your plan' : `Subscribe to ${selectedPlan.name}`)}
+                {step === 'success'
+                  ? isChangingPlan
+                    ? 'Plan updated'
+                    : "You're all set"
+                  : isChangingPlan
+                  ? 'Change your plan'
+                  : `Subscribe to ${selectedPlan.name}`}
               </h2>
               <button
-                onClick={() => setStep('plans')}
+                onClick={() => (step === 'success' ? onBack?.() : setStep('plans'))}
                 className="text-gray-400 hover:text-gray-600"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <div className="p-6 sm:p-8">{checkoutBody}</div>
+            <div className="p-6 sm:p-8">
+              {step === 'success' ? (
+                <div className="max-w-md mx-auto text-center py-2">{successContent}</div>
+              ) : (
+                checkoutBody
+              )}
+            </div>
           </div>
         </div>
       )}

@@ -35,7 +35,7 @@ import {
   ChevronLeft,
   ChevronUp
 } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 
 interface SidebarProps {
   currentPage: string;
@@ -46,16 +46,13 @@ interface SidebarProps {
   locked?: boolean;
   /** Page keys gated behind a higher plan — shown with a lock; still clickable (routes to upgrade). */
   lockedApps?: string[];
+  /** When false, the App Studio link is hidden entirely (access turned off). */
+  appStudioEnabled?: boolean;
 }
 
-export function Sidebar({ currentPage, onNavigate, isMobileOpen = false, onMobileClose, locked = false, lockedApps = [] }: SidebarProps) {
+export function Sidebar({ currentPage, onNavigate, isMobileOpen = false, onMobileClose, locked = false, lockedApps = [], appStudioEnabled = true }: SidebarProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMoreAppsOpen, setIsMoreAppsOpen] = useState(false);
-
-  // Reveal the overflow apps whenever some are locked, so the gating is visible.
-  useEffect(() => {
-    if (lockedApps.length > 0) setIsMoreAppsOpen(true);
-  }, [lockedApps.length]);
 
   const handleNavigate = (page: string) => {
     onNavigate(page);
@@ -95,8 +92,10 @@ export function Sidebar({ currentPage, onNavigate, isMobileOpen = false, onMobil
   ];
 
   // Home + App Studio stay pinned at the top; core apps are always visible;
-  // the rest sit behind a "View more" toggle.
-  const pinnedItems = navigationItems.slice(0, 2);
+  // the rest sit behind a "View more" toggle. App Studio drops out when access is off.
+  const pinnedItems = navigationItems
+    .slice(0, 2)
+    .filter((item) => item.page !== 'app-studio' || appStudioEnabled);
   const primaryItems = navigationItems.slice(2, 12);
   const moreItems = navigationItems.slice(12);
   // Keep the section expanded if the active page lives inside it.
@@ -196,17 +195,19 @@ export function Sidebar({ currentPage, onNavigate, isMobileOpen = false, onMobil
           </Button>
         </div>
 
-        {/* App Marketplace */}
-        <div className="mt-8 pt-8 border-t border-blue-700">
-          <Button
-            variant="ghost"
-            onClick={() => handleNavigate('marketplace')}
-            className="w-full justify-start text-left p-3 h-auto text-blue-100 hover:bg-blue-700 hover:text-white"
-          >
-            <Store className="w-5 h-5 flex-shrink-0" />
-            {(!isCollapsed || isMobileOpen) && <span className="ml-3">App Marketplace</span>}
-          </Button>
-        </div>
+        {/* App Marketplace — hidden when App Studio access is on (Studio replaces it) */}
+        {!appStudioEnabled && (
+          <div className="mt-8 pt-8 border-t border-blue-700">
+            <Button
+              variant="ghost"
+              onClick={() => handleNavigate('marketplace')}
+              className="w-full justify-start text-left p-3 h-auto text-blue-100 hover:bg-blue-700 hover:text-white"
+            >
+              <Store className="w-5 h-5 flex-shrink-0" />
+              {(!isCollapsed || isMobileOpen) && <span className="ml-3">App Marketplace</span>}
+            </Button>
+          </div>
+        )}
       </nav>
 
       {/* Collapse indicator - desktop only */}

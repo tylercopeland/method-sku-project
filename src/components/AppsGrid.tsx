@@ -36,7 +36,7 @@ import {
 
 type Icon = React.ComponentType<{ className?: string }>;
 
-interface AppTile {
+export interface AppTile {
   name: string;
   description?: string;
   icon: Icon;
@@ -46,8 +46,9 @@ interface AppTile {
   lockKey?: string; // page key used to gate the tile behind a higher plan
 }
 
-// Mirrors the sidebar app list and order. Counts reflect a brand-new trial account.
-const tiles: AppTile[] = [
+// Canonical installed-app list — mirrors the sidebar order. Shared with the App
+// Marketplace so "Your apps" stays in sync. Counts reflect a brand-new trial account.
+export const appTiles: AppTile[] = [
   { name: 'Activities', description: 'Assign follow-ups, history and reminders so nothing is missed.', icon: FileText, accent: 'bg-blue-500', action: { label: 'New' }, stat: '0 DUE NOW' },
   { name: 'Invoices', description: 'Create, edit and send invoices.', icon: Receipt, accent: 'bg-green-500', action: { label: 'New' }, stat: '0 OVERDUE' },
   { name: 'Estimates', description: 'Create, edit and send estimates and quotes.', icon: ClipboardList, accent: 'bg-indigo-500', action: { label: 'New' }, stat: '0 ACTIVE' },
@@ -85,13 +86,16 @@ const tiles: AppTile[] = [
 
 interface AppsGridProps {
   lockedApps?: string[];
+  /** Open a locked app's value screen (empty-state preview of the app). */
+  onOpenApp?: (lockKey: string) => void;
+  /** Jump straight to the subscription/upgrade flow. */
   onUpgrade?: () => void;
 }
 
-export function AppsGrid({ lockedApps = [], onUpgrade }: AppsGridProps) {
+export function AppsGrid({ lockedApps = [], onOpenApp, onUpgrade }: AppsGridProps) {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-      {tiles.map((tile) => {
+      {appTiles.map((tile) => {
         const Icon = tile.icon;
         const locked = !!tile.lockKey && lockedApps.includes(tile.lockKey);
         const hasFooter = Boolean(tile.action || tile.stat);
@@ -99,7 +103,7 @@ export function AppsGrid({ lockedApps = [], onUpgrade }: AppsGridProps) {
         return (
           <div
             key={tile.name}
-            onClick={locked ? onUpgrade : undefined}
+            onClick={locked && tile.lockKey ? () => onOpenApp?.(tile.lockKey!) : undefined}
             className={`flex flex-col h-56 bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden ${
               locked ? 'cursor-pointer hover:ring-2 hover:ring-blue-200' : ''
             }`}
