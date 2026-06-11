@@ -13,7 +13,6 @@ const users = ['Diego', 'Tyler Copeland', 'Tyler C', 'nirmithdalmeida', 'Elaine 
 
 export function ManagePackPermissionsPage({ name, description, onBack, onSelectUser }: ManagePackPermissionsPageProps) {
   const [usersCollapsed, setUsersCollapsed] = useState(false);
-  const [permsExpanded, setPermsExpanded] = useState(false);
 
   return (
     <div className="flex-1 overflow-y-auto bg-white p-6 sm:p-8">
@@ -66,28 +65,6 @@ export function ManagePackPermissionsPage({ name, description, onBack, onSelectU
         </div>
       )}
 
-      {/* Permissions */}
-      <div className="flex items-center justify-between mb-3 border-t border-gray-100 pt-6">
-        <h3 className="text-base font-semibold text-blue-700">Permissions</h3>
-        <button
-          onClick={() => setPermsExpanded((v) => !v)}
-          className="text-sm font-medium text-blue-600 hover:underline"
-        >
-          {permsExpanded ? 'Collapse' : 'Expand'}
-        </button>
-      </div>
-      {permsExpanded && (
-        <p className="text-sm text-gray-500">
-          Configure who can view, create, edit, and delete records in this app.
-        </p>
-      )}
-
-      {/* Save */}
-      <div className="flex justify-end mt-10">
-        <button className="rounded-full bg-blue-600 px-6 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-700">
-          Save
-        </button>
-      </div>
     </div>
   );
 }
