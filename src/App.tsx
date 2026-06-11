@@ -344,8 +344,8 @@ function App() {
         </div>
       </div>
 
-      {/* Demo controls (dev only) — switch trial state + reset subscription for presenting */}
-      {import.meta.env.DEV && (
+      {/* Demo controls — switch trial state + reset subscription for presenting (shown in prod too) */}
+      {(
         <div
           data-demo-panel
           style={demoPos ? { left: demoPos.x, top: demoPos.y } : undefined}
