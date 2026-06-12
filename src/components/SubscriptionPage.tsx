@@ -165,6 +165,8 @@ interface SubscriptionPageProps {
   /** What the user has done during the trial — drives a behavior-based recommendation. */
   trialUsage?: {
     customAppsBuilt?: number;
+    publishedApps?: number;
+    draftApps?: number;
     automationsCreated?: number;
     workflowDesignerOpened?: boolean;
   };
@@ -172,6 +174,9 @@ interface SubscriptionPageProps {
   initialStep?: 'manage' | 'plans';
   /** Render the checkout (payment + order summary) inline as a page, or in a modal. */
   checkoutMode?: 'inline' | 'modal';
+  /** Whether the user has App Studio access (a Build-tier capability). Drives the
+   *  "what you'll lose" warning when a builder picks Essentials. */
+  hasAppStudioAccess?: boolean;
 }
 
 export function SubscriptionPage({
@@ -186,6 +191,7 @@ export function SubscriptionPage({
   trialUsage,
   initialStep = 'manage',
   checkoutMode = 'inline',
+  hasAppStudioAccess = false,
 }: SubscriptionPageProps) {
   const [billingCycle, setBillingCycle] = useState<BillingCycle>(
     activeSubscription?.billingCycle ?? 'annual'
@@ -247,6 +253,26 @@ export function SubscriptionPage({
   const builtApps = trialUsage?.customAppsBuilt ?? 0;
   const builtAutomations = trialUsage?.automationsCreated ?? 0;
   const usedBuildFeatures = builtApps > 0 || builtAutomations > 0 || Boolean(trialUsage?.workflowDesignerOpened);
+
+  // A builder picking Essentials will lose Build-tier capabilities — warn them first.
+  // Triggers when they have App Studio access and have actually built something in the trial.
+  const isBuilderDowngradingToEssentials =
+    hasAppStudioAccess && (builtApps > 0 || builtAutomations > 0 || Boolean(trialUsage?.workflowDesignerOpened));
+  const buildPlan = plans.find((p) => p.id === 'build') ?? null;
+
+  // A human-readable summary of what they built, e.g. "1 published app and 1 draft".
+  const publishedAppsCount = trialUsage?.publishedApps ?? 0;
+  const draftAppsCount = trialUsage?.draftApps ?? 0;
+  const builtAppsPhrase =
+    [
+      publishedAppsCount > 0
+        ? `${publishedAppsCount} published app${publishedAppsCount === 1 ? '' : 's'}`
+        : null,
+      draftAppsCount > 0 ? `${draftAppsCount} draft${draftAppsCount === 1 ? '' : 's'}` : null,
+    ]
+      .filter(Boolean)
+      .join(' and ') ||
+    (builtApps > 0 ? `${builtApps} app${builtApps === 1 ? '' : 's'}` : 'apps');
   const recommendationBadge = usedBuildFeatures ? 'Recommended for you' : `Best for your team of ${teamSize}`;
   // The middle plan (Build) is always highlighted as the default recommendation.
   const recommendedPlanId = 'build';
@@ -874,6 +900,16 @@ export function SubscriptionPage({
   }
 
   // ----------------------------- CHECKOUT -----------------------------
+  // Soft, in-context note shown inside checkout when a builder is subscribing to
+  // Essentials — App Studio (and the apps they built) won't carry over.
+  const buildMonthly = buildPlan
+    ? billingCycle === 'annual'
+      ? annualPerMonth(buildPlan.monthlyPrice)
+      : buildPlan.monthlyPrice
+    : 0;
+  const showEssentialsBuilderNote =
+    !isChangingPlan && selectedPlan?.id === 'essentials' && isBuilderDowngradingToEssentials;
+
   // Shared checkout content — rendered inline (full page) or inside a modal.
   const checkoutBody = selectedPlan ? (
     <>
@@ -885,6 +921,30 @@ export function SubscriptionPage({
               <ArrowLeft className="w-4 h-4" />
               Back to plans
             </button>
+          )}
+
+          {/* Soft builder note — App Studio (and built apps) won't carry to Essentials */}
+          {showEssentialsBuilderNote && (
+            <div className="mb-6 rounded-xl border border-blue-100 bg-blue-50/70 p-4 flex items-start gap-3">
+              <Sparkles className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-gray-900">
+                  App Studio lives on Build
+                </p>
+                <p className="text-sm text-gray-600 mt-0.5">
+                  You have {builtAppsPhrase} in App Studio from your trial. Essentials doesn't
+                  include App Studio, so they won't carry over — switch to Build to keep everything
+                  you've made.
+                </p>
+                <button
+                  onClick={() => setSelectedPlanId('build')}
+                  className="mt-2 inline-flex items-center gap-1.5 text-sm font-semibold text-blue-700 hover:text-blue-800"
+                >
+                  Switch to Build — ${buildMonthly}/mo
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
           )}
 
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">

@@ -8,7 +8,7 @@ import { SubscriptionPage } from '@/components/SubscriptionPage';
 import type { ActiveSubscription } from '@/components/SubscriptionPage';
 import { AccountSettingsPage } from '@/components/AccountSettingsPage';
 import { UpgradeRequiredPage } from '@/components/UpgradeRequiredPage';
-import { AppStudioPage } from '@/components/AppStudioPage';
+import { AppStudioPage, aiApps } from '@/components/AppStudioPage';
 import { AppMarketplacePage } from '@/components/AppMarketplacePage';
 import { ApplicationsAccessPage } from '@/components/ApplicationsAccessPage';
 import { OnboardingModal } from '@/components/OnboardingModal';
@@ -256,11 +256,14 @@ function App() {
             trialEndLabel={trialEndLabel}
             teamSize={teamSize}
             trialUsage={{
-              customAppsBuilt: 2,
+              customAppsBuilt: aiApps.length,
+              publishedApps: aiApps.filter((a) => a.status === 'published').length,
+              draftApps: aiApps.filter((a) => a.status === 'draft').length,
               workflowDesignerOpened: true,
             }}
             initialStep={openToChangePlan ? 'plans' : 'manage'}
             checkoutMode={checkoutMode}
+            hasAppStudioAccess={appStudioEnabled}
             onSubscribed={(sub) => {
               setSubscription(sub);
               setShowTrialBanner(false);
@@ -290,7 +293,14 @@ function App() {
             }}
           />
         ) : currentPage === 'app-studio' && appStudioEnabled ? (
-          <AppStudioPage userName={adminUserName} />
+          <AppStudioPage
+            userName={adminUserName}
+            locked={premiumLocked}
+            onUpgrade={() => {
+              setOpenToChangePlan(true);
+              setCurrentPage('subscription');
+            }}
+          />
         ) : currentPage === 'applications-access' && accessUser ? (
           <ApplicationsAccessPage
             user={accessUser}
@@ -371,32 +381,37 @@ function App() {
           </div>
           {!demoCollapsed && (
             <>
-          <p className="mb-1 text-gray-500">Trial</p>
-          <div className="mb-3 flex gap-1">
-            {[
-              { label: '10 days', days: 10 },
-              { label: '2 days', days: 2 },
-              { label: 'Expired', days: 0 },
-            ].map((opt) => (
-              <button
-                key={opt.days}
-                onClick={() => {
-                  setTrialDaysLeft(opt.days);
-                  setShowTrialBanner(true);
-                  setTrialCanceled(false);
-                  // Expiring with no subscription locks the app to the Subscribe screen.
-                  if (opt.days === 0 && !subscription) setCurrentPage('subscription');
-                }}
-                className={`flex-1 rounded border px-2 py-1 transition-colors ${
-                  trialDaysLeft === opt.days
-                    ? 'border-blue-600 bg-blue-600 text-white'
-                    : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
-                }`}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
+          {/* Trial state is only relevant before subscribing */}
+          {!subscription && (
+            <>
+              <p className="mb-1 text-gray-500">Trial</p>
+              <div className="mb-3 flex gap-1">
+                {[
+                  { label: '10 days', days: 10 },
+                  { label: '2 days', days: 2 },
+                  { label: 'Expired', days: 0 },
+                ].map((opt) => (
+                  <button
+                    key={opt.days}
+                    onClick={() => {
+                      setTrialDaysLeft(opt.days);
+                      setShowTrialBanner(true);
+                      setTrialCanceled(false);
+                      // Expiring with no subscription locks the app to the Subscribe screen.
+                      if (opt.days === 0 && !subscription) setCurrentPage('subscription');
+                    }}
+                    className={`flex-1 rounded border px-2 py-1 transition-colors ${
+                      trialDaysLeft === opt.days
+                        ? 'border-blue-600 bg-blue-600 text-white'
+                        : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
           <div className="flex items-center justify-between border-t border-gray-100 pt-2">
             <span className="text-gray-500">
               {subscription ? `Subscribed: ${subscription.planId}` : 'Not subscribed'}
