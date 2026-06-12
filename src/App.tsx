@@ -33,6 +33,8 @@ function App() {
   // Demo: whether App Studio is accessible (shown in the sidebar). Off by default;
   // toggled on via demo controls. While off, the sidebar shows no App Studio menu item.
   const [appStudioEnabled, setAppStudioEnabled] = useState(false);
+  // Demo: enables the "Add field with AI" custom-fields experience on detail screens.
+  const [aiFieldsEnabled, setAiFieldsEnabled] = useState(false);
   // Applications Access deep-link: which user, scrolled to which app they came from.
   const [accessUser, setAccessUser] = useState<string | null>(null);
   const [accessScrollApp, setAccessScrollApp] = useState<string | undefined>(undefined);
@@ -331,7 +333,7 @@ function App() {
           />
         ) : currentPage === 'customers' || currentPage === 'contacts' ? (
           <div className="flex-1 overflow-y-auto p-3 sm:p-6">
-            <CustomersPage initialFilter={customersFilter} />
+            <CustomersPage initialFilter={customersFilter} aiFieldsEnabled={aiFieldsEnabled} />
           </div>
         ) : currentPage === 'estimates' ? (
           <div className="flex-1 overflow-y-auto p-3 sm:p-6">
@@ -504,6 +506,27 @@ function App() {
                   }}
                   className={`flex-1 rounded border px-2 py-1 transition-colors ${
                     appStudioEnabled === opt.value
+                      ? 'border-blue-600 bg-blue-600 text-white'
+                      : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="border-t border-gray-100 pt-2 mt-2">
+            <p className="mb-1 text-gray-500">AI custom fields</p>
+            <div className="flex gap-1">
+              {([
+                { label: 'On', value: true },
+                { label: 'Off', value: false },
+              ] as const).map((opt) => (
+                <button
+                  key={opt.label}
+                  onClick={() => setAiFieldsEnabled(opt.value)}
+                  className={`flex-1 rounded border px-2 py-1 transition-colors ${
+                    aiFieldsEnabled === opt.value
                       ? 'border-blue-600 bg-blue-600 text-white'
                       : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
                   }`}

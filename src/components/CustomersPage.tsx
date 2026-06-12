@@ -4,11 +4,12 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Search, Filter, Plus, Eye, Edit, Phone, Mail, MoreHorizontal, Building2, MapPin, ArrowLeft, Calendar, DollarSign, FileText, Activity, Users, ShoppingCart, Receipt, CheckCircle2, ArrowRight, X, Target, UserPlus, Upload, FileSpreadsheet, Download, AlertCircle } from 'lucide-react';
+import { Search, Filter, Plus, Eye, Edit, Phone, Mail, MoreHorizontal, Building2, MapPin, ArrowLeft, Calendar, DollarSign, FileText, Activity, Users, ShoppingCart, Receipt, CheckCircle2, ArrowRight, X, Target, UserPlus, Upload, FileSpreadsheet, Download, AlertCircle, Sparkles } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { AddFieldWithAIModal, type CustomField } from '@/components/AddFieldWithAIModal';
 
 interface Customer {
   id: string;
@@ -26,13 +27,19 @@ interface Customer {
 
 interface CustomersPageProps {
   initialFilter?: string;
+  /** Demo toggle: enables the "Add field with AI" custom-fields experience. */
+  aiFieldsEnabled?: boolean;
 }
 
-export function CustomersPage({ initialFilter }: CustomersPageProps) {
+export function CustomersPage({ initialFilter, aiFieldsEnabled = false }: CustomersPageProps) {
   const [sortFilter, setSortFilter] = useState(initialFilter === 'add-lead' ? 'all' : (initialFilter || 'all'));
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [activeTab, setActiveTab] = useState('estimates');
+  // AI-added custom fields on the customer detail screen + their entered values.
+  const [customFields, setCustomFields] = useState<CustomField[]>([]);
+  const [fieldValues, setFieldValues] = useState<Record<string, string>>({});
+  const [isAddFieldOpen, setIsAddFieldOpen] = useState(false);
   const [dismissedBanner, setDismissedBanner] = useState(false);
   const [showAddLeadPanel, setShowAddLeadPanel] = useState(initialFilter === 'add-lead');
   const [addLeadTab, setAddLeadTab] = useState('manual');
@@ -334,6 +341,52 @@ export function CustomersPage({ initialFilter }: CustomersPageProps) {
             <p className="text-xs text-gray-600">No change in health score compared to last week.</p>
           </div>
 
+          {/* Custom Fields — added with Method AI (demo-gated) */}
+          {aiFieldsEnabled && (
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">Custom Fields</h3>
+              </div>
+
+              {customFields.length > 0 && (
+                <div className="space-y-4 mb-4">
+                  {customFields.map((field) => (
+                    <div key={field.id} className="group">
+                      <div className="flex items-center justify-between mb-1">
+                        <div className="flex items-center gap-1.5 text-sm font-medium text-gray-900">
+                          <Sparkles className="w-3.5 h-3.5 text-purple-500" />
+                          {field.label}
+                        </div>
+                        <button
+                          onClick={() =>
+                            setCustomFields((prev) => prev.filter((f) => f.id !== field.id))
+                          }
+                          className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 transition-opacity"
+                          aria-label={`Remove ${field.label}`}
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                      <CustomFieldControl
+                        field={field}
+                        value={fieldValues[field.id] ?? ''}
+                        onChange={(v) => setFieldValues((prev) => ({ ...prev, [field.id]: v }))}
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <button
+                onClick={() => setIsAddFieldOpen(true)}
+                className="w-full inline-flex items-center justify-center gap-1.5 rounded-lg border border-dashed border-purple-300 bg-purple-50/40 px-3 py-2.5 text-sm font-semibold text-purple-700 hover:bg-purple-50 transition-colors"
+              >
+                <Sparkles className="w-4 h-4" />
+                Add field with AI
+              </button>
+            </div>
+          )}
+
           {/* Contact Details */}
           <div>
             <div className="flex items-center justify-between mb-4">
@@ -381,7 +434,14 @@ export function CustomersPage({ initialFilter }: CustomersPageProps) {
               </div>
             </div>
           </div>
+
         </div>
+
+        <AddFieldWithAIModal
+          isOpen={isAddFieldOpen}
+          onClose={() => setIsAddFieldOpen(false)}
+          onAddField={(field) => setCustomFields((prev) => [...prev, field])}
+        />
 
         {/* Main Content Area */}
         <div className="flex-1 bg-white">
@@ -1228,5 +1288,56 @@ export function CustomersPage({ initialFilter }: CustomersPageProps) {
         </CardContent>
       </Card>
     </div>
+  );
+}
+// Editable control for an AI-added custom field on the customer detail screen.
+function CustomFieldControl({
+  field,
+  value,
+  onChange,
+}: {
+  field: CustomField;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  if (field.type === 'select') {
+    return (
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm text-gray-900 bg-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+      >
+        <option value="">Select…</option>
+        {field.options?.map((opt) => (
+          <option key={opt} value={opt}>
+            {opt}
+          </option>
+        ))}
+      </select>
+    );
+  }
+
+  if (field.type === 'checkbox') {
+    return (
+      <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+        <input
+          type="checkbox"
+          checked={value === 'true'}
+          onChange={(e) => onChange(e.target.checked ? 'true' : 'false')}
+          className="accent-blue-600 w-4 h-4"
+        />
+        Yes
+      </label>
+    );
+  }
+
+  return (
+    <Input
+      type={field.type}
+      value={value}
+      placeholder={field.placeholder}
+      onChange={(e) => onChange(e.target.value)}
+      className="text-sm"
+    />
   );
 }
