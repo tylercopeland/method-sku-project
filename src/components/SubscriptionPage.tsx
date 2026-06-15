@@ -273,7 +273,11 @@ export function SubscriptionPage({
       .filter(Boolean)
       .join(' and ') ||
     (builtApps > 0 ? `${builtApps} app${builtApps === 1 ? '' : 's'}` : 'apps');
-  const recommendationBadge = usedBuildFeatures ? 'Recommended for you' : `Best for your team of ${teamSize}`;
+  const recommendationBadge = isInTrial
+    ? 'Current trial'
+    : usedBuildFeatures
+    ? 'Recommended for you'
+    : `Best for your team of ${teamSize}`;
   // The middle plan (Build) is always highlighted as the default recommendation.
   const recommendedPlanId = 'build';
 

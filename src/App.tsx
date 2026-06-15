@@ -12,6 +12,7 @@ import { AppStudioPage, aiApps } from '@/components/AppStudioPage';
 import { AppMarketplacePage } from '@/components/AppMarketplacePage';
 import { ApplicationsAccessPage } from '@/components/ApplicationsAccessPage';
 import { OnboardingModal } from '@/components/OnboardingModal';
+import { AIFieldsProvider } from '@/lib/ai-fields';
 import { useState, useEffect } from 'react';
 import { X, GripVertical, ChevronDown } from 'lucide-react';
 
@@ -169,6 +170,7 @@ function App() {
   };
 
   return (
+    <AIFieldsProvider enabled={aiFieldsEnabled}>
     <div className="h-screen bg-gray-50 flex flex-col overflow-hidden">
       {/* Trial Banner */}
       {showTrialBanner && !subscription && (
@@ -333,7 +335,7 @@ function App() {
           />
         ) : currentPage === 'customers' || currentPage === 'contacts' ? (
           <div className="flex-1 overflow-y-auto p-3 sm:p-6">
-            <CustomersPage initialFilter={customersFilter} aiFieldsEnabled={aiFieldsEnabled} />
+            <CustomersPage initialFilter={customersFilter} />
           </div>
         ) : currentPage === 'estimates' ? (
           <div className="flex-1 overflow-y-auto p-3 sm:p-6">
@@ -555,6 +557,7 @@ function App() {
       {/* First-run onboarding — modal over Home, blocks the app until completed */}
       {showOnboarding && <OnboardingModal onComplete={() => setShowOnboarding(false)} />}
     </div>
+    </AIFieldsProvider>
   );
 }
 

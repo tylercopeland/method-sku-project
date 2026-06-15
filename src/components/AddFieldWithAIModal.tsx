@@ -14,6 +14,18 @@ export interface CustomField {
   placeholder?: string;
 }
 
+/** Which kind of screen the launcher was invoked from. */
+export type FieldSurface = 'list' | 'detail';
+
+/** Describes where in the app a field is being added, so the AI can adapt its copy. */
+export interface FieldContext {
+  /** Stable key for the object type, e.g. 'customer'. Fields are stored per entity. */
+  entityType: string;
+  /** Human label for the object type, e.g. 'Customers'. */
+  entityLabel: string;
+  surface: FieldSurface;
+}
+
 const TYPE_LABELS: Record<FieldType, string> = {
   text: 'Short text',
   number: 'Number',
@@ -55,6 +67,15 @@ function inferType(p: string): FieldType {
   return 'text';
 }
 
+// Rough singularization for entity labels, e.g. "Customers" -> "customer".
+function singular(label: string): string {
+  const s = label.trim().toLowerCase();
+  if (s.endsWith('ies')) return s.slice(0, -3) + 'y';
+  if (s.endsWith('ses')) return s.slice(0, -2);
+  if (s.endsWith('s')) return s.slice(0, -1);
+  return s;
+}
+
 function inferLabel(prompt: string): string {
   let s = prompt
     .trim()
@@ -74,17 +95,38 @@ interface AddFieldWithAIModalProps {
   isOpen: boolean;
   onClose: () => void;
   onAddField: (field: CustomField) => void;
+  /** Where the field is being added. Drives the modal's wording. */
+  context?: FieldContext;
 }
 
 type Stage = 'prompt' | 'generating' | 'review';
 
-export function AddFieldWithAIModal({ isOpen, onClose, onAddField }: AddFieldWithAIModalProps) {
+export function AddFieldWithAIModal({ isOpen, onClose, onAddField, context }: AddFieldWithAIModalProps) {
   const [prompt, setPrompt] = useState('');
   const [stage, setStage] = useState<Stage>('prompt');
   const [draft, setDraft] = useState<CustomField | null>(null);
   const [optionsText, setOptionsText] = useState('');
 
   if (!isOpen) return null;
+
+  // Adapt wording to the surface: a list gets "columns", a detail gets "fields".
+  const isList = context?.surface === 'list';
+  const noun = isList ? 'column' : 'field';
+  const where = isList
+    ? `the ${context?.entityLabel ?? 'this'} list`
+    : context
+    ? `each ${singular(context.entityLabel)}`
+    : 'this screen';
+  const copy = {
+    title: `Add a ${noun} with Method AI`,
+    prompt: `Describe the ${noun} you want to add to ${where}, and Method AI will build it.`,
+    placeholder: isList
+      ? 'e.g. Add a column for lead source'
+      : 'e.g. Add a dropdown for preferred contact method',
+    generate: `Generate ${noun}`,
+    review: `Here's the ${noun} Method AI created — tweak it if you'd like.`,
+    submit: isList ? 'Add column' : 'Add field',
+  };
 
   const reset = () => {
     setPrompt('');
@@ -139,7 +181,7 @@ export function AddFieldWithAIModal({ isOpen, onClose, onAddField }: AddFieldWit
         <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
           <div className="flex items-center gap-2">
             <Sparkles className="w-5 h-5 text-purple-500" />
-            <h2 className="text-lg font-semibold text-gray-900">Add a field with Method AI</h2>
+            <h2 className="text-lg font-semibold text-gray-900">{copy.title}</h2>
           </div>
           <button onClick={handleClose} className="text-gray-400 hover:text-gray-600">
             <X className="w-5 h-5" />
@@ -149,13 +191,11 @@ export function AddFieldWithAIModal({ isOpen, onClose, onAddField }: AddFieldWit
         <div className="p-6">
           {stage === 'prompt' && (
             <>
-              <p className="text-sm text-gray-600 mb-3">
-                Describe the field you want to add to this screen, and Method AI will build it.
-              </p>
+              <p className="text-sm text-gray-600 mb-3">{copy.prompt}</p>
               <textarea
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
-                placeholder="e.g. Add a dropdown for preferred contact method"
+                placeholder={copy.placeholder}
                 rows={3}
                 autoFocus
                 className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none"
@@ -178,7 +218,7 @@ export function AddFieldWithAIModal({ isOpen, onClose, onAddField }: AddFieldWit
                   className="bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50"
                 >
                   <Wand2 className="w-4 h-4 mr-1.5" />
-                  Generate field
+                  {copy.generate}
                 </Button>
               </div>
             </>
@@ -196,7 +236,7 @@ export function AddFieldWithAIModal({ isOpen, onClose, onAddField }: AddFieldWit
             <>
               <div className="flex items-center gap-2 text-sm text-purple-700 bg-purple-50 rounded-lg px-3 py-2 mb-5">
                 <Sparkles className="w-4 h-4" />
-                Here's the field Method AI created — tweak it if you'd like.
+                {copy.review}
               </div>
 
               <div className="space-y-4">
@@ -264,7 +304,7 @@ export function AddFieldWithAIModal({ isOpen, onClose, onAddField }: AddFieldWit
                   Start over
                 </button>
                 <Button onClick={handleAdd} className="bg-blue-600 hover:bg-blue-700 text-white">
-                  Add to screen
+                  {copy.submit}
                 </Button>
               </div>
             </>
