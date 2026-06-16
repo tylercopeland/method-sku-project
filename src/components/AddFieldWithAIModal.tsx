@@ -12,6 +12,8 @@ export interface CustomField {
   type: FieldType;
   options?: string[];
   placeholder?: string;
+  /** Optional sub-section the field belongs to within its entity, e.g. 'contact'. */
+  group?: string;
 }
 
 /** Which kind of screen the launcher was invoked from. */
@@ -24,6 +26,8 @@ export interface FieldContext {
   /** Human label for the object type, e.g. 'Customers'. */
   entityLabel: string;
   surface: FieldSurface;
+  /** Optional sub-section within the screen the field is being added to. */
+  group?: string;
 }
 
 const TYPE_LABELS: Record<FieldType, string> = {
@@ -38,8 +42,8 @@ const TYPE_LABELS: Record<FieldType, string> = {
 
 const EXAMPLES = [
   'A dropdown for preferred contact method',
+  'A dropdown for company size',
   'A date field for next follow-up',
-  'A number field for deal size',
   'A checkbox for newsletter opt-in',
 ];
 
@@ -91,6 +95,48 @@ function inferLabel(prompt: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
+// Quick-fill option sets Method AI suggests when it has to ask for dropdown options.
+const OPTION_SET_SUGGESTIONS = ['Low, Medium, High', 'Small, Medium, Large', 'Yes, No'];
+
+// The field types offered when the AI can't tell what kind of data a field holds.
+const TYPE_CHOICES = (Object.keys(TYPE_LABELS) as FieldType[]).map((t) => ({
+  value: t,
+  label: TYPE_LABELS[t],
+}));
+
+type Clarification =
+  | { kind: 'options'; label: string; question: string }
+  | { kind: 'type'; label: string; question: string };
+
+/**
+ * Decide whether Method AI should ask a follow-up before building the field.
+ * Returns the question to ask, or null when the request is clear enough.
+ */
+function getClarification(prompt: string): Clarification | null {
+  const p = prompt.toLowerCase();
+  const label = inferLabel(prompt);
+  const type = inferType(p);
+
+  // A dropdown whose options we couldn't infer — ask what they should be.
+  if (type === 'select') {
+    const opts = inferOptions(p);
+    const optionsUnknown = opts[0] === 'Option 1';
+    const optionsListed = /[:,]/.test(prompt) || /\boptions?\b/.test(p);
+    if (optionsUnknown && !optionsListed) {
+      return { kind: 'options', label, question: `What options should the “${label}” dropdown include?` };
+    }
+  }
+
+  // A vague, short request that fell back to plain text — ask what data it holds.
+  const words = label.split(' ').filter(Boolean);
+  const textIsExplicit = /\b(name|note|comment|description|address|title|summary|message|text)\b/.test(p);
+  if (type === 'text' && !textIsExplicit && words.length <= 2 && !/\d/.test(p)) {
+    return { kind: 'type', label, question: `What kind of information will “${label}” hold?` };
+  }
+
+  return null;
+}
+
 interface AddFieldWithAIModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -99,13 +145,16 @@ interface AddFieldWithAIModalProps {
   context?: FieldContext;
 }
 
-type Stage = 'prompt' | 'generating' | 'review';
+type Stage = 'prompt' | 'clarify' | 'generating' | 'review';
 
 export function AddFieldWithAIModal({ isOpen, onClose, onAddField, context }: AddFieldWithAIModalProps) {
   const [prompt, setPrompt] = useState('');
   const [stage, setStage] = useState<Stage>('prompt');
   const [draft, setDraft] = useState<CustomField | null>(null);
   const [optionsText, setOptionsText] = useState('');
+  // The follow-up question Method AI is asking, and the user's answer to it.
+  const [clarify, setClarify] = useState<Clarification | null>(null);
+  const [answer, setAnswer] = useState('');
 
   if (!isOpen) return null;
 
@@ -133,6 +182,8 @@ export function AddFieldWithAIModal({ isOpen, onClose, onAddField, context }: Ad
     setStage('prompt');
     setDraft(null);
     setOptionsText('');
+    setClarify(null);
+    setAnswer('');
   };
 
   const handleClose = () => {
@@ -140,25 +191,63 @@ export function AddFieldWithAIModal({ isOpen, onClose, onAddField, context }: Ad
     onClose();
   };
 
-  const generate = () => {
-    if (!prompt.trim()) return;
+  // Build a field draft from the prompt, with optional answers from a follow-up.
+  const buildDraft = (typeOverride?: FieldType, optionsOverride?: string[]): CustomField => {
+    const p = prompt.toLowerCase();
+    const type = typeOverride ?? inferType(p);
+    const label = inferLabel(prompt);
+    const options = type === 'select' ? optionsOverride ?? inferOptions(p) : undefined;
+    return {
+      id: `cf-${Date.now()}`,
+      label,
+      type,
+      options,
+      placeholder: type === 'text' ? `Enter ${label.toLowerCase()}` : undefined,
+    };
+  };
+
+  // Run the (simulated) AI round-trip and land on the review step.
+  const finalize = (field: CustomField) => {
     setStage('generating');
-    // Simulate a Method AI round-trip.
     setTimeout(() => {
-      const p = prompt.toLowerCase();
-      const type = inferType(p);
-      const options = type === 'select' ? inferOptions(p) : undefined;
-      const field: CustomField = {
-        id: `cf-${Date.now()}`,
-        label: inferLabel(prompt),
-        type,
-        options,
-        placeholder: type === 'text' ? `Enter ${inferLabel(prompt).toLowerCase()}` : undefined,
-      };
       setDraft(field);
-      setOptionsText(options ? options.join(', ') : '');
+      setOptionsText(field.options ? field.options.join(', ') : '');
       setStage('review');
     }, 1100);
+  };
+
+  const generate = () => {
+    if (!prompt.trim()) return;
+    // If the request is ambiguous, ask a follow-up before building anything.
+    const question = getClarification(prompt);
+    if (question) {
+      setClarify(question);
+      setAnswer('');
+      setStage('clarify');
+      return;
+    }
+    finalize(buildDraft());
+  };
+
+  const submitClarification = () => {
+    if (!clarify || !answer) return;
+    if (clarify.kind === 'type') {
+      const chosen = answer as FieldType;
+      // Picking a dropdown raises a second question: which options?
+      if (chosen === 'select') {
+        setClarify({
+          kind: 'options',
+          label: clarify.label,
+          question: `What options should the “${clarify.label}” dropdown include?`,
+        });
+        setAnswer('');
+        return;
+      }
+      finalize(buildDraft(chosen));
+      return;
+    }
+    const options = answer.split(',').map((o) => o.trim()).filter(Boolean);
+    finalize(buildDraft('select', options.length ? options : undefined));
   };
 
   const handleAdd = () => {
@@ -219,6 +308,70 @@ export function AddFieldWithAIModal({ isOpen, onClose, onAddField, context }: Ad
                 >
                   <Wand2 className="w-4 h-4 mr-1.5" />
                   {copy.generate}
+                </Button>
+              </div>
+            </>
+          )}
+
+          {stage === 'clarify' && clarify && (
+            <>
+              <div className="flex items-start gap-2 text-sm text-purple-700 bg-purple-50 rounded-lg px-3 py-2.5 mb-5">
+                <Sparkles className="w-4 h-4 mt-0.5 shrink-0" />
+                <span>{clarify.question}</span>
+              </div>
+
+              {clarify.kind === 'type' ? (
+                <div className="flex flex-wrap gap-2">
+                  {TYPE_CHOICES.map((choice) => (
+                    <button
+                      key={choice.value}
+                      onClick={() => setAnswer(choice.value)}
+                      className={`text-sm rounded-full border px-3 py-1.5 transition-colors ${
+                        answer === choice.value
+                          ? 'border-purple-400 bg-purple-50 text-purple-700'
+                          : 'border-gray-200 text-gray-600 hover:border-purple-300 hover:bg-purple-50'
+                      }`}
+                    >
+                      {choice.label}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <>
+                  <Input
+                    value={answer}
+                    onChange={(e) => setAnswer(e.target.value)}
+                    placeholder="e.g. Low, Medium, High"
+                    autoFocus
+                  />
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {OPTION_SET_SUGGESTIONS.map((s) => (
+                      <button
+                        key={s}
+                        onClick={() => setAnswer(s)}
+                        className="text-xs rounded-full border border-gray-200 px-3 py-1 text-gray-600 hover:border-purple-300 hover:bg-purple-50 transition-colors"
+                      >
+                        {s}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+
+              <div className="flex items-center justify-between mt-6">
+                <button
+                  onClick={() => setStage('prompt')}
+                  className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  Back
+                </button>
+                <Button
+                  onClick={submitClarification}
+                  disabled={!answer}
+                  className="bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50"
+                >
+                  Continue
                 </Button>
               </div>
             </>

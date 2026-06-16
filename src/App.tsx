@@ -36,6 +36,9 @@ function App() {
   const [appStudioEnabled, setAppStudioEnabled] = useState(false);
   // Demo: enables the "Add field with AI" custom-fields experience on detail screens.
   const [aiFieldsEnabled, setAiFieldsEnabled] = useState(false);
+  // Demo: where the "Add field with AI" launcher lives — inline per-section, or
+  // a single global launcher in the top navigation.
+  const [aiFieldMode, setAiFieldMode] = useState<'inline' | 'global'>('inline');
   // Applications Access deep-link: which user, scrolled to which app they came from.
   const [accessUser, setAccessUser] = useState<string | null>(null);
   const [accessScrollApp, setAccessScrollApp] = useState<string | undefined>(undefined);
@@ -170,7 +173,7 @@ function App() {
   };
 
   return (
-    <AIFieldsProvider enabled={aiFieldsEnabled}>
+    <AIFieldsProvider enabled={aiFieldsEnabled} mode={aiFieldMode}>
     <div className="h-screen bg-gray-50 flex flex-col overflow-hidden">
       {/* Trial Banner */}
       {showTrialBanner && !subscription && (
@@ -538,6 +541,26 @@ function App() {
               ))}
             </div>
           </div>
+          {aiFieldsEnabled && (
+            <div className="border-t border-gray-100 pt-2 mt-2">
+              <p className="mb-1 text-gray-500">Add field launcher</p>
+              <div className="flex gap-1">
+                {(['inline', 'global'] as const).map((m) => (
+                  <button
+                    key={m}
+                    onClick={() => setAiFieldMode(m)}
+                    className={`flex-1 rounded border px-2 py-1 capitalize transition-colors ${
+                      aiFieldMode === m
+                        ? 'border-blue-600 bg-blue-600 text-white'
+                        : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
+                    }`}
+                  >
+                    {m}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           <div className="border-t border-gray-100 pt-2 mt-2">
             <button
               onClick={() => {

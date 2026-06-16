@@ -4,17 +4,21 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Search, Filter, Plus, Eye, Edit, Phone, Mail, MoreHorizontal, Building2, MapPin, ArrowLeft, Calendar, DollarSign, FileText, Activity, Users, ShoppingCart, Receipt, CheckCircle2, ArrowRight, X, Target, UserPlus, Upload, FileSpreadsheet, Download, AlertCircle, Sparkles } from 'lucide-react';
+import { Search, Filter, Plus, Eye, Edit, Phone, Mail, MoreHorizontal, MoreVertical, ArrowUpDown, Columns3, Sparkles, Building2, MapPin, ArrowLeft, Calendar, DollarSign, FileText, Activity, Users, ShoppingCart, Receipt, CheckCircle2, ArrowRight, X, Target, UserPlus, Upload, FileSpreadsheet, Download, AlertCircle } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
-  useEntityFields,
-  AIFieldGroup,
-  AddFieldLauncher,
-  formatFieldValue,
-} from '@/lib/ai-fields';
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuCheckboxItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+} from '@/components/ui/dropdown-menu';
+import { useFieldSurface, AIFieldGroup, useAIFields, formatFieldValue } from '@/lib/ai-fields';
 
 interface Customer {
   id: string;
@@ -39,9 +43,34 @@ export function CustomersPage({ initialFilter }: CustomersPageProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [activeTab, setActiveTab] = useState('estimates');
-  // Universal AI fields for the Customer entity. Registers this surface (list vs
-  // detail) so the global launcher and the per-entity columns/fields stay in sync.
-  const aiFields = useEntityFields('customer', 'Customers', selectedCustomer ? 'detail' : 'list');
+  // Register the Customer surface so the global header launcher can add fields.
+  // Customer fields render on the detail screen, not inline in the data table.
+  useFieldSurface({ entityType: 'customer', entityLabel: 'Customers', surface: 'detail' });
+  const ai = useAIFields();
+  const aiFieldMode = ai.mode;
+  // AI-added fields shown as columns on the Customers list, managed via the
+  // Columns menu (which also kicks off "Add field" for this list component).
+  const listFields = ai.getFields('customer');
+  // Columns hidden via the Columns toggle menu (everything visible by default).
+  const [hiddenColumns, setHiddenColumns] = useState<Set<string>>(new Set());
+  const showColumn = (key: string) => !hiddenColumns.has(key);
+  const toggleColumn = (key: string) =>
+    setHiddenColumns((prev) => {
+      const next = new Set(prev);
+      next.has(key) ? next.delete(key) : next.add(key);
+      return next;
+    });
+  const toggleableColumns = [
+    { key: 'customer', label: 'Customer' },
+    { key: 'company', label: 'Company' },
+    { key: 'contact', label: 'Contact' },
+    { key: 'location', label: 'Location' },
+    { key: 'lifetimeValue', label: 'Lifetime Value' },
+    { key: 'lastContact', label: 'Last Contact' },
+    { key: 'status', label: 'Status' },
+    { key: 'activity', label: 'Activity' },
+    ...listFields.map((f) => ({ key: f.id, label: f.label })),
+  ];
   const [dismissedBanner, setDismissedBanner] = useState(false);
   const [showAddLeadPanel, setShowAddLeadPanel] = useState(initialFilter === 'add-lead');
   const [addLeadTab, setAddLeadTab] = useState('manual');
@@ -343,8 +372,10 @@ export function CustomersPage({ initialFilter }: CustomersPageProps) {
             <p className="text-xs text-gray-600">No change in health score compared to last week.</p>
           </div>
 
-          {/* Custom Fields — universal AI field layer, scoped to the Customer entity */}
-          <AIFieldGroup entityType="customer" entityLabel="Customers" recordId={selectedCustomer.id} />
+          {/* Global mode: fields added from the top-nav launcher collect here */}
+          {aiFieldMode === 'global' && (
+            <AIFieldGroup entityType="customer" entityLabel="Customers" recordId={selectedCustomer.id} />
+          )}
 
           {/* Contact Details */}
           <div>
@@ -371,6 +402,14 @@ export function CustomersPage({ initialFilter }: CustomersPageProps) {
                 </Badge>
               </div>
             </div>
+            {/* AI-added contact fields live within this section */}
+            <AIFieldGroup
+              entityType="customer"
+              entityLabel="Customers"
+              recordId={selectedCustomer.id}
+              group="contact"
+              heading={null}
+            />
           </div>
 
           {/* Customer Lead Details */}
@@ -392,6 +431,14 @@ export function CustomersPage({ initialFilter }: CustomersPageProps) {
                 <div className="text-sm text-gray-600">Hot</div>
               </div>
             </div>
+            {/* AI-added lead fields live within this section */}
+            <AIFieldGroup
+              entityType="customer"
+              entityLabel="Customers"
+              recordId={selectedCustomer.id}
+              group="lead"
+              heading={null}
+            />
           </div>
 
         </div>
@@ -1156,38 +1203,116 @@ export function CustomersPage({ initialFilter }: CustomersPageProps) {
              </div>
            </div>
          )}
+          {/* Data table toolbar */}
+          <div className="flex items-center justify-between gap-3 mb-4">
+            <div className="relative w-full max-w-sm">
+              <Input
+                placeholder="Search"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pr-10"
+              />
+              <div className="absolute right-0 top-0 h-full flex items-center pr-3 border-l border-gray-200 pl-3 text-gray-400">
+                <Search className="w-4 h-4" />
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              {[
+                { icon: Filter, label: 'Filter' },
+                { icon: ArrowUpDown, label: 'Sort' },
+              ].map(({ icon: Icon, label }) => (
+                <Button
+                  key={label}
+                  variant="outline"
+                  size="icon"
+                  aria-label={label}
+                  className="h-10 w-10 text-gray-500 hover:text-gray-700"
+                >
+                  <Icon className="w-4 h-4" />
+                </Button>
+              ))}
+
+              {/* Columns: toggle visibility + kick off "Add field" for this list */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    aria-label="Columns"
+                    className="h-10 w-10 text-gray-500 hover:text-gray-700"
+                  >
+                    <Columns3 className="w-4 h-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  {ai.enabled && (
+                    <>
+                      <DropdownMenuItem
+                        onClick={() =>
+                          ai.openAddField({
+                            entityType: 'customer',
+                            entityLabel: 'Customers',
+                            surface: 'list',
+                          })
+                        }
+                        className="cursor-pointer font-medium text-purple-700 focus:bg-purple-50 focus:text-purple-800"
+                      >
+                        <Sparkles className="mr-2 h-4 w-4" />
+                        Add field
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                    </>
+                  )}
+                  <DropdownMenuLabel className="text-xs font-normal text-gray-500">
+                    Show columns
+                  </DropdownMenuLabel>
+                  {toggleableColumns.map((col) => (
+                    <DropdownMenuCheckboxItem
+                      key={col.key}
+                      checked={showColumn(col.key)}
+                      onCheckedChange={() => toggleColumn(col.key)}
+                      onSelect={(e) => e.preventDefault()}
+                    >
+                      {col.label}
+                    </DropdownMenuCheckboxItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              <Button
+                variant="outline"
+                size="icon"
+                aria-label="More options"
+                className="h-10 w-10 text-gray-500 hover:text-gray-700"
+              >
+                <MoreVertical className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+
           {/* Customers Table */}
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Customer</TableHead>
-                <TableHead>Company</TableHead>
-                <TableHead>Contact</TableHead>
-                <TableHead>Location</TableHead>
-                <TableHead>Lifetime Value</TableHead>
-                <TableHead>Last Contact</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Activity</TableHead>
-                {/* Universal AI-added columns (per-entity, shared with the detail screen) */}
-                {aiFields.fields.map((field) => (
-                  <TableHead key={field.id}>
-                    <span className="inline-flex items-center gap-1.5">
-                      <Sparkles className="w-3.5 h-3.5 text-purple-500" />
-                      {field.label}
-                      <button
-                        onClick={() => aiFields.removeField(field.id)}
-                        className="text-gray-300 hover:text-red-500"
-                        aria-label={`Remove ${field.label} column`}
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    </span>
-                  </TableHead>
-                ))}
-                {aiFields.enabled && (
-                  <TableHead>
-                    <AddFieldLauncher onClick={aiFields.open} label="Add column with AI" />
-                  </TableHead>
+                {showColumn('customer') && <TableHead>Customer</TableHead>}
+                {showColumn('company') && <TableHead>Company</TableHead>}
+                {showColumn('contact') && <TableHead>Contact</TableHead>}
+                {showColumn('location') && <TableHead>Location</TableHead>}
+                {showColumn('lifetimeValue') && <TableHead>Lifetime Value</TableHead>}
+                {showColumn('lastContact') && <TableHead>Last Contact</TableHead>}
+                {showColumn('status') && <TableHead>Status</TableHead>}
+                {showColumn('activity') && <TableHead>Activity</TableHead>}
+                {/* AI-added field columns */}
+                {listFields.map(
+                  (field) =>
+                    showColumn(field.id) && (
+                      <TableHead key={field.id}>
+                        <span className="inline-flex items-center gap-1.5">
+                          <Sparkles className="h-3.5 w-3.5 text-purple-500" />
+                          {field.label}
+                        </span>
+                      </TableHead>
+                    ),
                 )}
                 <TableHead className="w-[100px]">Actions</TableHead>
               </TableRow>
@@ -1199,47 +1324,61 @@ export function CustomersPage({ initialFilter }: CustomersPageProps) {
                   className="hover:bg-gray-50 cursor-pointer"
                   onClick={() => setSelectedCustomer(customer)}
                 >
-                  <TableCell>
-                    <div className="font-medium text-gray-900">{customer.name}</div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <Building2 className="w-4 h-4 text-gray-400" />
-                      {customer.company}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="space-y-1">
-                      <div className="text-sm text-gray-600">{customer.email}</div>
-                      <div className="text-sm text-gray-500">{customer.phone}</div>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-1 text-sm text-gray-600">
-                      <MapPin className="w-3 h-3" />
-                      {customer.location}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="font-semibold text-green-600">
-                      {formatCurrency(customer.lifetimeValue)}
-                    </div>
-                  </TableCell>
-                  <TableCell>{formatDate(customer.lastContact)}</TableCell>
-                  <TableCell>{getStatusBadge(customer.status)}</TableCell>
-                  <TableCell>
-                    <div className="text-sm text-gray-600">
-                      <div>{customer.estimatesCount} estimates</div>
-                      <div>{customer.invoicesCount} invoices</div>
-                    </div>
-                  </TableCell>
-                  {/* Read-only display of AI-added columns; edit them on the detail screen */}
-                  {aiFields.fields.map((field) => (
-                    <TableCell key={field.id} className="text-sm text-gray-600">
-                      {formatFieldValue(field, aiFields.getValue(customer.id, field.id))}
+                  {showColumn('customer') && (
+                    <TableCell>
+                      <div className="font-medium text-gray-900">{customer.name}</div>
                     </TableCell>
-                  ))}
-                  {aiFields.enabled && <TableCell />}
+                  )}
+                  {showColumn('company') && (
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Building2 className="w-4 h-4 text-gray-400" />
+                        {customer.company}
+                      </div>
+                    </TableCell>
+                  )}
+                  {showColumn('contact') && (
+                    <TableCell>
+                      <div className="space-y-1">
+                        <div className="text-sm text-gray-600">{customer.email}</div>
+                        <div className="text-sm text-gray-500">{customer.phone}</div>
+                      </div>
+                    </TableCell>
+                  )}
+                  {showColumn('location') && (
+                    <TableCell>
+                      <div className="flex items-center gap-1 text-sm text-gray-600">
+                        <MapPin className="w-3 h-3" />
+                        {customer.location}
+                      </div>
+                    </TableCell>
+                  )}
+                  {showColumn('lifetimeValue') && (
+                    <TableCell>
+                      <div className="font-semibold text-green-600">
+                        {formatCurrency(customer.lifetimeValue)}
+                      </div>
+                    </TableCell>
+                  )}
+                  {showColumn('lastContact') && <TableCell>{formatDate(customer.lastContact)}</TableCell>}
+                  {showColumn('status') && <TableCell>{getStatusBadge(customer.status)}</TableCell>}
+                  {showColumn('activity') && (
+                    <TableCell>
+                      <div className="text-sm text-gray-600">
+                        <div>{customer.estimatesCount} estimates</div>
+                        <div>{customer.invoicesCount} invoices</div>
+                      </div>
+                    </TableCell>
+                  )}
+                  {/* AI-added field values (read-only on the list) */}
+                  {listFields.map(
+                    (field) =>
+                      showColumn(field.id) && (
+                        <TableCell key={field.id} className="text-sm text-gray-600">
+                          {formatFieldValue(field, ai.getValue('customer', customer.id, field.id))}
+                        </TableCell>
+                      ),
+                  )}
                   <TableCell>
                     <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
                       <Button variant="ghost" size="sm" className="w-8 h-8 p-0">

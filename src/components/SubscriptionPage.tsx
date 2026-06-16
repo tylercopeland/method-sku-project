@@ -329,6 +329,13 @@ export function SubscriptionPage({
     setStep('canceled');
   };
 
+  // Leave the success screen for the home dashboard, resetting the page's internal
+  // step so it doesn't re-open on the success modal if the user comes back.
+  const goToDashboard = () => {
+    setStep('manage');
+    onBack?.();
+  };
+
   // Success confirmation content — shared by the inline (full-page) and modal experiences.
   const successContent = selectedPlan ? (
     <>
@@ -380,7 +387,7 @@ export function SubscriptionPage({
         )}
       </div>
 
-      <Button onClick={onBack} className="w-full bg-blue-600 hover:bg-blue-700 text-white">
+      <Button onClick={goToDashboard} className="w-full bg-blue-600 hover:bg-blue-700 text-white">
         Go to your dashboard
       </Button>
     </>
@@ -1475,7 +1482,7 @@ export function SubscriptionPage({
                   : `Subscribe to ${selectedPlan.name}`}
               </h2>
               <button
-                onClick={() => (step === 'success' ? onBack?.() : setStep('plans'))}
+                onClick={() => (step === 'success' ? goToDashboard() : setStep('plans'))}
                 className="text-gray-400 hover:text-gray-600"
               >
                 <X className="w-5 h-5" />

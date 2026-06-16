@@ -31,8 +31,12 @@ import {
 // Context + provider
 // ---------------------------------------------------------------------------
 
+type FieldLauncherMode = 'inline' | 'global';
+
 interface AIFieldsApi {
   enabled: boolean;
+  /** Where the launcher lives: inline per-section, or one global top-nav button. */
+  mode: FieldLauncherMode;
   /** Field definitions for an entity (shared across its list + details). */
   getFields: (entityType: string) => CustomField[];
   addField: (entityType: string, field: CustomField) => void;
@@ -54,9 +58,11 @@ const nextId = () => `cf-${++fieldSeq}-${fieldSeq * 31 + 7}`;
 
 export function AIFieldsProvider({
   enabled,
+  mode = 'inline',
   children,
 }: {
   enabled: boolean;
+  mode?: FieldLauncherMode;
   children: ReactNode;
 }) {
   const [fieldsByEntity, setFieldsByEntity] = useState<Record<string, CustomField[]>>({});
@@ -113,6 +119,7 @@ export function AIFieldsProvider({
   const api = useMemo<AIFieldsApi>(
     () => ({
       enabled,
+      mode,
       getFields,
       addField,
       removeField,
@@ -122,7 +129,7 @@ export function AIFieldsProvider({
       registerSurface,
       openAddField,
     }),
-    [enabled, getFields, addField, removeField, getValue, setValue, activeSurface, registerSurface, openAddField],
+    [enabled, mode, getFields, addField, removeField, getValue, setValue, activeSurface, registerSurface, openAddField],
   );
 
   return (
@@ -133,7 +140,7 @@ export function AIFieldsProvider({
         context={pending ?? undefined}
         onClose={() => setPending(null)}
         onAddField={(field) => {
-          if (pending) addField(pending.entityType, field);
+          if (pending) addField(pending.entityType, { ...field, group: pending.group });
           setPending(null);
         }}
       />
@@ -240,28 +247,44 @@ export function CustomFieldControl({
 }
 
 /**
- * The "Custom Fields" group for a detail screen. Renders every AI-added field
- * for the entity as an editable control, plus an inline launcher to add more.
- * Renders nothing when the experience is disabled.
+ * Renders AI-added fields for an entity (optionally limited to one sub-section
+ * via `group`) as editable controls, plus an inline launcher to add more. Drop
+ * it inside any detail section. Pass `heading={null}` to blend into a section
+ * that already has its own title. Renders nothing when the experience is off.
  */
 export function AIFieldGroup({
   entityType,
   entityLabel,
   recordId,
+  group,
+  heading = 'Custom Fields',
+  launcherLabel = 'Add field with AI',
 }: {
   entityType: string;
   entityLabel: string;
   recordId: string;
+  group?: string;
+  heading?: string | null;
+  launcherLabel?: string;
 }) {
   const api = useAIFields();
   if (!api.enabled) return null;
-  const fields = api.getFields(entityType);
+  // A group renders its own fields; an ungrouped instance (no `group`) collects
+  // fields added without a section — i.e. those added via the global launcher.
+  const fields = api.getFields(entityType).filter((f) => (group ? f.group === group : !f.group));
+  // The inline launcher only belongs to the inline mode; in global mode the
+  // single top-nav launcher replaces it.
+  const showLauncher = api.mode === 'inline';
+
+  if (!showLauncher && fields.length === 0) return null;
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-gray-900">Custom Fields</h3>
-      </div>
+    <div className={heading ? '' : 'mt-4'}>
+      {heading && fields.length > 0 && (
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-gray-900">{heading}</h3>
+        </div>
+      )}
 
       {fields.length > 0 && (
         <div className="space-y-4 mb-4">
@@ -290,24 +313,43 @@ export function AIFieldGroup({
         </div>
       )}
 
-      <AddFieldLauncher
-        onClick={() => api.openAddField({ entityType, entityLabel, surface: 'detail' })}
-        label="Add field with AI"
-      />
+      {showLauncher && (
+        <AddFieldLauncher
+          onClick={() => api.openAddField({ entityType, entityLabel, surface: 'detail', group })}
+          label={launcherLabel}
+          variant="link"
+        />
+      )}
     </div>
   );
 }
 
-/** The dashed inline launcher button, reused on lists and details. */
+/**
+ * Inline launcher, reused on lists and details. `variant="dashed"` renders the
+ * boxed dashed button; `variant="link"` renders a lightweight text link.
+ */
 export function AddFieldLauncher({
   onClick,
   label,
   className = '',
+  variant = 'dashed',
 }: {
   onClick: () => void;
   label: string;
   className?: string;
+  variant?: 'dashed' | 'link';
 }) {
+  if (variant === 'link') {
+    return (
+      <button
+        onClick={onClick}
+        className={`inline-flex items-center gap-1.5 text-sm font-medium text-purple-600 hover:text-purple-700 hover:underline transition-colors ${className}`}
+      >
+        <Sparkles className="w-3.5 h-3.5" />
+        {label}
+      </button>
+    );
+  }
   return (
     <button
       onClick={onClick}
@@ -325,8 +367,8 @@ export function AddFieldLauncher({
  * until the experience is enabled and a surface is in view.
  */
 export function GlobalAddFieldButton() {
-  const { enabled, activeSurface, openAddField } = useAIFields();
-  if (!enabled || !activeSurface) return null;
+  const { enabled, mode, activeSurface, openAddField } = useAIFields();
+  if (!enabled || mode !== 'global' || !activeSurface) return null;
   return (
     <button
       onClick={() => openAddField()}
