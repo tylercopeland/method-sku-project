@@ -30,7 +30,7 @@ export interface FieldContext {
   group?: string;
 }
 
-const TYPE_LABELS: Record<FieldType, string> = {
+export const TYPE_LABELS: Record<FieldType, string> = {
   text: 'Short text',
   number: 'Number',
   date: 'Date',
@@ -40,7 +40,7 @@ const TYPE_LABELS: Record<FieldType, string> = {
   checkbox: 'Checkbox',
 };
 
-const EXAMPLES = [
+export const EXAMPLES = [
   'A dropdown for preferred contact method',
   'A dropdown for company size',
   'A date field for next follow-up',
@@ -48,7 +48,7 @@ const EXAMPLES = [
 ];
 
 // --- Lightweight "AI" that infers a field from a natural-language description ---
-function inferOptions(p: string): string[] {
+export function inferOptions(p: string): string[] {
   if (/\bpriorit/.test(p)) return ['Low', 'Medium', 'High'];
   if (/\brating|temperature\b/.test(p)) return ['Cold', 'Warm', 'Hot'];
   if (/\bstatus|stage\b/.test(p)) return ['New', 'In progress', 'Closed'];
@@ -59,7 +59,7 @@ function inferOptions(p: string): string[] {
   return ['Option 1', 'Option 2', 'Option 3'];
 }
 
-function inferType(p: string): FieldType {
+export function inferType(p: string): FieldType {
   if (/\b(date|follow.?up|birthday|due|deadline|renewal|anniversary|when)\b/.test(p)) return 'date';
   if (/\b(dropdown|drop down|select|status|stage|category|type|priority|rating|tier|source|method|region|territory|plan)\b/.test(p))
     return 'select';
@@ -80,7 +80,7 @@ function singular(label: string): string {
   return s;
 }
 
-function inferLabel(prompt: string): string {
+export function inferLabel(prompt: string): string {
   let s = prompt
     .trim()
     .replace(/^(can you |could you |please |i (?:want|need) |let'?s )+/gi, '')
@@ -96,15 +96,15 @@ function inferLabel(prompt: string): string {
 }
 
 // Quick-fill option sets Method AI suggests when it has to ask for dropdown options.
-const OPTION_SET_SUGGESTIONS = ['Low, Medium, High', 'Small, Medium, Large', 'Yes, No'];
+export const OPTION_SET_SUGGESTIONS = ['Low, Medium, High', 'Small, Medium, Large', 'Yes, No'];
 
 // The field types offered when the AI can't tell what kind of data a field holds.
-const TYPE_CHOICES = (Object.keys(TYPE_LABELS) as FieldType[]).map((t) => ({
+export const TYPE_CHOICES = (Object.keys(TYPE_LABELS) as FieldType[]).map((t) => ({
   value: t,
   label: TYPE_LABELS[t],
 }));
 
-type Clarification =
+export type Clarification =
   | { kind: 'options'; label: string; question: string }
   | { kind: 'type'; label: string; question: string };
 
@@ -112,7 +112,7 @@ type Clarification =
  * Decide whether Method AI should ask a follow-up before building the field.
  * Returns the question to ask, or null when the request is clear enough.
  */
-function getClarification(prompt: string): Clarification | null {
+export function getClarification(prompt: string): Clarification | null {
   const p = prompt.toLowerCase();
   const label = inferLabel(prompt);
   const type = inferType(p);

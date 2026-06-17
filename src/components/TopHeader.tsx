@@ -7,18 +7,20 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Search, Plus, Settings, Lightbulb, Menu, CircleUser, Share2, Contact, LogOut } from 'lucide-react';
+import { Search, Plus, Settings, Lightbulb, Menu, CircleUser, Share2, Contact, LogOut, ChevronDown } from 'lucide-react';
 import { HelpDrawer } from '@/components/HelpDrawer';
 import { GlobalAddFieldButton } from '@/lib/ai-fields';
 import { useState } from 'react';
 
 interface TopHeaderProps {
   currentPageLabel?: string;
+  /** App/object screens get a title dropdown (Manage App / Customize Screen). */
+  isAppScreen?: boolean;
   onNavigate?: (page: string) => void;
   onMobileMenuToggle?: () => void;
 }
 
-export function TopHeader({ currentPageLabel = 'Home', onNavigate, onMobileMenuToggle }: TopHeaderProps) {
+export function TopHeader({ currentPageLabel = 'Home', isAppScreen = false, onNavigate, onMobileMenuToggle }: TopHeaderProps) {
   const [isHelpDrawerOpen, setIsHelpDrawerOpen] = useState(false);
 
   return (
@@ -37,17 +39,38 @@ export function TopHeader({ currentPageLabel = 'Home', onNavigate, onMobileMenuT
               <Menu className="w-5 h-5 text-gray-600" />
             </Button>
 
-            {/* Page title */}
-            <h1 className="text-base sm:text-lg font-semibold text-gray-900 truncate">
-              {currentPageLabel}
-            </h1>
+            {/* Page title — app screens get a Manage App / Customize Screen dropdown */}
+            {isAppScreen ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="group flex items-center gap-1.5 focus:outline-none">
+                    <h1 className="text-base sm:text-lg font-semibold text-gray-900 truncate">
+                      {currentPageLabel}
+                    </h1>
+                    <ChevronDown className="w-4 h-4 text-gray-500 group-hover:text-gray-700 transition-colors" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" sideOffset={8} className="w-56 py-1.5">
+                  <DropdownMenuItem className="px-4 py-2.5 text-base text-gray-900 cursor-pointer">
+                    Manage App
+                  </DropdownMenuItem>
+                  <DropdownMenuItem className="px-4 py-2.5 text-base text-gray-900 cursor-pointer">
+                    Customize Screen
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <h1 className="text-base sm:text-lg font-semibold text-gray-900 truncate">
+                {currentPageLabel}
+              </h1>
+            )}
+
+            {/* Universal "Add field with AI" launcher — sits beside the app name */}
+            <GlobalAddFieldButton />
           </div>
 
           {/* Right side actions */}
           <div className="flex items-center gap-1 sm:gap-4">
-            {/* Universal "Add field with AI" launcher — context-aware, any screen */}
-            <GlobalAddFieldButton />
-
             {/* Search */}
             <Button variant="ghost" size="sm" className="p-2">
               <Search className="w-5 h-5 text-gray-600" />

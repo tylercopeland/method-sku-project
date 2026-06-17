@@ -12,7 +12,7 @@ import { AppStudioPage, aiApps } from '@/components/AppStudioPage';
 import { AppMarketplacePage } from '@/components/AppMarketplacePage';
 import { ApplicationsAccessPage } from '@/components/ApplicationsAccessPage';
 import { OnboardingModal } from '@/components/OnboardingModal';
-import { AIFieldsProvider } from '@/lib/ai-fields';
+import { AIFieldsProvider, AddFieldChatPanel, FieldSurfaceRegistrar } from '@/lib/ai-fields';
 import { useState, useEffect } from 'react';
 import { X, GripVertical, ChevronDown } from 'lucide-react';
 
@@ -36,9 +36,6 @@ function App() {
   const [appStudioEnabled, setAppStudioEnabled] = useState(false);
   // Demo: enables the "Add field with AI" custom-fields experience on detail screens.
   const [aiFieldsEnabled, setAiFieldsEnabled] = useState(false);
-  // Demo: where the "Add field with AI" launcher lives — inline per-section, or
-  // a single global launcher in the top navigation.
-  const [aiFieldMode, setAiFieldMode] = useState<'inline' | 'global'>('inline');
   // Applications Access deep-link: which user, scrolled to which app they came from.
   const [accessUser, setAccessUser] = useState<string | null>(null);
   const [accessScrollApp, setAccessScrollApp] = useState<string | undefined>(undefined);
@@ -144,6 +141,11 @@ function App() {
   ];
   const shouldShowEmptyState = emptyStatePages.includes(currentPage);
 
+  // System pages (not CRM app/object screens) — these don't get the app-title menu.
+  const nonAppScreens = [
+    'home', 'subscription', 'account-settings', 'marketplace', 'applications-access', 'app-studio',
+  ];
+
   const handlePageNavigation = (page: string) => {
     if (page === 'home') {
       navigateToHome();
@@ -173,7 +175,7 @@ function App() {
   };
 
   return (
-    <AIFieldsProvider enabled={aiFieldsEnabled} mode={aiFieldMode}>
+    <AIFieldsProvider enabled={aiFieldsEnabled}>
     <div className="h-screen bg-gray-50 flex flex-col overflow-hidden">
       {/* Trial Banner */}
       {showTrialBanner && !subscription && (
@@ -249,6 +251,7 @@ function App() {
         {/* Top Header */}
         <TopHeader
           currentPageLabel={isLocked ? 'Subscription' : pageLabels[currentPage] || 'Home'}
+          isAppScreen={!isLocked && !nonAppScreens.includes(currentPage)}
           onNavigate={handlePageNavigation}
           onMobileMenuToggle={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
         />
@@ -359,6 +362,21 @@ function App() {
           <EmptyStatePage page="not-found" />
         )}
         </div>
+
+        {/* Make the Customize launcher available on every app screen. Customers/
+            Contacts register their own surface (list vs detail), so skip them here. */}
+        {!isLocked &&
+          !nonAppScreens.includes(currentPage) &&
+          !(premiumLocked && premiumApps.includes(currentPage)) &&
+          !['customers', 'contacts'].includes(currentPage) && (
+            <FieldSurfaceRegistrar
+              entityType={currentPage}
+              entityLabel={pageLabels[currentPage] || 'Records'}
+            />
+          )}
+
+        {/* Add-field chat panel — pushes content, sits below the top banner */}
+        <AddFieldChatPanel />
       </div>
 
       {/* Demo controls — switch trial state + reset subscription for presenting (shown in prod too) */}
@@ -541,26 +559,6 @@ function App() {
               ))}
             </div>
           </div>
-          {aiFieldsEnabled && (
-            <div className="border-t border-gray-100 pt-2 mt-2">
-              <p className="mb-1 text-gray-500">Add field launcher</p>
-              <div className="flex gap-1">
-                {(['inline', 'global'] as const).map((m) => (
-                  <button
-                    key={m}
-                    onClick={() => setAiFieldMode(m)}
-                    className={`flex-1 rounded border px-2 py-1 capitalize transition-colors ${
-                      aiFieldMode === m
-                        ? 'border-blue-600 bg-blue-600 text-white'
-                        : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
-                    }`}
-                  >
-                    {m}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
           <div className="border-t border-gray-100 pt-2 mt-2">
             <button
               onClick={() => {

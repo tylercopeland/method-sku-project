@@ -9,11 +9,9 @@ import {
 } from 'react';
 import { Sparkles, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import {
-  AddFieldWithAIModal,
-  type CustomField,
-  type FieldContext,
-} from '@/components/AddFieldWithAIModal';
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
+import { type CustomField, type FieldContext } from '@/components/AddFieldWithAIModal';
+import { AddFieldWithAIPanel } from '@/components/AddFieldWithAIPanel';
 
 /**
  * Universal "Add field with AI" layer.
@@ -49,6 +47,10 @@ interface AIFieldsApi {
   registerSurface: (ctx: FieldContext | null) => void;
   /** Open the builder. Falls back to the active surface when no context given. */
   openAddField: (ctx?: FieldContext) => void;
+  /** The open chat request (null when the panel is closed). */
+  request: FieldContext | null;
+  /** Close the chat panel. */
+  closeRequest: () => void;
 }
 
 const AIFieldsContext = createContext<AIFieldsApi | null>(null);
@@ -58,7 +60,7 @@ const nextId = () => `cf-${++fieldSeq}-${fieldSeq * 31 + 7}`;
 
 export function AIFieldsProvider({
   enabled,
-  mode = 'inline',
+  mode = 'global',
   children,
 }: {
   enabled: boolean;
@@ -128,23 +130,35 @@ export function AIFieldsProvider({
       activeSurface,
       registerSurface,
       openAddField,
+      request: pending,
+      closeRequest: () => setPending(null),
     }),
-    [enabled, mode, getFields, addField, removeField, getValue, setValue, activeSurface, registerSurface, openAddField],
+    [enabled, mode, getFields, addField, removeField, getValue, setValue, activeSurface, registerSurface, openAddField, pending],
   );
 
+  return <AIFieldsContext.Provider value={api}>{children}</AIFieldsContext.Provider>;
+}
+
+/**
+ * Mounts the Add-field chat panel. Render this inside the app layout (below the
+ * top banner, beside the content) so the panel pushes content instead of
+ * overlaying the whole viewport.
+ */
+export function AddFieldChatPanel() {
+  const { request, activeSurface, closeRequest, addField } = useAIFields();
+  // The panel follows the screen you're on: `request` controls open/closed, while
+  // the live `activeSurface` drives the context (pill, copy) and where fields land.
+  const context = activeSurface ?? request ?? undefined;
   return (
-    <AIFieldsContext.Provider value={api}>
-      {children}
-      <AddFieldWithAIModal
-        isOpen={pending !== null}
-        context={pending ?? undefined}
-        onClose={() => setPending(null)}
-        onAddField={(field) => {
-          if (pending) addField(pending.entityType, { ...field, group: pending.group });
-          setPending(null);
-        }}
-      />
-    </AIFieldsContext.Provider>
+    <AddFieldWithAIPanel
+      isOpen={request !== null}
+      context={context}
+      onClose={closeRequest}
+      onAddField={(field) => {
+        // Keep the panel open so the user can keep chatting and add more fields.
+        if (context) addField(context.entityType, { ...field, group: context.group });
+      }}
+    />
   );
 }
 
@@ -171,6 +185,23 @@ export function useEntityFields(entityType: string, entityLabel: string, surface
       api.setValue(entityType, recordId, fieldId, value),
     open: () => api.openAddField({ entityType, entityLabel, surface }),
   };
+}
+
+/**
+ * Drop-in registrar so a screen that doesn't manage its own fields still exposes
+ * the global Customize launcher. Renders nothing.
+ */
+export function FieldSurfaceRegistrar({
+  entityType,
+  entityLabel,
+  surface = 'detail',
+}: {
+  entityType: string;
+  entityLabel: string;
+  surface?: 'list' | 'detail';
+}) {
+  useFieldSurface({ entityType, entityLabel, surface });
+  return null;
 }
 
 /** Register the on-screen surface so the global launcher knows where to add. */
@@ -370,13 +401,34 @@ export function GlobalAddFieldButton() {
   const { enabled, mode, activeSurface, openAddField } = useAIFields();
   if (!enabled || mode !== 'global' || !activeSurface) return null;
   return (
-    <button
-      onClick={() => openAddField()}
-      title="Add a field with Method AI"
-      className="hidden sm:inline-flex items-center gap-1.5 rounded-full border border-purple-200 bg-purple-50 px-3 py-1.5 text-sm font-semibold text-purple-700 hover:bg-purple-100 transition-colors"
-    >
-      <Sparkles className="w-4 h-4" />
-      Add field with AI
-    </button>
+    <TooltipProvider delayDuration={150}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button
+            onClick={() => openAddField()}
+            aria-label="Customize the screen by adding a custom field using Method AI"
+            className="group inline-flex h-6 min-w-[24px] items-center justify-center rounded-full border border-purple-200 bg-purple-50 px-1 text-xs font-semibold text-purple-600 hover:bg-purple-100 hover:px-2.5 transition-all"
+          >
+            <Sparkles className="w-3.5 h-3.5 shrink-0" />
+            <span className="max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-all duration-200 group-hover:ml-1 group-hover:max-w-[80px] group-hover:opacity-100">
+              Customize
+            </span>
+          </button>
+        </TooltipTrigger>
+        <TooltipContent
+          side="bottom"
+          align="start"
+          className="max-w-[15rem] p-3 bg-white text-left border border-gray-200 shadow-lg"
+        >
+          <div className="flex items-center gap-1.5 text-sm font-semibold text-gray-900">
+            <Sparkles className="w-3.5 h-3.5 text-purple-500" />
+            Customize with Method AI
+          </div>
+          <p className="mt-1 text-xs leading-relaxed text-gray-600">
+            Customize this screen by adding a custom field — just describe it and Method AI builds it.
+          </p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 }

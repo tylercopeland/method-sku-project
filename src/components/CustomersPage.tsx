@@ -47,7 +47,6 @@ export function CustomersPage({ initialFilter }: CustomersPageProps) {
   // Customer fields render on the detail screen, not inline in the data table.
   useFieldSurface({ entityType: 'customer', entityLabel: 'Customers', surface: 'detail' });
   const ai = useAIFields();
-  const aiFieldMode = ai.mode;
   // AI-added fields shown as columns on the Customers list, managed via the
   // Columns menu (which also kicks off "Add field" for this list component).
   const listFields = ai.getFields('customer');
@@ -372,10 +371,8 @@ export function CustomersPage({ initialFilter }: CustomersPageProps) {
             <p className="text-xs text-gray-600">No change in health score compared to last week.</p>
           </div>
 
-          {/* Global mode: fields added from the top-nav launcher collect here */}
-          {aiFieldMode === 'global' && (
-            <AIFieldGroup entityType="customer" entityLabel="Customers" recordId={selectedCustomer.id} />
-          )}
+          {/* Custom fields added via the global "Customize" launcher collect here */}
+          <AIFieldGroup entityType="customer" entityLabel="Customers" recordId={selectedCustomer.id} />
 
           {/* Contact Details */}
           <div>
@@ -402,14 +399,6 @@ export function CustomersPage({ initialFilter }: CustomersPageProps) {
                 </Badge>
               </div>
             </div>
-            {/* AI-added contact fields live within this section */}
-            <AIFieldGroup
-              entityType="customer"
-              entityLabel="Customers"
-              recordId={selectedCustomer.id}
-              group="contact"
-              heading={null}
-            />
           </div>
 
           {/* Customer Lead Details */}
@@ -431,14 +420,6 @@ export function CustomersPage({ initialFilter }: CustomersPageProps) {
                 <div className="text-sm text-gray-600">Hot</div>
               </div>
             </div>
-            {/* AI-added lead fields live within this section */}
-            <AIFieldGroup
-              entityType="customer"
-              entityLabel="Customers"
-              recordId={selectedCustomer.id}
-              group="lead"
-              heading={null}
-            />
           </div>
 
         </div>
@@ -1305,14 +1286,7 @@ export function CustomersPage({ initialFilter }: CustomersPageProps) {
                 {/* AI-added field columns */}
                 {listFields.map(
                   (field) =>
-                    showColumn(field.id) && (
-                      <TableHead key={field.id}>
-                        <span className="inline-flex items-center gap-1.5">
-                          <Sparkles className="h-3.5 w-3.5 text-purple-500" />
-                          {field.label}
-                        </span>
-                      </TableHead>
-                    ),
+                    showColumn(field.id) && <TableHead key={field.id}>{field.label}</TableHead>,
                 )}
                 <TableHead className="w-[100px]">Actions</TableHead>
               </TableRow>
