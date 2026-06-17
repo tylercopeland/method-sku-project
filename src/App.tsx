@@ -293,6 +293,17 @@ function App() {
                 setTrialCanceled(true);
               }
             }}
+            onScheduleDowngrade={(planId, effectiveDate) => {
+              // Keep the current plan active; record the scheduled downgrade for the banner.
+              if (subscription) {
+                setSubscription({ ...subscription, scheduledDowngrade: { planId, effectiveDate } });
+              }
+            }}
+            onCancelDowngrade={() => {
+              if (subscription) {
+                setSubscription({ ...subscription, scheduledDowngrade: undefined });
+              }
+            }}
             onResume={() => {
               if (subscription) {
                 setSubscription({ ...subscription, cancelAtPeriodEnd: false });

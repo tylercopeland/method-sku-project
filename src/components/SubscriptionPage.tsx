@@ -17,6 +17,7 @@ import {
   Heart,
   PhoneCall,
   Minus,
+  CalendarClock,
 } from 'lucide-react';
 
 interface Plan {
@@ -251,6 +252,9 @@ export interface ActiveSubscription {
   cardLast4: string;
   /** Set when the user has canceled but still has access through the end of the paid period. */
   cancelAtPeriodEnd?: boolean;
+  /** A downgrade scheduled for the end of the current period — access stays on the
+   *  current plan until `effectiveDate`, then switches to `planId`. */
+  scheduledDowngrade?: { planId: string; effectiveDate: string };
 }
 
 // Why someone is leaving — collected on the cancel screen for retention/feedback.
@@ -287,6 +291,10 @@ interface SubscriptionPageProps {
   onCancel?: (reason: string) => void;
   /** Reverse a pending cancellation (re-activate the trial or subscription). */
   onResume?: () => void;
+  /** Schedule a downgrade for the end of the period (planId = target, plus date). */
+  onScheduleDowngrade?: (planId: string, effectiveDate: string) => void;
+  /** Cancel a scheduled downgrade and keep the current plan. */
+  onCancelDowngrade?: () => void;
   activeSubscription?: ActiveSubscription | null;
   /** Whether the user is still within their free trial (first charge deferred to trial end). */
   isInTrial?: boolean;
@@ -319,6 +327,8 @@ export function SubscriptionPage({
   onSubscribed,
   onCancel,
   onResume,
+  onScheduleDowngrade,
+  onCancelDowngrade,
   activeSubscription,
   isInTrial = false,
   trialEndLabel = '',
@@ -427,6 +437,19 @@ export function SubscriptionPage({
   const currentPlan = activeSubscription
     ? plans.find((p) => p.id === activeSubscription.planId) ?? null
     : null;
+
+  // A scheduled (not yet effective) downgrade: target plan + the features lost when
+  // it takes effect (the additive tiers between the target and the current plan).
+  const scheduledDowngrade = activeSubscription?.scheduledDowngrade;
+  const downgradeTargetPlan = scheduledDowngrade
+    ? plans.find((p) => p.id === scheduledDowngrade.planId) ?? null
+    : null;
+  const downgradeLostFeatures =
+    scheduledDowngrade && downgradeTargetPlan && currentPlanIndex >= 0
+      ? plans
+          .slice(plans.findIndex((p) => p.id === scheduledDowngrade.planId) + 1, currentPlanIndex + 1)
+          .flatMap((p) => p.features)
+      : [];
   const selectedPlanIndex = plans.findIndex((p) => p.id === selectedPlanId);
   const changeKind: 'upgrade' | 'downgrade' | 'new' =
     currentPlanIndex >= 0 && selectedPlanIndex >= 0
@@ -574,6 +597,36 @@ export function SubscriptionPage({
             <h1 className="text-2xl font-semibold text-gray-900 mb-1">Your subscription</h1>
             <p className="text-gray-500">Manage your plan and billing details.</p>
           </div>
+
+          {/* Scheduled-downgrade notice — persists until the change takes effect */}
+          {scheduledDowngrade && downgradeTargetPlan && !isCanceling && (
+            <div className="mb-5 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4">
+              <CalendarClock className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-amber-900">
+                  Downgrade scheduled for {scheduledDowngrade.effectiveDate}
+                </p>
+                <p className="text-sm text-amber-800 mt-0.5">
+                  You'll keep full {currentPlan?.name} access until then — your plan switches to{' '}
+                  {downgradeTargetPlan.name} on {scheduledDowngrade.effectiveDate}. It hasn't taken
+                  effect yet.
+                </p>
+                {downgradeLostFeatures.length > 0 && (
+                  <p className="text-sm text-amber-800 mt-1">
+                    On that date you'll lose access to{' '}
+                    {downgradeLostFeatures.slice(0, 3).join(', ')}
+                    {downgradeLostFeatures.length > 3 ? ', and more' : ''}.
+                  </p>
+                )}
+                <Button
+                  onClick={() => onCancelDowngrade?.()}
+                  className="mt-3 h-8 bg-amber-600 hover:bg-amber-700 text-white text-sm"
+                >
+                  Keep current plan
+                </Button>
+              </div>
+            </div>
+          )}
 
           {/* Pending-cancellation notice — access continues until the period ends */}
           {isCanceling && (
@@ -1042,7 +1095,11 @@ export function SubscriptionPage({
                   Keep my current plan
                 </Button>
                 <Button
-                  onClick={() => setSalesRequested(true)}
+                  onClick={() => {
+                    // Schedule the downgrade for period end; access stays put until then.
+                    if (selectedPlanId) onScheduleDowngrade?.(selectedPlanId, nextBillingLabel);
+                    setSalesRequested(true);
+                  }}
                   disabled={!downgradeContact.email.trim()}
                   className="bg-blue-600 hover:bg-blue-700 text-white sm:ml-auto disabled:opacity-50"
                 >
