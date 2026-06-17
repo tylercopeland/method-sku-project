@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, Fragment } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -16,6 +16,7 @@ import {
   AlertTriangle,
   Heart,
   PhoneCall,
+  Minus,
 } from 'lucide-react';
 
 interface Plan {
@@ -109,6 +110,137 @@ const plans: Plan[] = [
     ctaLabel: 'Continue with Scale',
   },
 ];
+
+// Full feature comparison — columns map to [Essentials, Build, Scale].
+// Cell value: true = included, false = not included, string = qualifier text.
+type ComparisonCell = boolean | string;
+const FEATURE_COMPARISON: { title: string; rows: { label: string; values: ComparisonCell[] }[] }[] = [
+  {
+    title: 'Core',
+    rows: [
+      { label: 'QuickBooks sync', values: [true, true, true] },
+      { label: 'Unlimited contacts', values: [true, true, true] },
+      { label: 'Core apps (Invoices, Payments, Customers, etc.)', values: [true, true, true] },
+      { label: 'Method Pay', values: [true, true, true] },
+      { label: 'Customer portal branding', values: [true, true, true] },
+      { label: 'Custom fields', values: [true, true, true] },
+      { label: 'Included seats', values: ['1 seat', '3 seats', '8 seats'] },
+      { label: 'Additional full seats', values: [false, '$59/user', '$79/user'] },
+      { label: 'Field crew seats', values: [false, '$18/user', '$18/user'] },
+    ],
+  },
+  {
+    title: 'Customization',
+    rows: [
+      { label: 'App Studio (draft only)', values: [true, true, true] },
+      { label: 'App Studio: create & publish', values: [false, true, true] },
+      { label: 'App Routines & workflows', values: [false, true, true] },
+      { label: 'Custom global search', values: [false, true, true] },
+      { label: 'Multi-user apps (Field Crew, Jobs, etc.)', values: [false, true, true] },
+      { label: 'Tables & custom fields', values: ['Limited', 'Full', 'Full'] },
+    ],
+  },
+  {
+    title: 'Integrations & API',
+    rows: [
+      { label: 'Zapier, Mailchimp, Google integrations', values: [true, true, true] },
+      { label: 'API access', values: [false, true, true] },
+      { label: 'API limits', values: [false, 'Standard', 'Higher limits'] },
+    ],
+  },
+  {
+    title: 'AI',
+    rows: [
+      { label: 'AI credits', values: [false, 'Included monthly', 'More credits'] },
+      { label: 'AI App Builder assist', values: [false, true, true] },
+    ],
+  },
+  {
+    title: 'Email',
+    rows: [{ label: 'Monthly email sends', values: ['1,000/mo', '5,000/mo', 'Higher limits'] }],
+  },
+  {
+    title: 'Support',
+    rows: [
+      { label: 'Live chat & email support', values: [true, true, true] },
+      { label: 'Sales demo', values: [true, true, true] },
+      { label: 'Free onboarding hour', values: [true, true, true] },
+      { label: 'Pay-per-use Professional Services', values: [true, true, true] },
+      { label: 'CSM shared pool', values: [false, true, true] },
+      { label: 'Dedicated Customer Success Manager', values: [false, false, true] },
+      { label: 'Dedicated Expert Program (DEP)', values: [false, false, true] },
+    ],
+  },
+  {
+    title: 'Scale',
+    rows: [
+      { label: 'Multi-entity support', values: [false, false, true] },
+      { label: 'Method Pay scale discounts', values: [false, false, true] },
+    ],
+  },
+];
+
+function ComparisonValue({ value }: { value: ComparisonCell }) {
+  if (value === true) return <Check className="w-4 h-4 text-blue-600 mx-auto" />;
+  if (value === false) return <Minus className="w-4 h-4 text-gray-300 mx-auto" />;
+  return <span className="text-gray-700">{value}</span>;
+}
+
+// The "Full feature comparison" table shown beneath the plan cards.
+function FeatureComparison({ planNames, highlightIndex }: { planNames: string[]; highlightIndex: number }) {
+  const colCount = planNames.length + 1;
+  return (
+    <div className="mt-16">
+      <h2 className="text-2xl font-semibold text-gray-900 text-center mb-6">Full feature comparison</h2>
+      <div className="overflow-x-auto rounded-2xl border border-gray-200 bg-white shadow-sm">
+        <table className="w-full min-w-[640px] text-sm">
+          <thead>
+            <tr className="bg-gray-50/70">
+              <th className="text-left font-semibold text-gray-900 px-4 sm:px-6 py-4 w-2/5">Feature</th>
+              {planNames.map((name, i) => (
+                <th
+                  key={name}
+                  className={`px-4 py-4 text-center font-semibold ${
+                    i === highlightIndex ? 'bg-blue-50 text-blue-700' : 'text-gray-900'
+                  }`}
+                >
+                  {name}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {FEATURE_COMPARISON.map((section) => (
+              <Fragment key={section.title}>
+                <tr>
+                  <td
+                    colSpan={colCount}
+                    className="bg-gray-50/70 px-4 sm:px-6 py-2.5 text-xs font-bold uppercase tracking-wide text-gray-500"
+                  >
+                    {section.title}
+                  </td>
+                </tr>
+                {section.rows.map((row) => (
+                  <tr key={row.label} className="border-t border-gray-100">
+                    <td className="px-4 sm:px-6 py-3.5 text-gray-700">{row.label}</td>
+                    {row.values.map((v, i) => (
+                      <td
+                        key={i}
+                        className={`px-4 py-3.5 text-center ${i === highlightIndex ? 'bg-blue-50/40' : ''}`}
+                      >
+                        <ComparisonValue value={v} />
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </Fragment>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
 
 type BillingCycle = 'monthly' | 'annual';
 type Step = 'plans' | 'checkout' | 'success' | 'manage' | 'cancel' | 'canceled' | 'downgrade';
@@ -1471,6 +1603,12 @@ export function SubscriptionPage({
             );
           })}
         </div>
+
+        {/* Full feature comparison */}
+        <FeatureComparison
+          planNames={plans.map((p) => p.name)}
+          highlightIndex={plans.findIndex((p) => p.highlighted)}
+        />
 
         {/* Trial users: a quiet exit to close the account instead of subscribing */}
         {!isChangingPlan && (
