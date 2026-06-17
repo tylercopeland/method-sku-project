@@ -90,9 +90,11 @@ interface AppsGridProps {
   onOpenApp?: (lockKey: string) => void;
   /** Jump straight to the subscription/upgrade flow. */
   onUpgrade?: () => void;
+  /** With App Studio on, apps are managed there — hide the inline Add/Remove tile. */
+  appStudioEnabled?: boolean;
 }
 
-export function AppsGrid({ lockedApps = [], onOpenApp, onUpgrade }: AppsGridProps) {
+export function AppsGrid({ lockedApps = [], onOpenApp, onUpgrade, appStudioEnabled = false }: AppsGridProps) {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
       {appTiles.map((tile) => {
@@ -173,10 +175,12 @@ export function AppsGrid({ lockedApps = [], onOpenApp, onUpgrade }: AppsGridProp
         );
       })}
 
-      {/* Add / Remove Apps */}
-      <button className="flex items-center justify-center rounded-lg border-2 border-dashed border-gray-300 text-blue-600 font-semibold text-sm hover:bg-gray-50 h-56">
-        Add / Remove Apps
-      </button>
+      {/* Add / Remove Apps — hidden when App Studio manages apps */}
+      {!appStudioEnabled && (
+        <button className="flex items-center justify-center rounded-lg border-2 border-dashed border-gray-300 text-blue-600 font-semibold text-sm hover:bg-gray-50 h-56">
+          Add / Remove Apps
+        </button>
+      )}
     </div>
   );
 }

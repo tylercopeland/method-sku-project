@@ -35,8 +35,8 @@ interface Plan {
   highlighted?: boolean;
 }
 
-// Annual billing = 20% off the monthly rate.
-const ANNUAL_DISCOUNT = 0.2;
+// Annual billing = 15% off the monthly rate.
+const ANNUAL_DISCOUNT = 0.15;
 const annualPerMonth = (monthly: number) => Math.round(monthly * (1 - ANNUAL_DISCOUNT));
 const annualYearly = (monthly: number) => Math.round(monthly * 12 * (1 - ANNUAL_DISCOUNT));
 
@@ -1298,7 +1298,7 @@ export function SubscriptionPage({
                 {billingCycle === 'annual' && (
                   <div className="flex items-center gap-1.5 text-xs text-green-600 font-medium mb-3">
                     <Sparkles className="w-3.5 h-3.5" />
-                    You're saving ${annualSavings.toLocaleString()}/yr (20%) with annual billing
+                    You're saving ${annualSavings.toLocaleString()}/yr ({Math.round(ANNUAL_DISCOUNT * 100)}%) with annual billing
                   </div>
                 )}
 
@@ -1415,7 +1415,7 @@ export function SubscriptionPage({
                 Annually
               </span>
               <span className="bg-green-100 text-green-800 text-xs font-semibold px-2 py-0.5 rounded-full">
-                20% off
+                {Math.round(ANNUAL_DISCOUNT * 100)}% off
               </span>
             </div>
           )}
@@ -1431,7 +1431,7 @@ export function SubscriptionPage({
             const isDowngrade =
               isChangingPlan && currentPlanIndex >= 0 && index < currentPlanIndex && !plan.contactSales;
 
-            // Pricing (annual = 20% off), and the effective total for this team size.
+            // Pricing (annual = 15% off), and the effective total for this team size.
             const price = billingCycle === 'annual' ? annualPerMonth(plan.monthlyPrice) : plan.monthlyPrice;
             const yearly = annualYearly(plan.monthlyPrice);
             const extraSeats = Math.max(0, teamSize - plan.seats);

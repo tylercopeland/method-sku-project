@@ -11,6 +11,7 @@ interface AdminDashboardProps {
   lockedApps?: string[];
   onOpenApp?: (lockKey: string) => void;
   onUpgrade?: () => void;
+  appStudioEnabled?: boolean;
 }
 
 const dashboardTabs = [
@@ -19,7 +20,7 @@ const dashboardTabs = [
   { id: 'insights', label: 'Insights', beta: true },
 ];
 
-export function AdminDashboard({ userName, onNavigateToEstimates, onNavigateToCustomers, lockedApps = [], onOpenApp, onUpgrade }: AdminDashboardProps) {
+export function AdminDashboard({ userName, onNavigateToEstimates, onNavigateToCustomers, lockedApps = [], onOpenApp, onUpgrade, appStudioEnabled = false }: AdminDashboardProps) {
   const [activeTab, setActiveTab] = useState('home');
 
   return (
@@ -49,7 +50,7 @@ export function AdminDashboard({ userName, onNavigateToEstimates, onNavigateToCu
         </div>
 
         {activeTab === 'apps' ? (
-          <AppsGrid lockedApps={lockedApps} onOpenApp={onOpenApp} onUpgrade={onUpgrade} />
+          <AppsGrid lockedApps={lockedApps} onOpenApp={onOpenApp} onUpgrade={onUpgrade} appStudioEnabled={appStudioEnabled} />
         ) : (
           <>
             {/* Welcome Banner with Integrated Insights and Videos */}

@@ -340,6 +340,7 @@ function App() {
             onNavigateToEstimates={navigateToEstimates}
             onNavigateToCustomers={navigateToCustomers}
             lockedApps={lockedApps}
+            appStudioEnabled={appStudioEnabled}
             onOpenApp={(page) => setCurrentPage(page)}
             onUpgrade={() => {
               setOpenToChangePlan(true);
