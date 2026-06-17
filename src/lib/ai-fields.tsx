@@ -149,6 +149,12 @@ export function AddFieldChatPanel() {
   // The panel follows the screen you're on: `request` controls open/closed, while
   // the live `activeSurface` drives the context (pill, copy) and where fields land.
   const context = activeSurface ?? request ?? undefined;
+
+  // Close the panel when you navigate to a screen with no field surface (e.g. Home).
+  // App→app navigation keeps a surface registered, so it stays open there.
+  useEffect(() => {
+    if (request && !activeSurface) closeRequest();
+  }, [request, activeSurface, closeRequest]);
   return (
     <AddFieldWithAIPanel
       isOpen={request !== null}
@@ -322,10 +328,7 @@ export function AIFieldGroup({
           {fields.map((field) => (
             <div key={field.id} className="group">
               <div className="flex items-center justify-between mb-1">
-                <div className="flex items-center gap-1.5 text-sm font-medium text-gray-900">
-                  <Sparkles className="w-3.5 h-3.5 text-purple-500" />
-                  {field.label}
-                </div>
+                <div className="text-sm font-medium text-gray-900">{field.label}</div>
                 <button
                   onClick={() => api.removeField(entityType, field.id)}
                   className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 transition-opacity"

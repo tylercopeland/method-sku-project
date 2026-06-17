@@ -371,9 +371,6 @@ export function CustomersPage({ initialFilter }: CustomersPageProps) {
             <p className="text-xs text-gray-600">No change in health score compared to last week.</p>
           </div>
 
-          {/* Custom fields added via the global "Customize" launcher collect here */}
-          <AIFieldGroup entityType="customer" entityLabel="Customers" recordId={selectedCustomer.id} />
-
           {/* Contact Details */}
           <div>
             <div className="flex items-center justify-between mb-4">
@@ -399,6 +396,13 @@ export function CustomersPage({ initialFilter }: CustomersPageProps) {
                 </Badge>
               </div>
             </div>
+            {/* AI-added custom fields live under Contact Details */}
+            <AIFieldGroup
+              entityType="customer"
+              entityLabel="Customers"
+              recordId={selectedCustomer.id}
+              heading={null}
+            />
           </div>
 
           {/* Customer Lead Details */}

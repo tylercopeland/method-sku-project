@@ -910,11 +910,19 @@ export function SubscriptionPage({
             <h1 className="text-2xl font-semibold text-gray-900 mb-2">
               We've got your request
             </h1>
-            <p className="text-gray-600 mb-6">
+            <p className="text-gray-600 mb-5">
               A Method specialist will reach out within one business day to help you move from{' '}
-              {currentPlan?.name} to {selectedPlan.name} without losing your apps or data. You'll
-              stay on {currentPlan?.name} until your downgrade is finalized.
+              {currentPlan?.name} to {selectedPlan.name} without losing your apps or data.
             </p>
+            {/* When the downgraded plan takes effect */}
+            <div className="rounded-xl bg-blue-50 border border-blue-100 p-4 mb-6 text-left">
+              <p className="text-sm text-gray-700">
+                You'll keep <span className="font-semibold">{currentPlan?.name}</span> until{' '}
+                <span className="font-semibold">{nextBillingLabel}</span> — your new{' '}
+                <span className="font-semibold">{selectedPlan.name}</span> plan starts then, so
+                nothing changes before the end of your current billing period.
+              </p>
+            </div>
             <div className="space-y-3">
               <Button
                 onClick={() => setStep('manage')}

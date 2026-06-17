@@ -258,6 +258,10 @@ function App() {
           onMobileMenuToggle={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
         />
 
+        {/* Page + chat panel share a row below the top bar */}
+        <div className="flex-1 flex overflow-hidden">
+        <div className="flex-1 overflow-hidden flex flex-col">
+
         {/* Render different pages based on current page. When the trial has expired
             with no subscription, the app is locked to the Subscribe screen. */}
         {isLocked || currentPage === 'subscription' ? (
@@ -378,8 +382,10 @@ function App() {
             />
           )}
 
-        {/* Add-field chat panel — pushes content, sits below the top banner */}
+        {/* Add-field chat panel — sits below the top bar, beside the page */}
         <AddFieldChatPanel />
+        </div>
+        </div>
       </div>
 
       {/* Demo controls — switch trial state + reset subscription for presenting (shown in prod too) */}
