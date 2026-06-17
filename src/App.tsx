@@ -13,6 +13,7 @@ import { AppMarketplacePage } from '@/components/AppMarketplacePage';
 import { ApplicationsAccessPage } from '@/components/ApplicationsAccessPage';
 import { OnboardingModal } from '@/components/OnboardingModal';
 import { AIFieldsProvider, AddFieldChatPanel, FieldSurfaceRegistrar } from '@/lib/ai-fields';
+import { Switch } from '@/components/ui/switch';
 import { useState, useEffect } from 'react';
 import { X, GripVertical, ChevronDown } from 'lucide-react';
 
@@ -534,72 +535,24 @@ function App() {
               ))}
             </div>
           </div>
-          <div className="border-t border-gray-100 pt-2 mt-2">
-            <p className="mb-1 text-gray-500">App Studio access</p>
-            <div className="flex gap-1">
-              {([
-                { label: 'On', value: true },
-                { label: 'Off', value: false },
-              ] as const).map((opt) => (
-                <button
-                  key={opt.label}
-                  onClick={() => {
-                    setAppStudioEnabled(opt.value);
-                    // If we're turning it off while viewing it, step back to Home.
-                    if (!opt.value && currentPage === 'app-studio') navigateToHome();
-                  }}
-                  className={`flex-1 rounded border px-2 py-1 transition-colors ${
-                    appStudioEnabled === opt.value
-                      ? 'border-blue-600 bg-blue-600 text-white'
-                      : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
-                  }`}
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
+          <div className="flex items-center justify-between border-t border-gray-100 pt-2 mt-2">
+            <span className="text-gray-500">App Studio access</span>
+            <Switch
+              checked={appStudioEnabled}
+              onCheckedChange={(v) => {
+                setAppStudioEnabled(v);
+                // If we're turning it off while viewing it, step back to Home.
+                if (!v && currentPage === 'app-studio') navigateToHome();
+              }}
+            />
           </div>
-          <div className="border-t border-gray-100 pt-2 mt-2">
-            <p className="mb-1 text-gray-500">AI custom fields</p>
-            <div className="flex gap-1">
-              {([
-                { label: 'On', value: true },
-                { label: 'Off', value: false },
-              ] as const).map((opt) => (
-                <button
-                  key={opt.label}
-                  onClick={() => setAiFieldsEnabled(opt.value)}
-                  className={`flex-1 rounded border px-2 py-1 transition-colors ${
-                    aiFieldsEnabled === opt.value
-                      ? 'border-blue-600 bg-blue-600 text-white'
-                      : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
-                  }`}
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
+          <div className="flex items-center justify-between border-t border-gray-100 pt-2 mt-2">
+            <span className="text-gray-500">AI custom fields</span>
+            <Switch checked={aiFieldsEnabled} onCheckedChange={setAiFieldsEnabled} />
           </div>
-          <div className="border-t border-gray-100 pt-2 mt-2">
-            <p className="mb-1 text-gray-500">Discounted price</p>
-            <div className="flex gap-1">
-              {([
-                { label: 'On', value: true },
-                { label: 'Off', value: false },
-              ] as const).map((opt) => (
-                <button
-                  key={opt.label}
-                  onClick={() => setShowDiscountedPrice(opt.value)}
-                  className={`flex-1 rounded border px-2 py-1 transition-colors ${
-                    showDiscountedPrice === opt.value
-                      ? 'border-blue-600 bg-blue-600 text-white'
-                      : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
-                  }`}
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
+          <div className="flex items-center justify-between border-t border-gray-100 pt-2 mt-2">
+            <span className="text-gray-500">Discounted price</span>
+            <Switch checked={showDiscountedPrice} onCheckedChange={setShowDiscountedPrice} />
           </div>
           <div className="border-t border-gray-100 pt-2 mt-2">
             <button
