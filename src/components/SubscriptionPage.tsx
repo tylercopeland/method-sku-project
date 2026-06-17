@@ -93,8 +93,8 @@ const plans: Plan[] = [
       'A dedicated Method expert builds, maintains and grows your setup alongside your business.',
     monthlyPrice: 500,
     seats: 8,
-    contactSales: true,
-    seatsNote: 'Custom seat pricing',
+    extraSeatPrice: 79,
+    seatsNote: 'Additional seats: $79/user',
     includedLabel: 'Everything in Build, plus',
     features: [
       'Dedicated Expert Partner (DEP) — named contact',
@@ -106,7 +106,7 @@ const plans: Plan[] = [
       'Migration & data support',
       'Custom SLA',
     ],
-    ctaLabel: 'Talk to sales',
+    ctaLabel: 'Continue with Scale',
   },
 ];
 
@@ -177,6 +177,9 @@ interface SubscriptionPageProps {
   /** Whether the user has App Studio access (a Build-tier capability). Drives the
    *  "what you'll lose" warning when a builder picks Essentials. */
   hasAppStudioAccess?: boolean;
+  /** Emphasize the annual discount: strike through the full price on annual and
+   *  show the discounted monthly price as a savings nudge on monthly. */
+  showDiscountedPrice?: boolean;
 }
 
 export function SubscriptionPage({
@@ -192,6 +195,7 @@ export function SubscriptionPage({
   initialStep = 'manage',
   checkoutMode = 'inline',
   hasAppStudioAccess = false,
+  showDiscountedPrice = true,
 }: SubscriptionPageProps) {
   const [billingCycle, setBillingCycle] = useState<BillingCycle>(
     activeSubscription?.billingCycle ?? 'annual'
@@ -414,7 +418,10 @@ export function SubscriptionPage({
     // Simulate a payment-processor round trip so it feels real on screen.
     setTimeout(() => {
       setProcessing(false);
-      setStep('success');
+      // A plan change lands on the subscription (manage) page, which already shows
+      // the updated plan + billing details — no separate success modal. A brand-new
+      // subscription still gets the welcome confirmation.
+      setStep(isChangingPlan ? 'manage' : 'success');
       if (selectedPlanId) {
         // Reuse the card already on file when changing plans; otherwise read the entered card.
         const cardLast4 =
@@ -1355,16 +1362,31 @@ export function SubscriptionPage({
                   </>
                 ) : (
                   <>
-                    <div className="flex items-baseline gap-1 mb-1">
-                      <span className="text-2xl font-medium text-gray-900">$</span>
-                      <span className="text-5xl font-bold text-gray-900 tracking-tight">{price}</span>
-                      <span className="text-gray-500 text-sm">/ mo</span>
+                    <div className="flex items-baseline gap-1.5 mb-1">
+                      {/* On annual, show the full monthly price struck through next to the discounted one */}
+                      {showDiscountedPrice && billingCycle === 'annual' && (
+                        <span className="text-2xl font-medium text-gray-300 line-through">
+                          ${plan.monthlyPrice}
+                        </span>
+                      )}
+                      <div className="flex items-baseline gap-1">
+                        <span className="text-2xl font-medium text-gray-900">$</span>
+                        <span className="text-5xl font-bold text-gray-900 tracking-tight">{price}</span>
+                        <span className="text-gray-500 text-sm">/ mo</span>
+                      </div>
                     </div>
                     <p className="text-xs text-gray-500 mb-1">
                       {billingCycle === 'annual'
                         ? `Billed annually · $${yearly.toLocaleString()}/yr`
                         : 'Billed monthly'}
                     </p>
+                    {/* On monthly, nudge the discounted monthly price available with annual billing */}
+                    {showDiscountedPrice && billingCycle === 'monthly' && (
+                      <p className="text-xs font-medium text-green-700 mb-1">
+                        ${annualPerMonth(plan.monthlyPrice)}/mo billed annually · save{' '}
+                        {Math.round(ANNUAL_DISCOUNT * 100)}%
+                      </p>
+                    )}
                     {showTeamTotal ? (
                       <p className="text-xs font-medium text-blue-700 mb-3">
                         {teamSize} users · ${teamMonthly.toLocaleString()}/mo
