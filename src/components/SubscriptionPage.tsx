@@ -1041,6 +1041,45 @@ export function SubscriptionPage({
               </div>
             )}
 
+            {/* Seat-count downgrade warnings */}
+            {selectedPlan.id === 'build' && teamSize > (selectedPlan.seats ?? 3) && (
+              <div className="px-6 sm:px-8 py-5 bg-amber-50 border-b border-amber-100">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-semibold text-amber-900">
+                      Extra seat charges on Build
+                    </p>
+                    <p className="text-sm text-amber-700 mt-1">
+                      You currently have {teamSize} users. Build includes {selectedPlan.seats ?? 3} seats — your
+                      remaining {teamSize - (selectedPlan.seats ?? 3)} {teamSize - (selectedPlan.seats ?? 3) === 1 ? 'user' : 'users'} will each add{' '}
+                      <strong>${selectedPlan.extraSeatPrice ?? 59}/mo</strong> to your bill. Total extra:{' '}
+                      <strong>${(teamSize - (selectedPlan.seats ?? 3)) * (selectedPlan.extraSeatPrice ?? 59)}/mo</strong>.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {selectedPlan.id === 'essentials' && teamSize > 1 && (
+              <div className="px-6 sm:px-8 py-5 bg-red-50 border-b border-red-100">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-semibold text-red-900">
+                      {teamSize - 1} {teamSize - 1 === 1 ? 'user' : 'users'} will become View-only
+                    </p>
+                    <p className="text-sm text-red-700 mt-1">
+                      Essentials includes 1 seat (yours). Your other {teamSize - 1}{' '}
+                      {teamSize - 1 === 1 ? 'user' : 'users'} will be switched to View-only access — they
+                      can still log in and read data, but can't edit. You can re-adjust their roles any time
+                      you upgrade back to Build or Scale.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Contact form */}
             <div className="p-6 sm:p-8">
               <p className="text-sm font-semibold text-gray-900 mb-4">

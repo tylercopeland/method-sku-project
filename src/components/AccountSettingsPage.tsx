@@ -18,6 +18,7 @@ const sections: SettingsSection[] = [
     title: 'Users',
     description: 'Update user information, and invite more users to Method.',
     linkLabel: 'User settings',
+    page: 'users',
   },
   {
     title: 'Display',

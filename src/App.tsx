@@ -11,6 +11,7 @@ import { UpgradeRequiredPage } from '@/components/UpgradeRequiredPage';
 import { AppStudioPage, aiApps } from '@/components/AppStudioPage';
 import { AppMarketplacePage } from '@/components/AppMarketplacePage';
 import { ApplicationsAccessPage } from '@/components/ApplicationsAccessPage';
+import { UserManagementPage } from '@/components/UserManagementPage';
 import { OnboardingModal } from '@/components/OnboardingModal';
 import { AIFieldsProvider, AddFieldChatPanel, FieldSurfaceRegistrar } from '@/lib/ai-fields';
 import { Switch } from '@/components/ui/switch';
@@ -133,6 +134,7 @@ function App() {
     'applications-access': 'Account Settings',
     'subscription': 'Subscription',
     'account-settings': 'Account Settings',
+    'users': 'Users',
   };
 
   // Determine if current page should show empty state
@@ -367,6 +369,14 @@ function App() {
           <div className="flex-1 overflow-y-auto p-3 sm:p-6">
             <EstimatesPage initialFilter={estimatesFilter} />
           </div>
+        ) : currentPage === 'users' ? (
+          <UserManagementPage
+            subscription={subscription}
+            teamSize={teamSize}
+            onNavigate={handlePageNavigation}
+            onBack={() => setCurrentPage('account-settings')}
+            isTrial={isInTrial && !subscription}
+          />
         ) : currentPage === 'account-settings' ? (
           <AccountSettingsPage
             onBack={navigateToHome}
