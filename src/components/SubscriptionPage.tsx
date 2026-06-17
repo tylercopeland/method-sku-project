@@ -1494,18 +1494,10 @@ export function SubscriptionPage({
                   </>
                 ) : (
                   <>
-                    <div className="flex items-baseline gap-1.5 mb-1">
-                      {/* On annual, show the full monthly price struck through next to the discounted one */}
-                      {showDiscountedPrice && billingCycle === 'annual' && (
-                        <span className="text-2xl font-medium text-gray-300 line-through">
-                          ${plan.monthlyPrice}
-                        </span>
-                      )}
-                      <div className="flex items-baseline gap-1">
-                        <span className="text-2xl font-medium text-gray-900">$</span>
-                        <span className="text-5xl font-bold text-gray-900 tracking-tight">{price}</span>
-                        <span className="text-gray-500 text-sm">/ mo</span>
-                      </div>
+                    <div className="flex items-baseline gap-1 mb-1">
+                      <span className="text-2xl font-medium text-gray-900">$</span>
+                      <span className="text-5xl font-bold text-gray-900 tracking-tight">{price}</span>
+                      <span className="text-gray-500 text-sm">/ mo</span>
                     </div>
                     <p className="text-xs text-gray-500 mb-1">
                       {billingCycle === 'annual'
