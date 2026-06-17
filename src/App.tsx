@@ -158,6 +158,9 @@ function App() {
       navigateToCustomers();
     } else if (page === 'estimates') {
       navigateToEstimates();
+    } else if (page === 'subscription-upgrade') {
+      setOpenToChangePlan(true);
+      setCurrentPage('subscription');
     } else {
       setCurrentPage(page);
     }
