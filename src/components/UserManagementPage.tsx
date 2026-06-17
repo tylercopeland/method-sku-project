@@ -56,7 +56,6 @@ interface InviteRow {
   role: UserRole;
   name: string;
   nameManuallyEdited: boolean;
-  showName: boolean;
 }
 
 // ── Constants ──────────────────────────────────────────────────────────────────
@@ -199,7 +198,6 @@ function newInviteRow(): InviteRow {
     role: 'Regular',
     name: '',
     nameManuallyEdited: false,
-    showName: false,
   };
 }
 
@@ -662,10 +660,6 @@ function InviteModal({
     );
   };
 
-  const toggleName = (id: string) => {
-    setRows((prev) => prev.map((r) => (r.id === id ? { ...r, showName: !r.showName } : r)));
-  };
-
   const removeRow = (id: string) => {
     setRows((prev) => {
       const next = prev.filter((r) => r.id !== id);
@@ -750,10 +744,9 @@ function InviteModal({
         {/* Rows */}
         <div className="px-6 py-5 overflow-y-auto flex-1">
           {/* Column headers */}
-          <div className="grid grid-cols-[1fr_1fr_28px_28px] gap-2 mb-2 px-0.5">
+          <div className="grid grid-cols-[1fr_1fr_28px] gap-2 mb-2 px-0.5">
             <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Email address</span>
             <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Role</span>
-            <span />
             <span />
           </div>
 
@@ -765,7 +758,7 @@ function InviteModal({
 
               return (
                 <div key={row.id}>
-                  <div className="grid grid-cols-[1fr_1fr_28px_28px] gap-2 items-center">
+                  <div className="grid grid-cols-[1fr_1fr_28px] gap-2 items-center">
                     {/* Email */}
                     <div className="relative">
                       <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
@@ -787,21 +780,7 @@ function InviteModal({
                       essentialsOnly={isEssentials}
                     />
 
-                    {/* Name toggle — chevron rotates when open */}
-                    <button
-                      type="button"
-                      title="Set display name"
-                      onClick={() => toggleName(row.id)}
-                      className={`flex items-center justify-center w-7 h-7 rounded-md transition-colors ${
-                        row.showName
-                          ? 'text-blue-600 bg-blue-50'
-                          : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
-                      }`}
-                    >
-                      <ChevronDown className={`w-4 h-4 transition-transform ${row.showName ? 'rotate-180' : ''}`} />
-                    </button>
-
-                    {/* Remove */}
+                    {/* Remove — only on filled rows */}
                     {rows.length > 1 && !isEmptyRow ? (
                       <button
                         type="button"
@@ -815,8 +794,8 @@ function InviteModal({
                     )}
                   </div>
 
-                  {/* Name field — indented with ↳ connector showing it belongs to the row above */}
-                  {row.showName && (
+                  {/* Name field — auto-shows when email is filled, ↳ connector makes nesting clear */}
+                  {!isEmptyRow && (
                     <div className="flex items-center gap-1.5 mt-1 pl-1">
                       <CornerDownRight className="w-3.5 h-3.5 text-gray-300 flex-shrink-0 ml-1" />
                       <input
