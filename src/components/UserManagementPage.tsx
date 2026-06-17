@@ -22,7 +22,7 @@ import {
   Info,
   ExternalLink,
   Trash2,
-  UserRound,
+  CornerDownRight,
 } from 'lucide-react';
 import type { ActiveSubscription } from './SubscriptionPage';
 
@@ -310,21 +310,15 @@ function StatusBadge({ status }: { status: UserStatus }) {
   );
 }
 
-// ── App Chips ─────────────────────────────────────────────────────────────────
+// ── App Count ─────────────────────────────────────────────────────────────────
 
-function AppChips({ apps }: { apps: string[] }) {
-  const visible = apps.slice(0, 2);
-  const overflow = apps.length - 2;
-  return (
-    <div className="flex flex-wrap items-center gap-1">
-      {visible.map((app) => (
-        <span key={app} className="inline-block text-xs bg-gray-100 text-gray-600 rounded px-2 py-0.5 border border-gray-200">
-          {app}
-        </span>
-      ))}
-      {overflow > 0 && <span className="inline-block text-xs text-gray-400 font-medium">+{overflow} more</span>}
-    </div>
-  );
+const TOTAL_APPS = 25;
+
+function AppCount({ count, role }: { count: number; role: UserRole }) {
+  if (role === 'Admin') {
+    return <span className="text-sm text-gray-500">All apps</span>;
+  }
+  return <span className="text-sm text-gray-500">{count}/{TOTAL_APPS} apps</span>;
 }
 
 // ── Custom Role Dropdown ──────────────────────────────────────────────────────
@@ -380,20 +374,21 @@ function RoleSelect({
         ref={triggerRef}
         type="button"
         onClick={handleOpen}
-        className="w-full flex items-start justify-between border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors min-h-[44px]"
+        className="w-full flex items-center justify-between gap-2 border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors h-[44px]"
       >
-        <span className="flex flex-col items-start">
-          <span className="font-medium leading-tight">{selected.label}</span>
-          {/* Sub-label: pricing for this slot */}
-          {selectedPricing.isFree ? (
-            <span className="text-[10px] text-green-600 mt-0.5">Free</span>
-          ) : selectedPricing.isIncluded ? (
-            <span className="text-[10px] text-green-600 mt-0.5">Included</span>
-          ) : (
-            <span className="text-[10px] text-amber-600 mt-0.5">{selectedPricing.label} extra</span>
+        <span className="font-medium truncate">{selected.label}</span>
+        <span className="flex items-center gap-1.5 flex-shrink-0">
+          {selectedPricing.isFree && (
+            <span className="text-xs font-medium text-green-600">Free</span>
           )}
+          {!selectedPricing.isFree && selectedPricing.isIncluded && (
+            <span className="text-xs font-medium text-green-600">Included</span>
+          )}
+          {!selectedPricing.isFree && !selectedPricing.isIncluded && (
+            <span className="text-xs font-medium text-amber-600">{selectedPricing.label}</span>
+          )}
+          <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform flex-shrink-0 ${open ? 'rotate-180' : ''}`} />
         </span>
-        <ChevronDown className={`w-4 h-4 text-gray-400 mt-0.5 ml-1 flex-shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
 
       {open && (
@@ -496,7 +491,7 @@ function UserRow({ user, openMenu, onOpenMenu, onCloseMenu, onClick }: {
       </div>
       <div><RoleBadge role={user.role} /></div>
       <div><StatusBadge status={user.status} /></div>
-      <AppChips apps={user.apps} />
+      <AppCount count={user.apps.length} role={user.role} />
       <div onClick={(e) => e.stopPropagation()}>
         <RowMenu user={user} isOpen={openMenu === user.id} onOpen={() => onOpenMenu(user.id)} onClose={onCloseMenu} />
       </div>
@@ -755,14 +750,14 @@ function InviteModal({
         {/* Rows */}
         <div className="px-6 py-5 overflow-y-auto flex-1">
           {/* Column headers */}
-          <div className="grid grid-cols-[1fr_160px_32px_28px] gap-2 mb-2 px-0.5">
+          <div className="grid grid-cols-[1fr_1fr_28px_28px] gap-2 mb-2 px-0.5">
             <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Email address</span>
             <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Role</span>
             <span />
             <span />
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             {rows.map((row, i) => {
               const consumedBefore = seatsConsumedBefore(rows, i);
               const seatsForSlot = isTrial ? Infinity : Math.max(0, seatsAvailable - consumedBefore);
@@ -770,7 +765,7 @@ function InviteModal({
 
               return (
                 <div key={row.id}>
-                  <div className="grid grid-cols-[1fr_160px_32px_28px] gap-2 items-start">
+                  <div className="grid grid-cols-[1fr_1fr_28px_28px] gap-2 items-center">
                     {/* Email */}
                     <div className="relative">
                       <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
@@ -779,7 +774,7 @@ function InviteModal({
                         value={row.email}
                         onChange={(e) => handleEmailChange(row.id, e.target.value)}
                         placeholder={i === 0 ? 'colleague@company.com' : 'Add another...'}
-                        className={`w-full border border-gray-300 rounded-lg pl-8 pr-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${isEmptyRow ? 'bg-gray-50' : 'bg-white'}`}
+                        className={`w-full border border-gray-300 rounded-lg pl-8 pr-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors h-[44px] ${isEmptyRow ? 'bg-gray-50' : 'bg-white'}`}
                       />
                     </div>
 
@@ -792,18 +787,18 @@ function InviteModal({
                       essentialsOnly={isEssentials}
                     />
 
-                    {/* Name toggle */}
+                    {/* Name toggle — chevron rotates when open */}
                     <button
                       type="button"
                       title="Set display name"
                       onClick={() => toggleName(row.id)}
-                      className={`flex items-center justify-center w-8 h-[44px] rounded-lg border transition-colors ${
+                      className={`flex items-center justify-center w-7 h-7 rounded-md transition-colors ${
                         row.showName
-                          ? 'border-blue-300 bg-blue-50 text-blue-600'
-                          : 'border-gray-200 bg-white text-gray-400 hover:text-gray-600 hover:bg-gray-50'
+                          ? 'text-blue-600 bg-blue-50'
+                          : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
                       }`}
                     >
-                      <UserRound className="w-4 h-4" />
+                      <ChevronDown className={`w-4 h-4 transition-transform ${row.showName ? 'rotate-180' : ''}`} />
                     </button>
 
                     {/* Remove */}
@@ -811,7 +806,7 @@ function InviteModal({
                       <button
                         type="button"
                         onClick={() => removeRow(row.id)}
-                        className="flex items-center justify-center w-7 h-[44px] text-gray-300 hover:text-red-500 transition-colors"
+                        className="flex items-center justify-center w-7 h-7 text-gray-300 hover:text-red-500 rounded-md hover:bg-red-50 transition-colors"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -820,19 +815,17 @@ function InviteModal({
                     )}
                   </div>
 
-                  {/* Name field expansion */}
+                  {/* Name field — indented with ↳ connector showing it belongs to the row above */}
                   {row.showName && (
-                    <div className="mt-1.5 pl-0 grid grid-cols-[1fr_160px_32px_28px] gap-2">
-                      <div className="col-span-2 relative">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-medium text-gray-400 uppercase tracking-wide">Name</span>
-                        <input
-                          type="text"
-                          value={row.name}
-                          onChange={(e) => handleNameChange(row.id, e.target.value)}
-                          placeholder="Display name"
-                          className="w-full border border-gray-200 rounded-lg pl-14 pr-3 py-2 text-sm text-gray-900 placeholder-gray-400 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        />
-                      </div>
+                    <div className="flex items-center gap-1.5 mt-1 pl-1">
+                      <CornerDownRight className="w-3.5 h-3.5 text-gray-300 flex-shrink-0 ml-1" />
+                      <input
+                        type="text"
+                        value={row.name}
+                        onChange={(e) => handleNameChange(row.id, e.target.value)}
+                        placeholder="Display name (auto-filled from email)"
+                        className="flex-1 border border-gray-200 rounded-lg px-3 py-1.5 text-sm text-gray-900 placeholder-gray-400 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
                     </div>
                   )}
                 </div>
