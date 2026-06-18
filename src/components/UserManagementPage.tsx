@@ -460,30 +460,56 @@ function RoleSelect({
 
 // ── Row Menu ──────────────────────────────────────────────────────────────────
 
-function RowMenu({ user, isOpen, onOpen, onClose }: {
+function RowMenu({ user, isOpen, onOpen, onClose, onEditPermissions, onRemove }: {
   user: MockUser; isOpen: boolean; onOpen: () => void; onClose: () => void;
+  onEditPermissions: () => void; onRemove: () => void;
 }) {
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const [menuPos, setMenuPos] = useState<{ top: number; right: number } | null>(null);
+
+  function handleOpen() {
+    if (btnRef.current) {
+      const r = btnRef.current.getBoundingClientRect();
+      setMenuPos({ top: r.bottom + 4, right: window.innerWidth - r.right });
+    }
+    onOpen();
+  }
+
   return (
     <div className="relative">
       <button
-        onClick={(e) => { e.stopPropagation(); isOpen ? onClose() : onOpen(); }}
+        ref={btnRef}
+        onClick={(e) => { e.stopPropagation(); isOpen ? onClose() : handleOpen(); }}
         className="p-1.5 rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
       >
         <MoreHorizontal className="w-4 h-4" />
       </button>
-      {isOpen && (
+      {isOpen && menuPos && (
         <>
-          <div className="fixed inset-0 z-10" onClick={(e) => { e.stopPropagation(); onClose(); }} />
-          <div className="absolute right-0 top-8 z-20 w-44 bg-white rounded-lg border border-gray-200 shadow-lg py-1 text-sm">
-            <button className="w-full text-left px-4 py-2 text-gray-700 hover:bg-gray-50 transition-colors" onClick={(e) => { e.stopPropagation(); onClose(); }}>Edit permissions</button>
+          <div className="fixed inset-0 z-[100]" onClick={(e) => { e.stopPropagation(); onClose(); }} />
+          <div
+            style={{ position: 'fixed', top: menuPos.top, right: menuPos.right, zIndex: 101 }}
+            className="w-44 bg-white rounded-lg border border-gray-200 shadow-lg py-1 text-sm"
+          >
+            <button
+              className="w-full text-left px-4 py-2 text-gray-700 hover:bg-gray-50 transition-colors"
+              onClick={(e) => { e.stopPropagation(); onClose(); onEditPermissions(); }}
+            >
+              Edit permissions
+            </button>
             {user.status === 'Invited' && (
               <button className="w-full text-left px-4 py-2 text-gray-700 hover:bg-gray-50 transition-colors" onClick={(e) => { e.stopPropagation(); onClose(); }}>Resend invite</button>
             )}
-            <button className="w-full text-left px-4 py-2 text-gray-700 hover:bg-gray-50 transition-colors" onClick={(e) => { e.stopPropagation(); onClose(); }}>
-              {user.status === 'Active' ? 'Disable user' : 'Cancel invite'}
-            </button>
+            {user.status === 'Invited' && (
+              <button className="w-full text-left px-4 py-2 text-gray-700 hover:bg-gray-50 transition-colors" onClick={(e) => { e.stopPropagation(); onClose(); }}>Cancel invite</button>
+            )}
             <hr className="border-gray-100 my-1" />
-            <button className="w-full text-left px-4 py-2 text-red-600 hover:bg-red-50 transition-colors" onClick={(e) => { e.stopPropagation(); onClose(); }}>Remove user</button>
+            <button
+              className="w-full text-left px-4 py-2 text-red-600 hover:bg-red-50 transition-colors"
+              onClick={(e) => { e.stopPropagation(); onClose(); onRemove(); }}
+            >
+              Remove user
+            </button>
           </div>
         </>
       )}
@@ -493,8 +519,9 @@ function RowMenu({ user, isOpen, onOpen, onClose }: {
 
 // ── User Row ──────────────────────────────────────────────────────────────────
 
-function UserRow({ user, cost, openMenu, onOpenMenu, onCloseMenu, onClick }: {
+function UserRow({ user, cost, openMenu, onOpenMenu, onCloseMenu, onClick, onEditPermissions, onRemove }: {
   user: MockUser; cost: string; openMenu: string | null; onOpenMenu: (id: string) => void; onCloseMenu: () => void; onClick: () => void;
+  onEditPermissions: (user: MockUser) => void; onRemove: (user: MockUser) => void;
 }) {
   const isExtra = cost.startsWith('$');
   const isFree = cost === 'Free';
@@ -524,7 +551,14 @@ function UserRow({ user, cost, openMenu, onOpenMenu, onCloseMenu, onClick }: {
       <div><StatusBadge status={user.status} /></div>
       <AppCount count={user.apps.length} role={user.role} />
       <div onClick={(e) => e.stopPropagation()}>
-        <RowMenu user={user} isOpen={openMenu === user.id} onOpen={() => onOpenMenu(user.id)} onClose={onCloseMenu} />
+        <RowMenu
+          user={user}
+          isOpen={openMenu === user.id}
+          onOpen={() => onOpenMenu(user.id)}
+          onClose={onCloseMenu}
+          onEditPermissions={() => onEditPermissions(user)}
+          onRemove={() => onRemove(user)}
+        />
       </div>
     </div>
   );
@@ -618,7 +652,7 @@ function SeatMeter({
 
 // ── Invite Modal ──────────────────────────────────────────────────────────────
 
-function InviteModal({
+export function InviteModal({
   onClose,
   seatsAvailable,
   subscription,
@@ -1836,6 +1870,7 @@ export function UserManagementPage({
   const [selectedUser, setSelectedUser] = useState<MockUser | null>(null);
   const [viewingAppAccess, setViewingAppAccess] = useState(false);
   const [roleHighlight, setRoleHighlight] = useState(false);
+  const [removeTarget, setRemoveTarget] = useState<MockUser | null>(null);
 
   const isEssentials = subscription?.planId === 'essentials';
 
@@ -2035,6 +2070,8 @@ export function UserManagementPage({
                   onOpenMenu={setOpenMenu}
                   onCloseMenu={() => setOpenMenu(null)}
                   onClick={() => setSelectedUser(user)}
+                  onEditPermissions={(u) => { setSelectedUser(u); setViewingAppAccess(true); }}
+                  onRemove={(u) => setRemoveTarget(u)}
                 />
               ))}
             </div>
@@ -2053,6 +2090,25 @@ export function UserManagementPage({
       )}
 
       {show2FAModal && <TwoFAModal onClose={() => setShow2FAModal(false)} />}
+
+      {removeTarget && (() => {
+        const admins = teamUsers.filter((u) => u.role === 'Admin');
+        const isSelf = removeTarget.id === '1';
+        const isOnlyAdmin = removeTarget.role === 'Admin' && admins.length === 1;
+        return (
+          <RemoveUserModal
+            user={removeTarget}
+            otherUsers={teamUsers.filter((u) => u.id !== removeTarget.id)}
+            isSelf={isSelf}
+            isOnlyAdmin={isOnlyAdmin}
+            userCosts={userCosts}
+            subscription={subscription}
+            onClose={() => setRemoveTarget(null)}
+            onConfirm={() => setRemoveTarget(null)}
+            onInviteAdmin={() => { setRemoveTarget(null); setShowInviteModal(true); }}
+          />
+        );
+      })()}
     </div>
   );
 }
