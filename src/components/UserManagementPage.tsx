@@ -999,13 +999,139 @@ function EmpSelect({ value, onChange }: { value: string; onChange: (v: string) =
   );
 }
 
+// ── Remove User Modal ──────────────────────────────────────────────────────────
+
+const MOCK_RECORD_COUNTS: Record<string, number> = {
+  '1': 142, '2': 87, '3': 63, '4': 29, '5': 51, '6': 74, '7': 18, '8': 34, '9': 11,
+};
+
+function RemoveUserModal({
+  user,
+  otherUsers,
+  onClose,
+  onConfirm,
+}: {
+  user: MockUser;
+  otherUsers: MockUser[];
+  onClose: () => void;
+  onConfirm: (reassignToId: string) => void;
+}) {
+  const recordCount = MOCK_RECORD_COUNTS[user.id] ?? 24;
+  const activeOthers = otherUsers.filter((u) => u.status === 'Active');
+  const [reassignTo, setReassignTo] = useState(activeOthers[0]?.id ?? '');
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const selectedUser = otherUsers.find((u) => u.id === reassignTo);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-[480px]">
+        {/* Header */}
+        <div className="flex items-start justify-between px-7 pt-7 pb-5">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
+              <AlertTriangle className="w-5 h-5 text-red-500" />
+            </div>
+            <h2 className="text-lg font-semibold text-gray-900">Remove {user.name.split(' ')[0]}'s access?</h2>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors flex-shrink-0 mt-0.5">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="px-7 pb-7 space-y-5">
+          <p className="text-sm text-gray-600 leading-relaxed">
+            <span className="font-medium text-gray-900">{user.name}</span> has{' '}
+            <span className="font-medium text-gray-900">{recordCount} records</span> assigned to them. Removing their access will not delete these records, but you should reassign them to keep your data organized.
+          </p>
+
+          {/* Reassign to */}
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium text-gray-700">Reassign records to</label>
+            <div className="relative" ref={dropdownRef}>
+              <button
+                type="button"
+                onClick={() => setDropdownOpen((o) => !o)}
+                className="w-full flex items-center justify-between gap-2 border border-gray-300 rounded-lg px-3 py-2.5 text-sm text-gray-900 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+              >
+                {selectedUser ? (
+                  <div className="flex items-center gap-2.5">
+                    <div className={`w-6 h-6 rounded-full ${selectedUser.avatarColor} flex items-center justify-center text-white text-xs font-semibold flex-shrink-0`}>
+                      {initials(selectedUser.name)}
+                    </div>
+                    <span>{selectedUser.name}</span>
+                    <span className="text-gray-400 text-xs">{selectedUser.role}</span>
+                  </div>
+                ) : (
+                  <span className="text-gray-400">Select a user</span>
+                )}
+                <ChevronDown className={`w-4 h-4 text-gray-400 flex-shrink-0 transition-transform ${dropdownOpen ? 'rotate-180' : ''}`} />
+              </button>
+              {dropdownOpen && (
+                <div className="absolute top-full mt-1 left-0 right-0 z-50 bg-white rounded-xl border border-gray-200 shadow-xl overflow-hidden">
+                  {activeOthers.map((u) => (
+                    <button
+                      key={u.id}
+                      type="button"
+                      onClick={() => { setReassignTo(u.id); setDropdownOpen(false); }}
+                      className={`w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-left hover:bg-gray-50 transition-colors ${reassignTo === u.id ? 'bg-blue-50' : ''}`}
+                    >
+                      <div className={`w-6 h-6 rounded-full ${u.avatarColor} flex items-center justify-center text-white text-xs font-semibold flex-shrink-0`}>
+                        {initials(u.name)}
+                      </div>
+                      <span className="flex-1 text-gray-900">{u.name}</span>
+                      <span className="text-gray-400 text-xs">{u.role}</span>
+                      {reassignTo === u.id && <Check className="w-4 h-4 text-blue-600 flex-shrink-0" />}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="bg-gray-50 border-t border-gray-100 px-7 py-4 flex items-center justify-end gap-3 rounded-b-2xl">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={() => onConfirm(reassignTo)}
+            disabled={!reassignTo}
+            className="px-4 py-2 text-sm font-medium bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            Remove & reassign records
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function UserDetailPage({
   user,
+  allUsers,
   onBack,
   subscription,
   onViewAppAccess,
 }: {
   user: MockUser;
+  allUsers: MockUser[];
   onBack: () => void;
   subscription: ActiveSubscription | null;
   onViewAppAccess: () => void;
@@ -1021,6 +1147,7 @@ function UserDetailPage({
   const [entities, setEntities] = useState<string[]>(['Method HQ']);
   const [twoFaReset, setTwoFaReset] = useState(false);
   const [savedAll, setSavedAll] = useState(false);
+  const [showRemoveModal, setShowRemoveModal] = useState(false);
 
   const initial = useRef({ username: user.name, role: user.role as UserRole, qbEmployee: '', peerRecords: true, apiEnabled: false, entities: ['Method HQ'] });
 
@@ -1285,7 +1412,10 @@ function UserDetailPage({
                 <p className="text-sm font-medium text-gray-900">Remove {username} from this account</p>
                 <p className="text-xs text-gray-500 mt-0.5">They lose access immediately. All existing records stay in place.</p>
                 {!isOwner && (
-                  <button className="mt-2 text-xs font-medium text-red-500 hover:text-red-700 underline underline-offset-2 transition-colors">
+                  <button
+                    onClick={() => setShowRemoveModal(true)}
+                    className="mt-2 text-xs font-medium text-red-500 hover:text-red-700 underline underline-offset-2 transition-colors"
+                  >
                     Remove user access
                   </button>
                 )}
@@ -1318,6 +1448,15 @@ function UserDetailPage({
             {savedAll ? <span className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5" /> Saved</span> : 'Save all changes'}
           </button>
         </div>
+      )}
+
+      {showRemoveModal && (
+        <RemoveUserModal
+          user={user}
+          otherUsers={allUsers.filter((u) => u.id !== user.id)}
+          onClose={() => setShowRemoveModal(false)}
+          onConfirm={() => { setShowRemoveModal(false); onBack(); }}
+        />
       )}
     </div>
   );
@@ -1427,6 +1566,7 @@ export function UserManagementPage({
     return (
       <UserDetailPage
         user={selectedUser}
+        allUsers={teamUsers}
         onBack={() => { setSelectedUser(null); setViewingAppAccess(false); }}
         subscription={subscription}
         onViewAppAccess={() => setViewingAppAccess(true)}
