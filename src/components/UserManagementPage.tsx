@@ -1388,6 +1388,10 @@ function UserDetailPage({
   const [qbEmployee, setQbEmployee] = useState('');
   const [peerRecords, setPeerRecords] = useState(true);
   const [apiEnabled, setApiEnabled] = useState(false);
+  const [notifInvoice, setNotifInvoice] = useState(false);
+  const [notifEstimate, setNotifEstimate] = useState(false);
+  const [notifBilling, setNotifBilling] = useState(false);
+  const [notifUser, setNotifUser] = useState(false);
   const [twoFAStatus] = useState<'enabled' | 'not-set-up'>(
     user.status === 'Active' ? 'enabled' : 'not-set-up'
   );
@@ -1410,7 +1414,7 @@ function UserDetailPage({
     }
   }, [highlightRole]);
 
-  const initial = useRef({ username: user.name, role: user.role as UserRole, qbEmployee: '', peerRecords: true, apiEnabled: false, entities: ['Method HQ'] });
+  const initial = useRef({ username: user.name, role: user.role as UserRole, qbEmployee: '', peerRecords: true, apiEnabled: false, entities: ['Method HQ'], notifInvoice: false, notifEstimate: false, notifBilling: false, notifUser: false });
 
   const hasChanges =
     username !== initial.current.username ||
@@ -1418,7 +1422,11 @@ function UserDetailPage({
     qbEmployee !== initial.current.qbEmployee ||
     peerRecords !== initial.current.peerRecords ||
     apiEnabled !== initial.current.apiEnabled ||
-    JSON.stringify(entities) !== JSON.stringify(initial.current.entities);
+    JSON.stringify(entities) !== JSON.stringify(initial.current.entities) ||
+    notifInvoice !== initial.current.notifInvoice ||
+    notifEstimate !== initial.current.notifEstimate ||
+    notifBilling !== initial.current.notifBilling ||
+    notifUser !== initial.current.notifUser;
 
   const isScale = subscription?.planId === 'scale';
   // Prototype: the logged-in user is always Paul (id '1')
@@ -1426,7 +1434,7 @@ function UserDetailPage({
   const isOnlyAdmin = user.role === 'Admin' && allUsers.filter((u) => u.role === 'Admin').length <= 1;
 
   function saveAll() {
-    initial.current = { username, role, qbEmployee, peerRecords, apiEnabled, entities: [...entities] };
+    initial.current = { username, role, qbEmployee, peerRecords, apiEnabled, entities: [...entities], notifInvoice, notifEstimate, notifBilling, notifUser };
     setSavedAll(true);
     setTimeout(() => setSavedAll(false), 2000);
   }
@@ -1438,6 +1446,10 @@ function UserDetailPage({
     setPeerRecords(initial.current.peerRecords);
     setApiEnabled(initial.current.apiEnabled);
     setEntities([...initial.current.entities]);
+    setNotifInvoice(initial.current.notifInvoice);
+    setNotifEstimate(initial.current.notifEstimate);
+    setNotifBilling(initial.current.notifBilling);
+    setNotifUser(initial.current.notifUser);
   }
 
   function handleRoleChange(newRole: UserRole) {
@@ -1671,6 +1683,36 @@ function UserDetailPage({
               </div>
             </div>
           )}
+
+          <hr className="mx-6 border-gray-100" />
+
+          {/* Notification settings */}
+          <div className="grid grid-cols-1 md:grid-cols-[220px_1fr] gap-8 py-7 px-6">
+            <div>
+              <h2 className="text-sm font-semibold text-gray-900">Notification settings</h2>
+              <p className="mt-1 text-sm text-gray-500 leading-relaxed">
+                Email notifications {user.name.split(' ')[0]} receives for account activity.
+              </p>
+            </div>
+            <div className="space-y-4">
+              {(
+                [
+                  { label: 'Invoice paid', desc: 'Notify when a customer pays an invoice', value: notifInvoice, onChange: setNotifInvoice },
+                  { label: 'Estimate accepted', desc: 'Notify when a customer accepts an estimate', value: notifEstimate, onChange: setNotifEstimate },
+                  { label: 'Billing changes', desc: 'Notify when the account plan or billing details change', value: notifBilling, onChange: setNotifBilling },
+                  { label: 'User added or removed', desc: 'Notify when a team member is invited or removed', value: notifUser, onChange: setNotifUser },
+                ] as const
+              ).map(({ label, desc, value, onChange }) => (
+                <div key={label} className="flex items-center justify-between gap-4">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-gray-900">{label}</p>
+                    <p className="text-xs text-gray-500 mt-0.5">{desc}</p>
+                  </div>
+                  <SettingsToggle enabled={value} onChange={onChange} />
+                </div>
+              ))}
+            </div>
+          </div>
 
           <hr className="mx-6 border-gray-100" />
 

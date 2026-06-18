@@ -1,6 +1,6 @@
 import { useState, useRef, useMemo } from 'react';
 import {
-  Search, X, Check, Bell, Download, Users, CreditCard,
+  Search, X, Check, Download, Users, CreditCard,
   ChevronRight, SlidersHorizontal, LayoutDashboard, Kanban, RotateCcw, ShieldCheck, ArrowRight,
 } from 'lucide-react';
 import { appTiles } from '@/components/AppsGrid';
@@ -250,10 +250,6 @@ export function ApplicationsAccessPage({
   const initBilling = useRef(false);
   const initUserMgmt = useRef(false);
   const initExport = useRef(false);
-  const initNotifInvoice = useRef(false);
-  const initNotifEstimate = useRef(false);
-  const initNotifBilling = useRef(false);
-  const initNotifUser = useRef(false);
 
   // Per-app state
   const [appAccess, setAppAccess] = useState<Record<string, boolean>>(() => {
@@ -282,12 +278,6 @@ export function ApplicationsAccessPage({
   const [userMgmtAccess, setUserMgmtAccess] = useState(false);
   const [exportAccess, setExportAccess] = useState(false);
 
-  // Notifications
-  const [notifInvoice, setNotifInvoice] = useState(false);
-  const [notifEstimate, setNotifEstimate] = useState(false);
-  const [notifBilling, setNotifBilling] = useState(false);
-  const [notifUser, setNotifUser] = useState(false);
-
   // Save feedback
   const [savedAll, setSavedAll] = useState(false);
 
@@ -300,14 +290,9 @@ export function ApplicationsAccessPage({
     return (
       billingAccess !== initBilling.current ||
       userMgmtAccess !== initUserMgmt.current ||
-      exportAccess !== initExport.current ||
-      notifInvoice !== initNotifInvoice.current ||
-      notifEstimate !== initNotifEstimate.current ||
-      notifBilling !== initNotifBilling.current ||
-      notifUser !== initNotifUser.current
+      exportAccess !== initExport.current
     );
-  }, [appAccess, appPermission, billingAccess, userMgmtAccess, exportAccess,
-      notifInvoice, notifEstimate, notifBilling, notifUser]);
+  }, [appAccess, appPermission, billingAccess, userMgmtAccess, exportAccess]);
 
   // ── Actions ──
 
@@ -317,10 +302,6 @@ export function ApplicationsAccessPage({
     initBilling.current = billingAccess;
     initUserMgmt.current = userMgmtAccess;
     initExport.current = exportAccess;
-    initNotifInvoice.current = notifInvoice;
-    initNotifEstimate.current = notifEstimate;
-    initNotifBilling.current = notifBilling;
-    initNotifUser.current = notifUser;
     setSavedAll(true);
     setTimeout(() => setSavedAll(false), 2000);
   }
@@ -331,10 +312,6 @@ export function ApplicationsAccessPage({
     setBillingAccess(initBilling.current);
     setUserMgmtAccess(initUserMgmt.current);
     setExportAccess(initExport.current);
-    setNotifInvoice(initNotifInvoice.current);
-    setNotifEstimate(initNotifEstimate.current);
-    setNotifBilling(initNotifBilling.current);
-    setNotifUser(initNotifUser.current);
     setSavedAll(false);
   }
 
@@ -648,58 +625,6 @@ export function ApplicationsAccessPage({
                   <p className="text-xs text-gray-500">{desc}</p>
                 </div>
                 <Toggle checked={isAdmin ? true : value} onChange={onChange} disabled={isAdmin} />
-              </div>
-            ))}
-          </div>
-
-          {/* ── Notification settings ── */}
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-            <div className="px-5 py-4 border-b border-gray-100">
-              <h2 className="text-sm font-semibold text-gray-700">Notification settings</h2>
-              <p className="text-xs text-gray-500 mt-0.5">
-                Email notifications {user} receives for account activity.
-              </p>
-            </div>
-            {(
-              [
-                {
-                  label: 'Invoice paid',
-                  desc: 'Notify when a customer pays an invoice',
-                  value: notifInvoice,
-                  onChange: setNotifInvoice,
-                },
-                {
-                  label: 'Estimate accepted',
-                  desc: 'Notify when a customer accepts an estimate',
-                  value: notifEstimate,
-                  onChange: setNotifEstimate,
-                },
-                {
-                  label: 'Billing changes',
-                  desc: 'Notify when the account plan or billing details change',
-                  value: notifBilling,
-                  onChange: setNotifBilling,
-                },
-                {
-                  label: 'User added or removed',
-                  desc: 'Notify when a team member is invited or removed',
-                  value: notifUser,
-                  onChange: setNotifUser,
-                },
-              ] as const
-            ).map(({ label, desc, value, onChange }, i) => (
-              <div
-                key={label}
-                className={`flex items-center gap-4 px-5 py-3.5 ${i > 0 ? 'border-t border-gray-100' : ''}`}
-              >
-                <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
-                  <Bell className="w-4 h-4 text-gray-500" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900">{label}</p>
-                  <p className="text-xs text-gray-500">{desc}</p>
-                </div>
-                <Toggle checked={value} onChange={onChange} disabled={isAdmin} />
               </div>
             ))}
           </div>
