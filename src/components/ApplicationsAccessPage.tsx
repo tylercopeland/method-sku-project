@@ -80,9 +80,9 @@ function InfoTooltip({ content }: { content: React.ReactNode }) {
 
 const PERMISSION_TOOLTIP = (
   <div className="space-y-1.5">
-    <div><span className="font-semibold text-white">View</span><span className="text-gray-300"> — Can see records and data. Cannot make changes.</span></div>
+    <div><span className="font-semibold text-white">View only</span><span className="text-gray-300"> — Can see records and data. Cannot make changes.</span></div>
     <div><span className="font-semibold text-white">Edit</span><span className="text-gray-300"> — Can create, modify, and delete records.</span></div>
-    <div><span className="font-semibold text-white">Customize</span><span className="text-gray-300"> — Full access including app layout, fields, and settings.</span></div>
+    <div><span className="font-semibold text-white">Edit & customize</span><span className="text-gray-300"> — Full access including app layout, fields, and settings.</span></div>
   </div>
 );
 
@@ -511,11 +511,11 @@ export function ApplicationsAccessPage({
                 {multiSelectMode && <div className="w-4 flex-shrink-0" />}
                 <div className="w-4 flex-shrink-0" />
                 <span className="flex-1 text-xs font-medium text-gray-400 uppercase tracking-wide">App</span>
-                <div className="flex items-center gap-1.5 mr-[52px]">
+                <div className="flex items-center gap-1.5 mr-[36px]">
                   <span className="text-xs font-medium text-gray-400 uppercase tracking-wide">Permission</span>
                   <InfoTooltip content={PERMISSION_TOOLTIP} />
                 </div>
-                <span className="text-xs font-medium text-gray-400 uppercase tracking-wide w-9 text-center pr-1">Access</span>
+                <span className="text-xs font-medium text-gray-400 uppercase tracking-wide w-14">Access</span>
               </div>
             )}
 
