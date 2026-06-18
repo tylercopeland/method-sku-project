@@ -1,7 +1,7 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useMemo } from 'react';
 import {
   Search, X, Check, Bell, Download, Users, CreditCard,
-  ChevronRight, SlidersHorizontal, LayoutDashboard, Kanban,
+  ChevronRight, SlidersHorizontal, LayoutDashboard, Kanban, RotateCcw,
 } from 'lucide-react';
 import { appTiles } from '@/components/AppsGrid';
 
@@ -34,6 +34,57 @@ const CUSTOM_APPS: AppDef[] = [
 ];
 
 const PERM_LABELS: Record<Permission, string> = { view: 'View', edit: 'Edit', customize: 'Customize' };
+
+// ── Fixed-position hover tooltip ───────────────────────────────────────────────
+
+function InfoTooltip({ content }: { content: React.ReactNode }) {
+  const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
+
+  function show() {
+    if (btnRef.current) {
+      const r = btnRef.current.getBoundingClientRect();
+      setPos({ x: r.left + r.width / 2, y: r.top - 6 });
+    }
+  }
+
+  return (
+    <>
+      <button
+        ref={btnRef}
+        type="button"
+        onMouseEnter={show}
+        onMouseLeave={() => setPos(null)}
+        className="flex-shrink-0 w-[14px] h-[14px] rounded-full border border-gray-300 text-gray-400 text-[9px] font-bold flex items-center justify-center hover:border-gray-500 hover:text-gray-600 transition-colors select-none leading-none"
+      >
+        ?
+      </button>
+      {pos && (
+        <div
+          style={{
+            position: 'fixed',
+            left: pos.x,
+            top: pos.y,
+            transform: 'translate(-50%, -100%)',
+            zIndex: 9999,
+          }}
+          className="w-60 p-3 bg-gray-900 text-white text-xs rounded-lg shadow-xl pointer-events-none"
+        >
+          {content}
+          <div className="absolute top-full left-1/2 -translate-x-1/2 border-[5px] border-transparent border-t-gray-900" />
+        </div>
+      )}
+    </>
+  );
+}
+
+const PERMISSION_TOOLTIP = (
+  <div className="space-y-1.5">
+    <div><span className="font-semibold text-white">View</span><span className="text-gray-300"> — Can see records and data. Cannot make changes.</span></div>
+    <div><span className="font-semibold text-white">Edit</span><span className="text-gray-300"> — Can create, modify, and delete records.</span></div>
+    <div><span className="font-semibold text-white">Customize</span><span className="text-gray-300"> — Full access including app layout, fields, and settings.</span></div>
+  </div>
+);
 
 // ── Shared toggle ──────────────────────────────────────────────────────────────
 
@@ -128,7 +179,7 @@ function AppRow({
   const Icon = app.icon;
   return (
     <div
-      className={`flex items-center gap-3 px-4 py-3 border-b border-gray-100 last:border-0 transition-colors ${
+      className={`flex items-center gap-3 px-5 py-3 border-b border-gray-100 last:border-0 transition-colors ${
         highlighted ? 'bg-blue-50' : isSelected ? 'bg-blue-50/50' : 'hover:bg-gray-50/60'
       }`}
     >
@@ -155,6 +206,9 @@ function AppRow({
       >
         {app.name}
       </span>
+      {app.description && (
+        <InfoTooltip content={<span className="text-gray-300 leading-relaxed">{app.description}</span>} />
+      )}
       <div className="flex items-center gap-3 flex-shrink-0">
         <PermissionControl
           value={permission}
@@ -182,15 +236,28 @@ export function ApplicationsAccessPage({
   }));
   const allApps = [...stockApps, ...CUSTOM_APPS];
 
+  // Initial state refs (populated once via lazy useState initializers)
+  const initAccess = useRef<Record<string, boolean>>({});
+  const initPerm = useRef<Record<string, Permission>>({});
+  const initBilling = useRef(false);
+  const initUserMgmt = useRef(false);
+  const initExport = useRef(false);
+  const initNotifInvoice = useRef(false);
+  const initNotifEstimate = useRef(false);
+  const initNotifBilling = useRef(false);
+  const initNotifUser = useRef(false);
+
   // Per-app state
   const [appAccess, setAppAccess] = useState<Record<string, boolean>>(() => {
     const m: Record<string, boolean> = {};
     allApps.forEach((a) => { m[a.name] = true; });
+    initAccess.current = { ...m };
     return m;
   });
   const [appPermission, setAppPermission] = useState<Record<string, Permission>>(() => {
     const m: Record<string, Permission> = {};
     allApps.forEach((a) => { m[a.name] = 'customize'; });
+    initPerm.current = { ...m };
     return m;
   });
 
@@ -214,9 +281,54 @@ export function ApplicationsAccessPage({
   const [notifUser, setNotifUser] = useState(false);
 
   // Save feedback
-  const [saved, setSaved] = useState(false);
+  const [savedAll, setSavedAll] = useState(false);
 
-  // ── Helpers ──
+  // Dirty detection
+  const hasChanges = useMemo(() => {
+    for (const key in initAccess.current) {
+      if (appAccess[key] !== initAccess.current[key]) return true;
+      if (appPermission[key] !== initPerm.current[key]) return true;
+    }
+    return (
+      billingAccess !== initBilling.current ||
+      userMgmtAccess !== initUserMgmt.current ||
+      exportAccess !== initExport.current ||
+      notifInvoice !== initNotifInvoice.current ||
+      notifEstimate !== initNotifEstimate.current ||
+      notifBilling !== initNotifBilling.current ||
+      notifUser !== initNotifUser.current
+    );
+  }, [appAccess, appPermission, billingAccess, userMgmtAccess, exportAccess,
+      notifInvoice, notifEstimate, notifBilling, notifUser]);
+
+  // ── Actions ──
+
+  function saveAll() {
+    initAccess.current = { ...appAccess };
+    initPerm.current = { ...appPermission };
+    initBilling.current = billingAccess;
+    initUserMgmt.current = userMgmtAccess;
+    initExport.current = exportAccess;
+    initNotifInvoice.current = notifInvoice;
+    initNotifEstimate.current = notifEstimate;
+    initNotifBilling.current = notifBilling;
+    initNotifUser.current = notifUser;
+    setSavedAll(true);
+    setTimeout(() => setSavedAll(false), 2000);
+  }
+
+  function undoChanges() {
+    setAppAccess({ ...initAccess.current });
+    setAppPermission({ ...initPerm.current });
+    setBillingAccess(initBilling.current);
+    setUserMgmtAccess(initUserMgmt.current);
+    setExportAccess(initExport.current);
+    setNotifInvoice(initNotifInvoice.current);
+    setNotifEstimate(initNotifEstimate.current);
+    setNotifBilling(initNotifBilling.current);
+    setNotifUser(initNotifUser.current);
+    setSavedAll(false);
+  }
 
   function setAllPermission(p: Permission) {
     const nextPerm: Record<string, Permission> = {};
@@ -265,324 +377,333 @@ export function ApplicationsAccessPage({
   const filteredCustom = filterApps(CUSTOM_APPS);
   const noResults = filteredStock.length === 0 && filteredCustom.length === 0;
 
-  function handleSave() {
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
-  }
-
   return (
-    <div className="flex-1 overflow-y-auto bg-gray-50 p-4 sm:p-8">
-      <div className="max-w-4xl mx-auto space-y-5">
+    <>
+      <div className="flex-1 overflow-y-auto bg-gray-50 p-4 sm:p-8">
+        <div className="max-w-4xl mx-auto space-y-5">
 
-        {/* Breadcrumb */}
-        <div className="flex flex-wrap items-center gap-1.5 text-sm">
-          <button
-            onClick={() => onNavigate?.('account-settings')}
-            className="text-blue-600 hover:underline"
-          >
-            Account Settings
-          </button>
-          <ChevronRight className="w-3.5 h-3.5 text-gray-400" />
-          <button onClick={onBack} className="text-blue-600 hover:underline">Users</button>
-          <ChevronRight className="w-3.5 h-3.5 text-gray-400" />
-          <span className="text-blue-600">{user}</span>
-          <ChevronRight className="w-3.5 h-3.5 text-gray-400" />
-          <span className="text-gray-500">App Access</span>
-        </div>
-
-        <div>
-          <h1 className="text-2xl font-semibold text-gray-900">App access</h1>
-          <p className="mt-1 text-sm text-gray-500">
-            Control which apps {user} can use and what they can do in each one.
-          </p>
-        </div>
-
-        {/* ── Quick overrides ── */}
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
-          <h2 className="text-sm font-semibold text-gray-700 mb-0.5">Quick overrides</h2>
-          <p className="text-xs text-gray-500 mb-4">
-            Apply a permission level to all apps at once. Individual settings can be adjusted after.
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {(
-              [
-                { label: 'View only — all apps', p: 'view' as Permission },
-                { label: 'Edit — all apps', p: 'edit' as Permission },
-                { label: 'Full access — all apps', p: 'customize' as Permission },
-              ] as const
-            ).map(({ label, p }) => (
-              <button
-                key={p}
-                type="button"
-                onClick={() => setAllPermission(p)}
-                className="px-3.5 py-2 rounded-lg border border-gray-200 text-sm text-gray-700 hover:border-blue-400 hover:text-blue-700 hover:bg-blue-50 transition-colors"
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* ── Apps ── */}
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-
-          {/* Header */}
-          <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-100">
-            <h2 className="text-sm font-semibold text-gray-700">Apps</h2>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => { setMultiSelectMode((m) => !m); setSelected(new Set()); }}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                  multiSelectMode
-                    ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                    : 'text-gray-500 hover:bg-gray-100 border border-transparent'
-                }`}
-              >
-                <SlidersHorizontal className="w-3.5 h-3.5" />
-                Multi-select
-              </button>
-              <div className="relative">
-                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
-                <input
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Search apps"
-                  className="rounded-lg border border-gray-200 pl-8 pr-3 py-1.5 text-xs text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 w-44"
-                />
-              </div>
-            </div>
+          {/* Breadcrumb */}
+          <div className="flex flex-wrap items-center gap-1.5 text-sm">
+            <button
+              onClick={() => onNavigate?.('account-settings')}
+              className="text-blue-600 hover:underline"
+            >
+              Account Settings
+            </button>
+            <ChevronRight className="w-3.5 h-3.5 text-gray-400" />
+            <button onClick={onBack} className="text-blue-600 hover:underline">Users</button>
+            <ChevronRight className="w-3.5 h-3.5 text-gray-400" />
+            <span className="text-blue-600">{user}</span>
+            <ChevronRight className="w-3.5 h-3.5 text-gray-400" />
+            <span className="text-gray-500">App Access</span>
           </div>
 
-          {/* Bulk action bar */}
-          {multiSelectMode && selected.size > 0 && (
-            <div className="flex flex-wrap items-center gap-2 px-5 py-2.5 bg-blue-50 border-b border-blue-100">
-              <span className="text-xs font-semibold text-blue-700">{selected.size} selected</span>
-              <span className="text-blue-300 text-xs">|</span>
-              <span className="text-xs text-blue-600">Set to:</span>
-              {(['view', 'edit', 'customize'] as Permission[]).map((p) => (
+          <div>
+            <h1 className="text-2xl font-semibold text-gray-900">App access</h1>
+            <p className="mt-1 text-sm text-gray-500">
+              Control which apps {user} can use and what they can do in each one.
+            </p>
+          </div>
+
+          {/* ── Quick overrides ── */}
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+            <h2 className="text-sm font-semibold text-gray-700 mb-0.5">Quick overrides</h2>
+            <p className="text-xs text-gray-500 mb-4">
+              Apply a permission level to all apps at once. Individual settings can be adjusted after.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {(
+                [
+                  { label: 'View only — all apps', p: 'view' as Permission },
+                  { label: 'Edit — all apps', p: 'edit' as Permission },
+                  { label: 'Full access — all apps', p: 'customize' as Permission },
+                ] as const
+              ).map(({ label, p }) => (
                 <button
                   key={p}
                   type="button"
-                  onClick={() => bulkSetPermission(p)}
-                  className="px-2.5 py-1 rounded text-xs font-medium bg-white border border-blue-200 text-blue-700 hover:bg-blue-100 transition-colors capitalize"
+                  onClick={() => setAllPermission(p)}
+                  className="px-3.5 py-2 rounded-lg border border-blue-300 text-sm text-blue-600 hover:bg-blue-50 hover:border-blue-400 transition-colors font-medium"
                 >
-                  {p}
+                  {label}
                 </button>
               ))}
-              <span className="text-blue-300 text-xs">|</span>
-              <button
-                type="button"
-                onClick={() => bulkSetAccess(true)}
-                className="px-2.5 py-1 rounded text-xs font-medium bg-white border border-blue-200 text-blue-700 hover:bg-blue-100 transition-colors"
-              >
-                Enable all
-              </button>
-              <button
-                type="button"
-                onClick={() => bulkSetAccess(false)}
-                className="px-2.5 py-1 rounded text-xs font-medium bg-white border border-red-200 text-red-600 hover:bg-red-50 transition-colors"
-              >
-                Disable all
-              </button>
-              <button
-                type="button"
-                onClick={() => setSelected(new Set())}
-                className="ml-auto p-1 text-blue-400 hover:text-blue-600 transition-colors"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
             </div>
-          )}
-
-          {/* Column labels */}
-          {!noResults && (
-            <div className="flex items-center gap-3 px-4 py-2 bg-gray-50/80 border-b border-gray-100">
-              {multiSelectMode && <div className="w-4 flex-shrink-0" />}
-              <div className="w-4 flex-shrink-0" />
-              <span className="flex-1 text-xs font-medium text-gray-400 uppercase tracking-wide">App</span>
-              <span className="text-xs font-medium text-gray-400 uppercase tracking-wide mr-12">Permission</span>
-              <span className="text-xs font-medium text-gray-400 uppercase tracking-wide w-9 text-center">Access</span>
-            </div>
-          )}
-
-          {/* Method Apps group */}
-          {filteredStock.length > 0 && (
-            <>
-              <div className="px-4 py-2 bg-gray-50 border-b border-gray-100">
-                <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
-                  Method Apps
-                </span>
-              </div>
-              {filteredStock.map((app) => (
-                <AppRow
-                  key={app.name}
-                  app={app}
-                  access={appAccess[app.name] ?? true}
-                  permission={appPermission[app.name] ?? 'customize'}
-                  multiSelectMode={multiSelectMode}
-                  isSelected={selected.has(app.name)}
-                  highlighted={highlighted === app.name}
-                  onToggleAccess={() => toggleAccess(app.name)}
-                  onPermissionChange={(p) => setPermission(app.name, p)}
-                  onToggleSelect={() => toggleSelect(app.name)}
-                />
-              ))}
-            </>
-          )}
-
-          {/* Custom Apps group */}
-          {filteredCustom.length > 0 && (
-            <>
-              <div className="px-4 py-2 bg-gray-50 border-b border-gray-100">
-                <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
-                  Custom Apps
-                </span>
-              </div>
-              {filteredCustom.map((app) => (
-                <AppRow
-                  key={app.name}
-                  app={app}
-                  access={appAccess[app.name] ?? true}
-                  permission={appPermission[app.name] ?? 'customize'}
-                  multiSelectMode={multiSelectMode}
-                  isSelected={selected.has(app.name)}
-                  highlighted={false}
-                  onToggleAccess={() => toggleAccess(app.name)}
-                  onPermissionChange={(p) => setPermission(app.name, p)}
-                  onToggleSelect={() => toggleSelect(app.name)}
-                />
-              ))}
-            </>
-          )}
-
-          {noResults && (
-            <p className="text-sm text-gray-400 py-10 text-center">No apps match "{query}".</p>
-          )}
-        </div>
-
-        {/* ── Extra permissions ── */}
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-          <div className="px-5 py-4 border-b border-gray-100">
-            <h2 className="text-sm font-semibold text-gray-700">Extra permissions</h2>
-            <p className="text-xs text-gray-500 mt-0.5">
-              Grant access to admin areas outside of regular apps.
-            </p>
           </div>
-          {(
-            [
-              {
-                label: 'Billing',
-                desc: 'View and manage billing, invoices, and plan changes',
-                Icon: CreditCard,
-                value: billingAccess,
-                onChange: setBillingAccess,
-              },
-              {
-                label: 'User management',
-                desc: 'Invite, edit, and remove team members',
-                Icon: Users,
-                value: userMgmtAccess,
-                onChange: setUserMgmtAccess,
-              },
-              {
-                label: 'Data export',
-                desc: 'Export records and data to CSV or Excel',
-                Icon: Download,
-                value: exportAccess,
-                onChange: setExportAccess,
-              },
-            ] as const
-          ).map(({ label, desc, Icon, value, onChange }, i) => (
-            <div
-              key={label}
-              className={`flex items-center gap-4 px-5 py-3.5 ${i > 0 ? 'border-t border-gray-100' : ''}`}
-            >
-              <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
-                <Icon className="w-4 h-4 text-gray-500" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-900">{label}</p>
-                <p className="text-xs text-gray-500">{desc}</p>
-              </div>
-              <Toggle checked={value} onChange={onChange} />
-            </div>
-          ))}
-        </div>
 
-        {/* ── Notification settings ── */}
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-          <div className="px-5 py-4 border-b border-gray-100">
-            <h2 className="text-sm font-semibold text-gray-700">Notification settings</h2>
-            <p className="text-xs text-gray-500 mt-0.5">
-              Email notifications {user} receives for account activity.
-            </p>
+          {/* ── Apps ── */}
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-100">
+              <h2 className="text-sm font-semibold text-gray-700">Apps</h2>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => { setMultiSelectMode((m) => !m); setSelected(new Set()); }}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                    multiSelectMode
+                      ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                      : 'text-gray-500 hover:bg-gray-100 border border-transparent'
+                  }`}
+                >
+                  <SlidersHorizontal className="w-3.5 h-3.5" />
+                  Multi-select
+                </button>
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+                  <input
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    placeholder="Search apps"
+                    className="rounded-lg border border-gray-200 pl-8 pr-3 py-1.5 text-xs text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 w-44"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Bulk action bar */}
+            {multiSelectMode && selected.size > 0 && (
+              <div className="flex flex-wrap items-center gap-2 px-5 py-2.5 bg-blue-50 border-b border-blue-100">
+                <span className="text-xs font-semibold text-blue-700">{selected.size} selected</span>
+                <span className="text-blue-300 text-xs">|</span>
+                <span className="text-xs text-blue-600">Set to:</span>
+                {(['view', 'edit', 'customize'] as Permission[]).map((p) => (
+                  <button
+                    key={p}
+                    type="button"
+                    onClick={() => bulkSetPermission(p)}
+                    className="px-2.5 py-1 rounded text-xs font-medium bg-white border border-blue-200 text-blue-700 hover:bg-blue-100 transition-colors capitalize"
+                  >
+                    {p}
+                  </button>
+                ))}
+                <span className="text-blue-300 text-xs">|</span>
+                <button
+                  type="button"
+                  onClick={() => bulkSetAccess(true)}
+                  className="px-2.5 py-1 rounded text-xs font-medium bg-white border border-blue-200 text-blue-700 hover:bg-blue-100 transition-colors"
+                >
+                  Enable all
+                </button>
+                <button
+                  type="button"
+                  onClick={() => bulkSetAccess(false)}
+                  className="px-2.5 py-1 rounded text-xs font-medium bg-white border border-red-200 text-red-600 hover:bg-red-50 transition-colors"
+                >
+                  Disable all
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelected(new Set())}
+                  className="ml-auto p-1 text-blue-400 hover:text-blue-600 transition-colors"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
+
+            {/* Column labels */}
+            {!noResults && (
+              <div className="flex items-center gap-3 px-5 py-2 bg-gray-50/80 border-b border-gray-100">
+                {multiSelectMode && <div className="w-4 flex-shrink-0" />}
+                <div className="w-4 flex-shrink-0" />
+                <span className="flex-1 text-xs font-medium text-gray-400 uppercase tracking-wide">App</span>
+                <div className="flex items-center gap-1.5 mr-[52px]">
+                  <span className="text-xs font-medium text-gray-400 uppercase tracking-wide">Permission</span>
+                  <InfoTooltip content={PERMISSION_TOOLTIP} />
+                </div>
+                <span className="text-xs font-medium text-gray-400 uppercase tracking-wide w-9 text-center pr-1">Access</span>
+              </div>
+            )}
+
+            {/* Method Apps group */}
+            {filteredStock.length > 0 && (
+              <>
+                <div className="px-5 py-2 bg-gray-50 border-b border-gray-100">
+                  <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
+                    Method Apps
+                  </span>
+                </div>
+                {filteredStock.map((app) => (
+                  <AppRow
+                    key={app.name}
+                    app={app}
+                    access={appAccess[app.name] ?? true}
+                    permission={appPermission[app.name] ?? 'customize'}
+                    multiSelectMode={multiSelectMode}
+                    isSelected={selected.has(app.name)}
+                    highlighted={highlighted === app.name}
+                    onToggleAccess={() => toggleAccess(app.name)}
+                    onPermissionChange={(p) => setPermission(app.name, p)}
+                    onToggleSelect={() => toggleSelect(app.name)}
+                  />
+                ))}
+              </>
+            )}
+
+            {/* Custom Apps group */}
+            {filteredCustom.length > 0 && (
+              <>
+                <div className="px-5 py-2 bg-gray-50 border-b border-gray-100">
+                  <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
+                    Custom Apps
+                  </span>
+                </div>
+                {filteredCustom.map((app) => (
+                  <AppRow
+                    key={app.name}
+                    app={app}
+                    access={appAccess[app.name] ?? true}
+                    permission={appPermission[app.name] ?? 'customize'}
+                    multiSelectMode={multiSelectMode}
+                    isSelected={selected.has(app.name)}
+                    highlighted={false}
+                    onToggleAccess={() => toggleAccess(app.name)}
+                    onPermissionChange={(p) => setPermission(app.name, p)}
+                    onToggleSelect={() => toggleSelect(app.name)}
+                  />
+                ))}
+              </>
+            )}
+
+            {noResults && (
+              <p className="text-sm text-gray-400 py-10 text-center">No apps match "{query}".</p>
+            )}
           </div>
-          {(
-            [
-              {
-                label: 'Invoice paid',
-                desc: 'Notify when a customer pays an invoice',
-                value: notifInvoice,
-                onChange: setNotifInvoice,
-              },
-              {
-                label: 'Estimate accepted',
-                desc: 'Notify when a customer accepts an estimate',
-                value: notifEstimate,
-                onChange: setNotifEstimate,
-              },
-              {
-                label: 'Billing changes',
-                desc: 'Notify when the account plan or billing details change',
-                value: notifBilling,
-                onChange: setNotifBilling,
-              },
-              {
-                label: 'User added or removed',
-                desc: 'Notify when a team member is invited or removed',
-                value: notifUser,
-                onChange: setNotifUser,
-              },
-            ] as const
-          ).map(({ label, desc, value, onChange }, i) => (
-            <div
-              key={label}
-              className={`flex items-center gap-4 px-5 py-3.5 ${i > 0 ? 'border-t border-gray-100' : ''}`}
-            >
-              <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
-                <Bell className="w-4 h-4 text-gray-500" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-900">{label}</p>
-                <p className="text-xs text-gray-500">{desc}</p>
-              </div>
-              <Toggle checked={value} onChange={onChange} />
-            </div>
-          ))}
-        </div>
 
-        {/* Save */}
-        <div className="pb-8">
+          {/* ── Extra permissions ── */}
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+            <div className="px-5 py-4 border-b border-gray-100">
+              <h2 className="text-sm font-semibold text-gray-700">Extra permissions</h2>
+              <p className="text-xs text-gray-500 mt-0.5">
+                Grant access to admin areas outside of regular apps.
+              </p>
+            </div>
+            {(
+              [
+                {
+                  label: 'Billing',
+                  desc: 'View and manage billing, invoices, and plan changes',
+                  Icon: CreditCard,
+                  value: billingAccess,
+                  onChange: setBillingAccess,
+                },
+                {
+                  label: 'User management',
+                  desc: 'Invite, edit, and remove team members',
+                  Icon: Users,
+                  value: userMgmtAccess,
+                  onChange: setUserMgmtAccess,
+                },
+                {
+                  label: 'Data export',
+                  desc: 'Export records and data to CSV or Excel',
+                  Icon: Download,
+                  value: exportAccess,
+                  onChange: setExportAccess,
+                },
+              ] as const
+            ).map(({ label, desc, Icon, value, onChange }, i) => (
+              <div
+                key={label}
+                className={`flex items-center gap-4 px-5 py-3.5 ${i > 0 ? 'border-t border-gray-100' : ''}`}
+              >
+                <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
+                  <Icon className="w-4 h-4 text-gray-500" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-900">{label}</p>
+                  <p className="text-xs text-gray-500">{desc}</p>
+                </div>
+                <Toggle checked={value} onChange={onChange} />
+              </div>
+            ))}
+          </div>
+
+          {/* ── Notification settings ── */}
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+            <div className="px-5 py-4 border-b border-gray-100">
+              <h2 className="text-sm font-semibold text-gray-700">Notification settings</h2>
+              <p className="text-xs text-gray-500 mt-0.5">
+                Email notifications {user} receives for account activity.
+              </p>
+            </div>
+            {(
+              [
+                {
+                  label: 'Invoice paid',
+                  desc: 'Notify when a customer pays an invoice',
+                  value: notifInvoice,
+                  onChange: setNotifInvoice,
+                },
+                {
+                  label: 'Estimate accepted',
+                  desc: 'Notify when a customer accepts an estimate',
+                  value: notifEstimate,
+                  onChange: setNotifEstimate,
+                },
+                {
+                  label: 'Billing changes',
+                  desc: 'Notify when the account plan or billing details change',
+                  value: notifBilling,
+                  onChange: setNotifBilling,
+                },
+                {
+                  label: 'User added or removed',
+                  desc: 'Notify when a team member is invited or removed',
+                  value: notifUser,
+                  onChange: setNotifUser,
+                },
+              ] as const
+            ).map(({ label, desc, value, onChange }, i) => (
+              <div
+                key={label}
+                className={`flex items-center gap-4 px-5 py-3.5 ${i > 0 ? 'border-t border-gray-100' : ''}`}
+              >
+                <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
+                  <Bell className="w-4 h-4 text-gray-500" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-900">{label}</p>
+                  <p className="text-xs text-gray-500">{desc}</p>
+                </div>
+                <Toggle checked={value} onChange={onChange} />
+              </div>
+            ))}
+          </div>
+
+          {/* Bottom spacer so content clears the floating bar */}
+          <div className="h-20" />
+
+        </div>
+      </div>
+
+      {/* Floating save bar */}
+      {(hasChanges || savedAll) && (
+        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 bg-white rounded-xl shadow-2xl border border-gray-200 px-4 py-2.5">
+          <span className="text-xs text-gray-400 mr-1">Unsaved changes</span>
           <button
-            onClick={handleSave}
-            className={`rounded-lg px-5 py-2.5 text-sm font-semibold transition-all ${
-              saved
+            onClick={undoChanges}
+            className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 px-3 py-1.5 rounded-lg hover:bg-gray-100 transition-colors"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+            Undo
+          </button>
+          <button
+            onClick={saveAll}
+            className={`text-sm font-medium px-4 py-1.5 rounded-lg transition-all ${
+              savedAll
                 ? 'bg-green-50 text-green-700 border border-green-200'
                 : 'bg-blue-600 text-white hover:bg-blue-700'
             }`}
           >
-            {saved ? (
-              <span className="flex items-center gap-1.5">
-                <Check className="w-4 h-4" /> Saved
-              </span>
-            ) : (
-              'Save changes'
-            )}
+            {savedAll
+              ? <span className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5" /> Saved</span>
+              : 'Save all changes'}
           </button>
         </div>
-
-      </div>
-    </div>
+      )}
+    </>
   );
 }

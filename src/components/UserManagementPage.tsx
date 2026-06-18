@@ -1085,6 +1085,71 @@ function UserDropdownSelect({
   );
 }
 
+// ── Role downgrade warning modal ───────────────────────────────────────────────
+
+function RoleDowngradeWarningModal({
+  onInviteAdmin,
+  onClose,
+}: {
+  onInviteAdmin: () => void;
+  onClose: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-[420px]">
+        <div className="flex items-start gap-3 px-7 pt-7 pb-5">
+          <div className="w-9 h-9 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+            <AlertTriangle className="w-5 h-5 text-amber-600" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <h2 className="text-base font-semibold text-gray-900">Can't change role</h2>
+            <p className="text-sm text-gray-500 mt-1 leading-relaxed">
+              You're the only admin on this account. Changing your role would leave the account with no admin.
+            </p>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors flex-shrink-0 mt-0.5">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="px-7 pb-5">
+          <p className="text-xs font-medium text-gray-500 mb-3">To change your role, first:</p>
+          <ol className="space-y-2.5">
+            {[
+              'Assign admin rights to an existing team member, or invite a new admin',
+              'Once another admin is active, you can then change your own role',
+            ].map((step, i) => (
+              <li key={i} className="flex items-start gap-2.5">
+                <span className="flex-shrink-0 w-5 h-5 rounded-full bg-gray-100 text-gray-500 text-xs font-semibold flex items-center justify-center mt-0.5">
+                  {i + 1}
+                </span>
+                <span className="text-sm text-gray-700 leading-relaxed">{step}</span>
+              </li>
+            ))}
+          </ol>
+        </div>
+
+        <div className="bg-gray-50 border-t border-gray-100 px-7 py-4 flex items-center justify-between gap-3 rounded-b-2xl">
+          <button
+            onClick={onClose}
+            className="text-sm font-medium text-gray-500 hover:text-gray-700 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={() => { onClose(); onInviteAdmin(); }}
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            <UserPlus className="w-4 h-4" /> Invite a new admin
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Remove user modal ───────────────────────────────────────────────────────────
+
 function RemoveUserModal({
   user,
   otherUsers,
@@ -1326,6 +1391,7 @@ function UserDetailPage({
   const [twoFaReset, setTwoFaReset] = useState(false);
   const [savedAll, setSavedAll] = useState(false);
   const [showRemoveModal, setShowRemoveModal] = useState(false);
+  const [showRoleDowngradeModal, setShowRoleDowngradeModal] = useState(false);
 
   const initial = useRef({ username: user.name, role: user.role as UserRole, qbEmployee: '', peerRecords: true, apiEnabled: false, entities: ['Method HQ'] });
 
@@ -1357,6 +1423,14 @@ function UserDetailPage({
     setEntities([...initial.current.entities]);
   }
 
+  function handleRoleChange(newRole: UserRole) {
+    if (isSelf && isOnlyAdmin && newRole !== 'Admin') {
+      setShowRoleDowngradeModal(true);
+      return;
+    }
+    setRole(newRole);
+  }
+
   function toggleEntity(entity: string) {
     setEntities((prev) =>
       prev.includes(entity) ? prev.filter((e) => e !== entity) : [...prev, entity]
@@ -1380,11 +1454,13 @@ function UserDetailPage({
             {initials(user.name)}
           </div>
           <div>
-            <h1 className="text-2xl font-semibold text-gray-900">{user.name}</h1>
+            <div className="flex items-center gap-2.5">
+              <h1 className="text-2xl font-semibold text-gray-900">{user.name}</h1>
+              <StatusBadge status={user.status} />
+            </div>
             <p className="text-sm text-gray-500">{user.email}</p>
             <div className="flex items-center gap-2 mt-1.5">
               <RoleBadge role={role} />
-              <StatusBadge status={user.status} />
             </div>
           </div>
         </div>
@@ -1422,7 +1498,7 @@ function UserDetailPage({
                 <label className="block text-xs font-medium text-gray-500 mb-1.5">Role</label>
                 <RoleSelect
                   value={role}
-                  onChange={setRole}
+                  onChange={handleRoleChange}
                   seatsAvailableForThisSlot={999}
                   isTrial={!subscription}
                   essentialsOnly={false}
@@ -1648,6 +1724,13 @@ function UserDetailPage({
           onClose={() => setShowRemoveModal(false)}
           onConfirm={() => { setShowRemoveModal(false); onBack(); }}
           onInviteAdmin={() => { setShowRemoveModal(false); onInviteAdmin(); }}
+        />
+      )}
+
+      {showRoleDowngradeModal && (
+        <RoleDowngradeWarningModal
+          onClose={() => setShowRoleDowngradeModal(false)}
+          onInviteAdmin={() => { setShowRoleDowngradeModal(false); onInviteAdmin(); }}
         />
       )}
     </div>

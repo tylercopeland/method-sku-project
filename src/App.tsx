@@ -144,7 +144,7 @@ function App() {
     'purchase-orders': 'Purchase Orders',
     'bills': 'Bills',
     'proposals': 'Proposals',
-    'marketplace': 'App Marketplace',
+    'marketplace': 'App Launchpad',
     'applications-access': 'Account Settings',
     'subscription': 'Subscription',
     'account-settings': 'Account Settings',
