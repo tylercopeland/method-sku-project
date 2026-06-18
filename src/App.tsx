@@ -483,20 +483,38 @@ function App() {
               </div>
             </>
           )}
-          <div className="flex items-center justify-between border-t border-gray-100 pt-2">
-            <span className="text-gray-500">
-              {subscription ? `Subscribed: ${subscription.planId}` : 'Not subscribed'}
-            </span>
-            {subscription && (
-              <button
-                onClick={() => {
-                  setSubscription(null);
-                  setShowTrialBanner(true);
-                }}
-                className="font-medium text-blue-600 hover:underline"
-              >
-                Reset
-              </button>
+          <div className="border-t border-gray-100 pt-2">
+            <div className="flex items-center justify-between">
+              <span className="text-gray-500">
+                {subscription ? `Subscribed: ${subscription.planId}` : 'Not subscribed'}
+              </span>
+              {subscription && (
+                <button
+                  onClick={() => {
+                    setSubscription(null);
+                    setShowTrialBanner(true);
+                  }}
+                  className="font-medium text-blue-600 hover:underline"
+                >
+                  Reset
+                </button>
+              )}
+            </div>
+            {!subscription && (
+              <div className="flex gap-1 mt-1.5">
+                {(['essentials', 'build', 'scale'] as const).map((planId) => (
+                  <button
+                    key={planId}
+                    onClick={() => {
+                      setSubscription({ planId, billingCycle: 'annual', cardLast4: '4242' });
+                      setShowTrialBanner(false);
+                    }}
+                    className="flex-1 rounded border border-gray-200 bg-white px-1.5 py-1 text-xs text-gray-600 hover:border-blue-400 hover:text-blue-600 transition-colors capitalize"
+                  >
+                    {planId.charAt(0).toUpperCase() + planId.slice(1)}
+                  </button>
+                ))}
+              </div>
             )}
           </div>
           {subscription && (

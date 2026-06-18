@@ -305,7 +305,7 @@ export function Sidebar({ currentPage, onNavigate, isMobileOpen = false, onMobil
                   onMouseLeave={handleFolderMouseLeave}
                   className={`w-full flex items-center text-left p-3 rounded-md transition-colors ${
                     isActive || isOpen
-                      ? 'bg-blue-700 text-white'
+                      ? 'bg-blue-700 text-white hover:bg-blue-700 cursor-default'
                       : 'text-blue-100 hover:bg-blue-700 hover:text-white'
                   }`}
                 >
@@ -394,6 +394,25 @@ export function Sidebar({ currentPage, onNavigate, isMobileOpen = false, onMobil
           {folder.apps.map((app) => {
             const isLocked = lockedApps.includes(app.page);
             const isActive = currentPage === app.page;
+
+            if (isLocked) {
+              return (
+                <button
+                  key={app.page}
+                  type="button"
+                  onClick={() => handleNavigate(app.page)}
+                  className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-left hover:bg-gray-50 transition-colors group"
+                >
+                  <app.icon className="w-4 h-4 flex-shrink-0 text-gray-300" />
+                  <span className="flex-1 text-gray-400">{app.label}</span>
+                  <span className="text-xs text-blue-500 font-medium opacity-0 group-hover:opacity-100 transition-opacity pr-1">
+                    Preview
+                  </span>
+                  <Lock className="w-3.5 h-3.5 text-gray-300 flex-shrink-0" />
+                </button>
+              );
+            }
+
             return (
               <button
                 key={app.page}
@@ -407,7 +426,6 @@ export function Sidebar({ currentPage, onNavigate, isMobileOpen = false, onMobil
               >
                 <app.icon className={`w-4 h-4 flex-shrink-0 ${isActive ? 'text-blue-600' : 'text-gray-400'}`} />
                 <span className="flex-1">{app.label}</span>
-                {isLocked && <Lock className="w-3.5 h-3.5 text-gray-300 flex-shrink-0" />}
               </button>
             );
           })}
