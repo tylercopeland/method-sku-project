@@ -1631,7 +1631,7 @@ function TwoFAModal({ onClose }: { onClose: () => void }) {
         </div>
 
         {/* Footer */}
-        <div className="bg-gray-50 border-t border-gray-100 px-7 py-4 flex items-center justify-end gap-3">
+        <div className="bg-gray-50 border-t border-gray-100 px-7 py-4 flex items-center justify-end gap-3 rounded-b-2xl">
           <button
             onClick={onClose}
             className="px-5 py-2 text-sm font-medium text-gray-700 border border-gray-300 rounded-full hover:bg-gray-100 transition-colors"
