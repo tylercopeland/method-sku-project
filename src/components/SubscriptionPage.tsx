@@ -320,6 +320,11 @@ interface SubscriptionPageProps {
   /** Emphasize the annual discount: strike through the full price on annual and
    *  show the discounted monthly price as a savings nudge on monthly. */
   showDiscountedPrice?: boolean;
+  /** Pre-select this plan and jump straight to checkout (used by the upgrade modal). */
+  upgradeFromPlanId?: string;
+  /** Called when the user clicks "Upgrade plan" in the manage view — lets the parent
+   *  open an upgrade modal instead of navigating within this component. */
+  onUpgrade?: (planId: string) => void;
 }
 
 export function SubscriptionPage({
@@ -338,16 +343,20 @@ export function SubscriptionPage({
   checkoutMode = 'inline',
   hasAppStudioAccess = false,
   showDiscountedPrice = true,
+  upgradeFromPlanId,
+  onUpgrade,
 }: SubscriptionPageProps) {
   const [billingCycle, setBillingCycle] = useState<BillingCycle>(
     activeSubscription?.billingCycle ?? 'annual'
   );
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(
-    activeSubscription?.planId ?? null
+    upgradeFromPlanId ?? activeSubscription?.planId ?? null
   );
-  // If the user already subscribed, open on the requested view (manage by default,
-  // or the change-plan grid when deep-linked from an upgrade prompt).
-  const [step, setStep] = useState<Step>(activeSubscription ? initialStep : 'plans');
+  // If upgradeFromPlanId is set, jump straight to checkout for that plan.
+  // Otherwise, open on the requested view (manage by default, or plans grid when upgrading).
+  const [step, setStep] = useState<Step>(
+    upgradeFromPlanId ? 'checkout' : (activeSubscription ? initialStep : 'plans')
+  );
   const [processing, setProcessing] = useState(false);
 
   // Card form state (controlled inputs, matching the app's convention)
@@ -591,8 +600,8 @@ export function SubscriptionPage({
   // --------------------------- BILLING PORTAL (static) ---------------------------
   if (step === 'billing') {
     return (
-      <div className="flex-1 overflow-y-auto p-3 sm:p-6 bg-[#e8eef6]">
-        <div className="max-w-2xl mx-auto">
+      <div className="fixed inset-0 z-[60] overflow-y-auto bg-[#e8eef6]">
+        <div className="max-w-2xl mx-auto py-8 px-4 sm:px-6">
           <button
             onClick={() => setStep('manage')}
             className="inline-flex items-center gap-1 text-blue-600 hover:underline mb-6 text-sm"
@@ -700,7 +709,14 @@ export function SubscriptionPage({
                 const nextPlan = plans[plans.findIndex((p) => p.id === selectedPlan.id) + 1];
                 return nextPlan ? (
                   <button
-                    onClick={() => { setSelectedPlanId(nextPlan.id); setStep('checkout'); }}
+                    onClick={() => {
+                      if (onUpgrade) {
+                        onUpgrade(nextPlan.id);
+                      } else {
+                        setSelectedPlanId(nextPlan.id);
+                        setStep('checkout');
+                      }
+                    }}
                     className="inline-flex items-center gap-1.5 bg-blue-600 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-blue-700 transition-colors"
                   >
                     Upgrade plan

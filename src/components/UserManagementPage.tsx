@@ -35,7 +35,7 @@ import type { ActiveSubscription } from './SubscriptionPage';
 
 type UserRole = 'Admin' | 'Customizer' | 'Regular' | 'Field Crew' | 'View-only';
 type SeatType = 'full' | 'field-crew' | 'view-only';
-type UserStatus = 'Active' | 'Invited';
+type UserStatus = 'Active' | 'Invited' | 'Deactivated';
 
 interface MockUser {
   id: string;

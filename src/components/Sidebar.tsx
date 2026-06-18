@@ -33,9 +33,15 @@ import {
   Layers,
   Store,
   ChevronLeft,
-  ChevronUp
+  ChevronUp,
+  ChevronRight,
+  Users,
+  DollarSign,
+  Calculator,
+  Settings,
+  MessageSquare,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 
 interface SidebarProps {
   currentPage: string;
@@ -48,16 +54,134 @@ interface SidebarProps {
   lockedApps?: string[];
   /** When false, the App Studio link is hidden entirely (access turned off). */
   appStudioEnabled?: boolean;
+  /** When true, show folder-based category navigation instead of flat list. */
+  navFoldersEnabled?: boolean;
 }
 
-export function Sidebar({ currentPage, onNavigate, isMobileOpen = false, onMobileClose, locked = false, lockedApps = [], appStudioEnabled = true }: SidebarProps) {
+// --------------- Folder navigation data ---------------
+const NAV_FOLDERS = [
+  {
+    key: 'contacts',
+    label: 'Contacts & Comms',
+    icon: Users,
+    apps: [
+      { page: 'customers', label: 'Customers & Leads', icon: UserPlus },
+      { page: 'activities', label: 'Activities', icon: FileText },
+      { page: 'send-email', label: 'Send Email', icon: Mail },
+      { page: 'email-campaigns', label: 'Email Campaigns', icon: Megaphone },
+    ],
+  },
+  {
+    key: 'sales',
+    label: 'Sales & Payments',
+    icon: DollarSign,
+    apps: [
+      { page: 'opportunities', label: 'Opportunities', icon: Lightbulb },
+      { page: 'web-to-lead', label: 'Web to Lead', icon: List },
+      { page: 'estimates', label: 'Estimates', icon: ClipboardList },
+      { page: 'invoices', label: 'Invoices', icon: Receipt },
+      { page: 'payments', label: 'Payments', icon: CreditCard },
+      { page: 'sales-receipts', label: 'Sales Receipts', icon: ReceiptText },
+      { page: 'sales-orders', label: 'Sales Orders', icon: ShoppingCart },
+      { page: 'proposals', label: 'Proposals', icon: FileSignature },
+    ],
+  },
+  {
+    key: 'expenses',
+    label: 'Expenses & Purchasing',
+    icon: ShoppingBag,
+    apps: [
+      { page: 'bills', label: 'Bills', icon: Wallet },
+      { page: 'purchase-orders', label: 'Purchase Orders', icon: ShoppingBag },
+      { page: 'vendors', label: 'Vendors', icon: Building2 },
+    ],
+  },
+  {
+    key: 'accounting',
+    label: 'Accounting',
+    icon: Calculator,
+    apps: [
+      { page: 'accounts', label: 'Accounts', icon: Briefcase },
+      { page: 'items', label: 'Items', icon: Package },
+      { page: 'classes', label: 'Classes', icon: GraduationCap },
+    ],
+  },
+  {
+    key: 'operations',
+    label: 'Operations',
+    icon: Settings,
+    apps: [
+      { page: 'work-orders', label: 'Work Orders', icon: Wrench },
+      { page: 'time-tracking', label: 'Time Tracking', icon: Clock },
+      { page: 'field-crew', label: 'Field Crew', icon: Truck },
+      { page: 'jobs', label: 'Jobs', icon: Hammer },
+      { page: 'schedules', label: 'Schedules', icon: CalendarDays },
+      { page: 'inventory', label: 'Inventory', icon: Boxes },
+    ],
+  },
+  {
+    key: 'donors',
+    label: 'Donors',
+    icon: Heart,
+    apps: [
+      { page: 'donations', label: 'Donations', icon: Gift },
+      { page: 'donor-pages', label: 'Donor Pages', icon: Heart },
+    ],
+  },
+  {
+    key: 'support',
+    label: 'Support',
+    icon: MessageSquare,
+    apps: [
+      { page: 'cases', label: 'Cases', icon: Folder },
+    ],
+  },
+];
+
+export function Sidebar({ currentPage, onNavigate, isMobileOpen = false, onMobileClose, locked = false, lockedApps = [], appStudioEnabled = true, navFoldersEnabled = false }: SidebarProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMoreAppsOpen, setIsMoreAppsOpen] = useState(false);
+
+  // Folder flyout state
+  const [openFolder, setOpenFolder] = useState<string | null>(null);
+  const [flyoutStyle, setFlyoutStyle] = useState<React.CSSProperties>({});
+  const closeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleNavigate = (page: string) => {
     onNavigate(page);
     onMobileClose?.();
+    setOpenFolder(null);
   };
+
+  const handleFolderMouseEnter = (key: string, e: React.MouseEvent<HTMLButtonElement>) => {
+    if (closeTimeoutRef.current) clearTimeout(closeTimeoutRef.current);
+    const rect = e.currentTarget.getBoundingClientRect();
+    const maxTop = window.innerHeight - 320;
+    setFlyoutStyle({
+      position: 'fixed',
+      top: Math.min(rect.top, maxTop),
+      left: rect.right + 4,
+      zIndex: 9999,
+      minWidth: 220,
+    });
+    setOpenFolder(key);
+  };
+
+  const handleFolderMouseLeave = () => {
+    closeTimeoutRef.current = setTimeout(() => setOpenFolder(null), 80);
+  };
+
+  const handleFlyoutMouseEnter = () => {
+    if (closeTimeoutRef.current) clearTimeout(closeTimeoutRef.current);
+  };
+
+  const handleFlyoutMouseLeave = () => {
+    setOpenFolder(null);
+  };
+
+  const activeFolderKey = NAV_FOLDERS.find((f) =>
+    f.apps.some((a) => a.page === currentPage)
+  )?.key ?? null;
 
   const navigationItems = [
     { icon: LayoutGrid, label: 'Home', page: 'home' },
@@ -166,34 +290,69 @@ export function Sidebar({ currentPage, onNavigate, isMobileOpen = false, onMobil
 
       {/* Navigation (scrollable) */}
       <nav className={`flex-1 px-4 pb-4 overflow-y-auto ${locked ? 'pointer-events-none opacity-50' : ''}`}>
-        <div className="space-y-2">
-          {primaryItems.map(renderNavItem)}
-        </div>
 
-        {/* Overflow apps revealed by "View more" */}
-        {(isMoreAppsOpen || activeInMore) && (
-          <div className="space-y-2 mt-2">
-            {moreItems.map(renderNavItem)}
+        {navFoldersEnabled ? (
+          // --------------- Folder-based navigation ---------------
+          <div className="space-y-1">
+            {NAV_FOLDERS.map((folder) => {
+              const isActive = activeFolderKey === folder.key;
+              const isOpen = openFolder === folder.key;
+              return (
+                <button
+                  key={folder.key}
+                  type="button"
+                  onMouseEnter={(e) => handleFolderMouseEnter(folder.key, e)}
+                  onMouseLeave={handleFolderMouseLeave}
+                  className={`w-full flex items-center text-left p-3 rounded-md transition-colors ${
+                    isActive || isOpen
+                      ? 'bg-blue-700 text-white'
+                      : 'text-blue-100 hover:bg-blue-700 hover:text-white'
+                  }`}
+                >
+                  <folder.icon className="w-5 h-5 flex-shrink-0" />
+                  {(!isCollapsed || isMobileOpen) && (
+                    <>
+                      <span className="ml-3 flex-1 text-sm">{folder.label}</span>
+                      <ChevronRight className="w-4 h-4 opacity-60 flex-shrink-0" />
+                    </>
+                  )}
+                </button>
+              );
+            })}
           </div>
-        )}
+        ) : (
+          // --------------- Flat navigation (default) ---------------
+          <>
+            <div className="space-y-2">
+              {primaryItems.map(renderNavItem)}
+            </div>
 
-        {/* View more / less toggle */}
-        <div className="mt-2">
-          <Button
-            variant="ghost"
-            onClick={() => setIsMoreAppsOpen(!isMoreAppsOpen)}
-            className={`w-full ${isCollapsed && !isMobileOpen ? 'justify-center' : 'justify-start'} text-left p-3 h-auto text-blue-100 hover:bg-blue-700 hover:text-white`}
-          >
-            {isMoreAppsOpen || activeInMore ? (
-              <ChevronUp className="w-5 h-5 flex-shrink-0" />
-            ) : (
-              <Layers className="w-5 h-5 flex-shrink-0" />
+            {/* Overflow apps revealed by "View more" */}
+            {(isMoreAppsOpen || activeInMore) && (
+              <div className="space-y-2 mt-2">
+                {moreItems.map(renderNavItem)}
+              </div>
             )}
-            {(!isCollapsed || isMobileOpen) && (
-              <span className="ml-3">{isMoreAppsOpen || activeInMore ? 'View less' : 'View more'}</span>
-            )}
-          </Button>
-        </div>
+
+            {/* View more / less toggle */}
+            <div className="mt-2">
+              <Button
+                variant="ghost"
+                onClick={() => setIsMoreAppsOpen(!isMoreAppsOpen)}
+                className={`w-full ${isCollapsed && !isMobileOpen ? 'justify-center' : 'justify-start'} text-left p-3 h-auto text-blue-100 hover:bg-blue-700 hover:text-white`}
+              >
+                {isMoreAppsOpen || activeInMore ? (
+                  <ChevronUp className="w-5 h-5 flex-shrink-0" />
+                ) : (
+                  <Layers className="w-5 h-5 flex-shrink-0" />
+                )}
+                {(!isCollapsed || isMobileOpen) && (
+                  <span className="ml-3">{isMoreAppsOpen || activeInMore ? 'View less' : 'View more'}</span>
+                )}
+              </Button>
+            </div>
+          </>
+        )}
 
         {/* App Marketplace — hidden when App Studio access is on (Studio replaces it) */}
         {!appStudioEnabled && (
@@ -217,6 +376,44 @@ export function Sidebar({ currentPage, onNavigate, isMobileOpen = false, onMobil
         </div>
       )}
     </div>
+
+    {/* Folder flyout panel — rendered outside sidebar to avoid overflow clipping */}
+    {navFoldersEnabled && openFolder && (() => {
+      const folder = NAV_FOLDERS.find((f) => f.key === openFolder);
+      if (!folder) return null;
+      return (
+        <div
+          style={flyoutStyle}
+          className="bg-white rounded-xl border border-gray-200 shadow-xl py-2 overflow-hidden"
+          onMouseEnter={handleFlyoutMouseEnter}
+          onMouseLeave={handleFlyoutMouseLeave}
+        >
+          <p className="px-4 pb-2 pt-0.5 text-xs font-semibold text-gray-400 uppercase tracking-wide border-b border-gray-100 mb-1">
+            {folder.label}
+          </p>
+          {folder.apps.map((app) => {
+            const isLocked = lockedApps.includes(app.page);
+            const isActive = currentPage === app.page;
+            return (
+              <button
+                key={app.page}
+                type="button"
+                onClick={() => handleNavigate(app.page)}
+                className={`w-full flex items-center gap-3 px-4 py-2 text-sm text-left transition-colors ${
+                  isActive
+                    ? 'bg-blue-50 text-blue-700 font-medium'
+                    : 'text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                <app.icon className={`w-4 h-4 flex-shrink-0 ${isActive ? 'text-blue-600' : 'text-gray-400'}`} />
+                <span className="flex-1">{app.label}</span>
+                {isLocked && <Lock className="w-3.5 h-3.5 text-gray-300 flex-shrink-0" />}
+              </button>
+            );
+          })}
+        </div>
+      );
+    })()}
     </>
   );
 }

@@ -46,6 +46,11 @@ function App() {
   // Draggable position + collapsed state of the demo-controls panel.
   const [demoPos, setDemoPos] = useState<{ x: number; y: number } | null>(null);
   const [demoCollapsed, setDemoCollapsed] = useState(false);
+  // Upgrade modal: open from any page without navigating away.
+  const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
+  const [upgradeTargetPlanId, setUpgradeTargetPlanId] = useState<string | null>(null);
+  // Feature flag: folder-based sidebar navigation.
+  const [navFoldersEnabled, setNavFoldersEnabled] = useState(false);
 
   const startDemoDrag = (e: React.PointerEvent<HTMLElement>) => {
     const panel = e.currentTarget.closest('[data-demo-panel]') as HTMLElement | null;
@@ -168,8 +173,7 @@ function App() {
     } else if (page === 'estimates') {
       navigateToEstimates();
     } else if (page === 'subscription-upgrade') {
-      setOpenToChangePlan(true);
-      setCurrentPage('subscription');
+      openUpgradeModal();
     } else {
       setCurrentPage(page);
     }
@@ -189,6 +193,11 @@ function App() {
     setCurrentPage('home');
     setEstimatesFilter(undefined);
     setCustomersFilter(undefined);
+  };
+
+  const openUpgradeModal = (planId?: string) => {
+    setUpgradeTargetPlanId(planId ?? null);
+    setUpgradeModalOpen(true);
   };
 
   return (
@@ -261,6 +270,7 @@ function App() {
           locked={isLocked}
           lockedApps={lockedApps}
           appStudioEnabled={appStudioEnabled}
+          navFoldersEnabled={navFoldersEnabled}
         />
 
       {/* Main Content */}
@@ -296,6 +306,7 @@ function App() {
             checkoutMode={checkoutMode}
             hasAppStudioAccess={appStudioEnabled}
             showDiscountedPrice={showDiscountedPrice}
+            onUpgrade={openUpgradeModal}
             onSubscribed={(sub) => {
               setSubscription(sub);
               setShowTrialBanner(false);
@@ -330,19 +341,13 @@ function App() {
         ) : premiumLocked && premiumApps.includes(currentPage) ? (
           <UpgradeRequiredPage
             page={currentPage}
-            onUpgrade={() => {
-              setOpenToChangePlan(true);
-              setCurrentPage('subscription');
-            }}
+            onUpgrade={openUpgradeModal}
           />
         ) : currentPage === 'app-studio' && appStudioEnabled ? (
           <AppStudioPage
             userName={adminUserName}
             locked={premiumLocked}
-            onUpgrade={() => {
-              setOpenToChangePlan(true);
-              setCurrentPage('subscription');
-            }}
+            onUpgrade={openUpgradeModal}
           />
         ) : currentPage === 'applications-access' && accessUser ? (
           <ApplicationsAccessPage
@@ -368,10 +373,7 @@ function App() {
             lockedApps={lockedApps}
             appStudioEnabled={appStudioEnabled}
             onOpenApp={(page) => setCurrentPage(page)}
-            onUpgrade={() => {
-              setOpenToChangePlan(true);
-              setCurrentPage('subscription');
-            }}
+            onUpgrade={openUpgradeModal}
           />
         ) : currentPage === 'customers' || currentPage === 'contacts' ? (
           <div className="flex-1 overflow-y-auto p-3 sm:p-6">
@@ -576,6 +578,10 @@ function App() {
             <span className="text-gray-500">Discounted price</span>
             <Switch checked={showDiscountedPrice} onCheckedChange={setShowDiscountedPrice} />
           </div>
+          <div className="flex items-center justify-between border-t border-gray-100 pt-2 mt-2">
+            <span className="text-gray-500">Nav folders</span>
+            <Switch checked={navFoldersEnabled} onCheckedChange={setNavFoldersEnabled} />
+          </div>
           <div className="border-t border-gray-100 pt-2 mt-2">
             <button
               onClick={() => {
@@ -589,6 +595,58 @@ function App() {
           </div>
             </>
           )}
+        </div>
+      )}
+
+      {/* Upgrade modal — opens on top of any page without navigating away */}
+      {upgradeModalOpen && (
+        <div
+          className="fixed inset-0 z-[55] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 sm:p-8"
+          onClick={(e) => { if (e.target === e.currentTarget) setUpgradeModalOpen(false); }}
+        >
+          <div className="bg-gray-50 rounded-2xl overflow-hidden flex flex-col w-full max-w-4xl shadow-2xl" style={{ maxHeight: '90vh' }}>
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-white flex-shrink-0">
+              <h2 className="text-sm font-semibold text-gray-700">
+                {upgradeTargetPlanId ? 'Upgrade your plan' : 'Change your plan'}
+              </h2>
+              <button onClick={() => setUpgradeModalOpen(false)} className="text-gray-400 hover:text-gray-600 p-1">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto flex flex-col min-h-0">
+              <SubscriptionPage
+                activeSubscription={subscription}
+                isInTrial={isInTrial}
+                trialEndLabel={trialEndLabel}
+                teamSize={teamSize}
+                checkoutMode="inline"
+                upgradeFromPlanId={upgradeTargetPlanId ?? undefined}
+                initialStep={!upgradeTargetPlanId && subscription ? 'plans' : undefined}
+                hasAppStudioAccess={appStudioEnabled}
+                showDiscountedPrice={showDiscountedPrice}
+                onBack={() => setUpgradeModalOpen(false)}
+                onSubscribed={(sub) => {
+                  setSubscription(sub);
+                  setShowTrialBanner(false);
+                  setUpgradeModalOpen(false);
+                }}
+                onCancel={() => {
+                  if (subscription) setSubscription({ ...subscription, cancelAtPeriodEnd: true });
+                  else setTrialCanceled(true);
+                }}
+                onScheduleDowngrade={(planId, effectiveDate) => {
+                  if (subscription) setSubscription({ ...subscription, scheduledDowngrade: { planId, effectiveDate } });
+                }}
+                onCancelDowngrade={() => {
+                  if (subscription) setSubscription({ ...subscription, scheduledDowngrade: undefined });
+                }}
+                onResume={() => {
+                  if (subscription) setSubscription({ ...subscription, cancelAtPeriodEnd: false });
+                  else setTrialCanceled(false);
+                }}
+              />
+            </div>
+          </div>
         </div>
       )}
 
