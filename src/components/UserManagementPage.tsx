@@ -1805,7 +1805,7 @@ function UserDetailPage({
                 <p className="text-xs text-gray-500 mt-0.5">
                   {isSelf
                     ? 'Your records and admin rights must be transferred before you can leave.'
-                    : 'They lose access immediately. All existing records stay in place.'}
+                    : 'They lose access immediately. You\'ll be able to reassign their records to another user.'}
                 </p>
                 <button
                   onClick={() => setShowRemoveModal(true)}
