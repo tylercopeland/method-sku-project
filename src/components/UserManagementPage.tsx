@@ -1005,22 +1005,24 @@ const MOCK_RECORD_COUNTS: Record<string, number> = {
   '1': 142, '2': 87, '3': 63, '4': 29, '5': 51, '6': 74, '7': 18, '8': 34, '9': 11,
 };
 
-function RemoveUserModal({
-  user,
-  otherUsers,
-  onClose,
-  onConfirm,
+function fixedDropdownStyle(trigger: HTMLElement): React.CSSProperties {
+  const rect = trigger.getBoundingClientRect();
+  return { position: 'fixed', top: rect.bottom + 4, left: rect.left, width: rect.width, zIndex: 9999 };
+}
+
+function UserDropdownSelect({
+  value,
+  onChange,
+  options,
+  placeholder,
 }: {
-  user: MockUser;
-  otherUsers: MockUser[];
-  onClose: () => void;
-  onConfirm: (reassignToId: string) => void;
+  value: string;
+  onChange: (id: string) => void;
+  options: MockUser[];
+  placeholder?: string;
 }) {
-  const recordCount = MOCK_RECORD_COUNTS[user.id] ?? 24;
-  const activeOthers = otherUsers.filter((u) => u.status === 'Active');
-  const [reassignTo, setReassignTo] = useState(activeOthers[0]?.id ?? '');
-  const [dropdownOpen, setDropdownOpen] = useState(false);
-  const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
+  const [open, setOpen] = useState(false);
+  const [style, setStyle] = useState<React.CSSProperties>({});
   const triggerRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
 
@@ -1029,34 +1031,235 @@ function RemoveUserModal({
       if (
         panelRef.current && !panelRef.current.contains(e.target as Node) &&
         triggerRef.current && !triggerRef.current.contains(e.target as Node)
-      ) {
-        setDropdownOpen(false);
-      }
+      ) setOpen(false);
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  function openDropdown() {
-    if (triggerRef.current) {
-      const rect = triggerRef.current.getBoundingClientRect();
-      setDropdownStyle({
-        position: 'fixed',
-        top: rect.bottom + 4,
-        left: rect.left,
-        width: rect.width,
-        zIndex: 9999,
-      });
+  const selected = options.find((u) => u.id === value);
+
+  return (
+    <div>
+      <button
+        ref={triggerRef}
+        type="button"
+        onClick={() => {
+          if (triggerRef.current) setStyle(fixedDropdownStyle(triggerRef.current));
+          setOpen((o) => !o);
+        }}
+        className="w-full flex items-center justify-between gap-2 border border-gray-300 rounded-lg px-3 py-2.5 text-sm text-gray-900 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+      >
+        {selected ? (
+          <div className="flex items-center gap-2.5">
+            <div className={`w-6 h-6 rounded-full ${selected.avatarColor} flex items-center justify-center text-white text-xs font-semibold flex-shrink-0`}>
+              {initials(selected.name)}
+            </div>
+            <span>{selected.name}</span>
+            <span className="text-gray-400 text-xs">{selected.role}</span>
+          </div>
+        ) : (
+          <span className="text-gray-400">{placeholder ?? 'Select a user'}</span>
+        )}
+        <ChevronDown className={`w-4 h-4 text-gray-400 flex-shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && (
+        <div ref={panelRef} style={style} className="bg-white rounded-xl border border-gray-200 shadow-xl overflow-hidden">
+          {options.map((u) => (
+            <button
+              key={u.id}
+              type="button"
+              onClick={() => { onChange(u.id); setOpen(false); }}
+              className={`w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-left hover:bg-gray-50 transition-colors ${value === u.id ? 'bg-blue-50' : ''}`}
+            >
+              <div className={`w-6 h-6 rounded-full ${u.avatarColor} flex items-center justify-center text-white text-xs font-semibold flex-shrink-0`}>
+                {initials(u.name)}
+              </div>
+              <span className="flex-1 text-gray-900">{u.name}</span>
+              <span className="text-gray-400 text-xs">{u.role}</span>
+              {value === u.id && <Check className="w-4 h-4 text-blue-600 flex-shrink-0" />}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function RemoveUserModal({
+  user,
+  otherUsers,
+  isSelf,
+  isOnlyAdmin,
+  userCosts,
+  subscription,
+  onClose,
+  onConfirm,
+  onInviteAdmin,
+}: {
+  user: MockUser;
+  otherUsers: MockUser[];
+  isSelf: boolean;
+  isOnlyAdmin: boolean;
+  userCosts: Record<string, string>;
+  subscription: ActiveSubscription | null;
+  onClose: () => void;
+  onConfirm: (reassignToId: string, newAdminId?: string) => void;
+  onInviteAdmin: () => void;
+}) {
+  const recordCount = MOCK_RECORD_COUNTS[user.id] ?? 24;
+  const activeOthers = otherUsers.filter((u) => u.status === 'Active');
+
+  const [reassignTo, setReassignTo] = useState(activeOthers[0]?.id ?? '');
+  const [newAdminId, setNewAdminId] = useState(activeOthers[0]?.id ?? '');
+
+  // Derive which modal variant to show
+  const isOnlyUser = activeOthers.length === 0;
+  const showHandover = isSelf && isOnlyAdmin && !isOnlyUser;
+  const showBlockedNoUsers = isSelf && isOnlyAdmin && isOnlyUser;
+
+  // Billing impact when doing a handover (only meaningful when subscription exists)
+  const newAdminUser = activeOthers.find((u) => u.id === newAdminId);
+  const billingNote: { text: string; type: 'saving' | 'neutral' } | null = (() => {
+    if (!showHandover || !subscription || !newAdminUser) return null;
+    const cost = userCosts[newAdminUser.id] ?? '';
+    const seatType = ROLE_SEAT_TYPE[newAdminUser.role];
+    if (seatType === 'field-crew' && cost.startsWith('$')) {
+      return {
+        type: 'saving',
+        text: `Promoting ${newAdminUser.name} to Admin frees their Field Crew seat, saving $${EXTRA_FIELD_CREW_PRICE}/mo.`,
+      };
     }
-    setDropdownOpen((o) => !o);
+    if (seatType === 'full' && cost.startsWith('$')) {
+      return {
+        type: 'saving',
+        text: `Your freed seat will cover ${newAdminUser.name}'s extra seat charge — saving $${EXTRA_FULL_SEAT_PRICE}/mo.`,
+      };
+    }
+    return { type: 'neutral', text: 'Your seat will be freed — no billing change.' };
+  })();
+
+  // ── Blocked: only user on account ──────────────────────────────────────────
+  if (showBlockedNoUsers) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-[480px]">
+          <div className="flex items-start justify-between px-7 pt-7 pb-5">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
+                <AlertTriangle className="w-5 h-5 text-amber-500" />
+              </div>
+              <h2 className="text-lg font-semibold text-gray-900">You can't remove your access yet</h2>
+            </div>
+            <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors flex-shrink-0 mt-0.5">
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+          <div className="px-7 pb-7 space-y-4">
+            <p className="text-sm text-gray-600 leading-relaxed">
+              You're the only user on this account. To remove your own access, you must first invite another admin to take over.
+            </p>
+            <div className="rounded-xl border border-gray-200 divide-y divide-gray-100">
+              <div className="flex items-start gap-3 px-4 py-3">
+                <span className="w-5 h-5 rounded-full bg-blue-100 text-blue-600 text-xs font-bold flex items-center justify-center flex-shrink-0 mt-0.5">1</span>
+                <p className="text-sm text-gray-700">Invite a new admin and wait for them to accept</p>
+              </div>
+              <div className="flex items-start gap-3 px-4 py-3">
+                <span className="w-5 h-5 rounded-full bg-blue-100 text-blue-600 text-xs font-bold flex items-center justify-center flex-shrink-0 mt-0.5">2</span>
+                <p className="text-sm text-gray-700">Come back here to remove your own access and reassign your records</p>
+              </div>
+            </div>
+            <div className="pt-1 border-t border-gray-100">
+              <p className="text-xs text-gray-400 mb-3">Alternatively, if you want to delete the entire account:</p>
+              <button
+                disabled
+                className="text-xs text-gray-400 underline underline-offset-2 cursor-not-allowed"
+                title="Contact support to delete your account (not available in prototype)"
+              >
+                Contact support to delete this account
+              </button>
+            </div>
+          </div>
+          <div className="bg-gray-50 border-t border-gray-100 px-7 py-4 flex items-center justify-between gap-3 rounded-b-2xl">
+            <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors">
+              Cancel
+            </button>
+            <button
+              onClick={onInviteAdmin}
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              <UserPlus className="w-4 h-4" /> Invite a new admin
+            </button>
+          </div>
+        </div>
+      </div>
+    );
   }
 
-  const selectedUser = otherUsers.find((u) => u.id === reassignTo);
+  // ── Handover: only admin, but other users exist ─────────────────────────────
+  if (showHandover) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-[480px]">
+          <div className="flex items-start justify-between px-7 pt-7 pb-5">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
+                <AlertTriangle className="w-5 h-5 text-amber-500" />
+              </div>
+              <h2 className="text-lg font-semibold text-gray-900">Remove your access?</h2>
+            </div>
+            <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors flex-shrink-0 mt-0.5">
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+          <div className="px-7 pb-7 space-y-5">
+            <p className="text-sm text-gray-600 leading-relaxed">
+              You're the only admin. Before removing your access, select who receives your{' '}
+              <span className="font-medium text-gray-900">{recordCount} records</span> and who takes over as admin.
+            </p>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-gray-700">Reassign your records to</label>
+              <UserDropdownSelect value={reassignTo} onChange={setReassignTo} options={activeOthers} />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-gray-700">New admin</label>
+              <p className="text-xs text-gray-400 -mt-0.5">This user will be promoted to Admin and take over account ownership.</p>
+              <UserDropdownSelect value={newAdminId} onChange={setNewAdminId} options={activeOthers} />
+            </div>
+            {billingNote && (
+              <div className={`flex items-start gap-2.5 rounded-xl px-4 py-3 ${
+                billingNote.type === 'saving'
+                  ? 'bg-green-50 border border-green-100'
+                  : 'bg-blue-50 border border-blue-100'
+              }`}>
+                <Info className={`w-4 h-4 flex-shrink-0 mt-0.5 ${billingNote.type === 'saving' ? 'text-green-600' : 'text-blue-500'}`} />
+                <p className={`text-xs leading-relaxed ${billingNote.type === 'saving' ? 'text-green-700' : 'text-blue-600'}`}>
+                  {billingNote.text}
+                </p>
+              </div>
+            )}
+          </div>
+          <div className="bg-gray-50 border-t border-gray-100 px-7 py-4 flex items-center justify-end gap-3 rounded-b-2xl">
+            <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors">
+              Cancel
+            </button>
+            <button
+              onClick={() => onConfirm(reassignTo, newAdminId)}
+              disabled={!reassignTo || !newAdminId}
+              className="px-4 py-2 text-sm font-medium bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              Remove & hand over
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
+  // ── Normal: removing another user ──────────────────────────────────────────
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-[480px]">
-        {/* Header */}
         <div className="flex items-start justify-between px-7 pt-7 pb-5">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
@@ -1068,66 +1271,18 @@ function RemoveUserModal({
             <X className="w-5 h-5" />
           </button>
         </div>
-
-        {/* Body */}
         <div className="px-7 pb-7 space-y-5">
           <p className="text-sm text-gray-600 leading-relaxed">
             <span className="font-medium text-gray-900">{user.name}</span> has{' '}
             <span className="font-medium text-gray-900">{recordCount} records</span> assigned to them. Removing their access will not delete these records, but you should reassign them to keep your data organized.
           </p>
-
-          {/* Reassign to */}
           <div className="space-y-1.5">
             <label className="text-sm font-medium text-gray-700">Reassign records to</label>
-            <div>
-              <button
-                ref={triggerRef}
-                type="button"
-                onClick={openDropdown}
-                className="w-full flex items-center justify-between gap-2 border border-gray-300 rounded-lg px-3 py-2.5 text-sm text-gray-900 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
-              >
-                {selectedUser ? (
-                  <div className="flex items-center gap-2.5">
-                    <div className={`w-6 h-6 rounded-full ${selectedUser.avatarColor} flex items-center justify-center text-white text-xs font-semibold flex-shrink-0`}>
-                      {initials(selectedUser.name)}
-                    </div>
-                    <span>{selectedUser.name}</span>
-                    <span className="text-gray-400 text-xs">{selectedUser.role}</span>
-                  </div>
-                ) : (
-                  <span className="text-gray-400">Select a user</span>
-                )}
-                <ChevronDown className={`w-4 h-4 text-gray-400 flex-shrink-0 transition-transform ${dropdownOpen ? 'rotate-180' : ''}`} />
-              </button>
-              {dropdownOpen && (
-                <div ref={panelRef} style={dropdownStyle} className="bg-white rounded-xl border border-gray-200 shadow-xl overflow-hidden">
-                  {activeOthers.map((u) => (
-                    <button
-                      key={u.id}
-                      type="button"
-                      onClick={() => { setReassignTo(u.id); setDropdownOpen(false); }}
-                      className={`w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-left hover:bg-gray-50 transition-colors ${reassignTo === u.id ? 'bg-blue-50' : ''}`}
-                    >
-                      <div className={`w-6 h-6 rounded-full ${u.avatarColor} flex items-center justify-center text-white text-xs font-semibold flex-shrink-0`}>
-                        {initials(u.name)}
-                      </div>
-                      <span className="flex-1 text-gray-900">{u.name}</span>
-                      <span className="text-gray-400 text-xs">{u.role}</span>
-                      {reassignTo === u.id && <Check className="w-4 h-4 text-blue-600 flex-shrink-0" />}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+            <UserDropdownSelect value={reassignTo} onChange={setReassignTo} options={activeOthers} />
           </div>
         </div>
-
-        {/* Footer */}
         <div className="bg-gray-50 border-t border-gray-100 px-7 py-4 flex items-center justify-end gap-3 rounded-b-2xl">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
-          >
+          <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors">
             Cancel
           </button>
           <button
@@ -1146,15 +1301,19 @@ function RemoveUserModal({
 function UserDetailPage({
   user,
   allUsers,
+  userCosts,
   onBack,
   subscription,
   onViewAppAccess,
+  onInviteAdmin,
 }: {
   user: MockUser;
   allUsers: MockUser[];
+  userCosts: Record<string, string>;
   onBack: () => void;
   subscription: ActiveSubscription | null;
   onViewAppAccess: () => void;
+  onInviteAdmin: () => void;
 }) {
   const [username, setUsername] = useState(user.name);
   const [role, setRole] = useState<UserRole>(user.role);
@@ -1180,7 +1339,9 @@ function UserDetailPage({
     JSON.stringify(entities) !== JSON.stringify(initial.current.entities);
 
   const isScale = subscription?.planId === 'scale';
-  const isOwner = user.id === 'user-1';
+  // Prototype: the logged-in user is always Paul (user-1)
+  const isSelf = user.id === 'user-1';
+  const isOnlyAdmin = user.role === 'Admin' && allUsers.filter((u) => u.role === 'Admin').length <= 1;
 
   function saveAll() {
     initial.current = { username, role, qbEmployee, peerRecords, apiEnabled, entities: [...entities] };
@@ -1419,26 +1580,34 @@ function UserDetailPage({
           <hr className="mx-6 border-gray-100" />
 
           {/* Remove user */}
-          <div className={`grid grid-cols-1 md:grid-cols-[220px_1fr] gap-8 py-7 px-6 md:items-center ${isOwner ? 'opacity-40 pointer-events-none select-none' : ''}`}>
+          <div className="grid grid-cols-1 md:grid-cols-[220px_1fr] gap-8 py-7 px-6 md:items-center">
             <div>
-              <h2 className="text-sm font-semibold text-red-500">Remove user</h2>
+              <h2 className="text-sm font-semibold text-red-500">
+                {isSelf ? 'Remove your access' : 'Remove user'}
+              </h2>
               <p className="mt-1 text-sm text-gray-500 leading-relaxed">
-                {isOwner ? 'Account owners cannot be removed.' : 'Revokes access immediately. Their records stay intact.'}
+                {isSelf && isOnlyAdmin
+                  ? 'As the only admin, removing your access requires handing over admin rights to another user.'
+                  : 'Revokes access immediately. Their records stay intact.'}
               </p>
             </div>
             <div className="flex items-center gap-3">
               <Trash2 className="w-4 h-4 text-red-400 flex-shrink-0" />
               <div>
-                <p className="text-sm font-medium text-gray-900">Remove {username} from this account</p>
-                <p className="text-xs text-gray-500 mt-0.5">They lose access immediately. All existing records stay in place.</p>
-                {!isOwner && (
-                  <button
-                    onClick={() => setShowRemoveModal(true)}
-                    className="mt-2 text-xs font-medium text-red-500 hover:text-red-700 underline underline-offset-2 transition-colors"
-                  >
-                    Remove user access
-                  </button>
-                )}
+                <p className="text-sm font-medium text-gray-900">
+                  {isSelf ? 'Remove your access from this account' : `Remove ${username} from this account`}
+                </p>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  {isSelf
+                    ? 'Your records and admin rights must be transferred before you can leave.'
+                    : 'They lose access immediately. All existing records stay in place.'}
+                </p>
+                <button
+                  onClick={() => setShowRemoveModal(true)}
+                  className="mt-2 text-xs font-medium text-red-500 hover:text-red-700 underline underline-offset-2 transition-colors"
+                >
+                  {isSelf ? 'Remove my access' : 'Remove user access'}
+                </button>
               </div>
             </div>
           </div>
@@ -1474,8 +1643,13 @@ function UserDetailPage({
         <RemoveUserModal
           user={user}
           otherUsers={allUsers.filter((u) => u.id !== user.id)}
+          isSelf={isSelf}
+          isOnlyAdmin={isOnlyAdmin}
+          userCosts={userCosts}
+          subscription={subscription}
           onClose={() => setShowRemoveModal(false)}
           onConfirm={() => { setShowRemoveModal(false); onBack(); }}
+          onInviteAdmin={() => { setShowRemoveModal(false); onInviteAdmin(); }}
         />
       )}
     </div>
@@ -1587,9 +1761,11 @@ export function UserManagementPage({
       <UserDetailPage
         user={selectedUser}
         allUsers={teamUsers}
+        userCosts={userCosts}
         onBack={() => { setSelectedUser(null); setViewingAppAccess(false); }}
         subscription={subscription}
         onViewAppAccess={() => setViewingAppAccess(true)}
+        onInviteAdmin={() => { setSelectedUser(null); setShowInviteModal(true); }}
       />
     );
   }
