@@ -1,17 +1,156 @@
-import { useState, useRef, useMemo } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import {
   Search, X, Check, Download, Users, CreditCard,
   ChevronRight, SlidersHorizontal, LayoutDashboard, Kanban, RotateCcw, ShieldCheck, ArrowRight,
+  Lock, AlertTriangle, TrendingUp, Eye, Crown, Wrench, User,
 } from 'lucide-react';
 import { appTiles } from '@/components/AppsGrid';
+import type { ActiveSubscription } from './SubscriptionPage';
+
+type UserRole = 'Admin' | 'Customizer' | 'Regular' | 'Field Crew' | 'View-only';
 
 interface ApplicationsAccessPageProps {
   user: string;
   scrollToApp?: string;
   isAdmin?: boolean;
+  userRole?: UserRole;
+  subscription?: ActiveSubscription | null;
   onBack?: () => void;
   onChangeRole?: () => void;
   onNavigate?: (page: string) => void;
+  onUpgrade?: () => void;
+}
+
+const EXTRA_FULL_SEAT_PRICE = 59;
+
+const ROLE_OPTIONS_FOR_UPGRADE: { role: UserRole; label: string; desc: string; icon: React.ComponentType<{ className?: string }> }[] = [
+  { role: 'Admin', label: 'Admin', desc: 'Full access including billing & user management', icon: Crown },
+  { role: 'Customizer', label: 'Customizer', desc: 'Configure apps, screens & custom fields', icon: Wrench },
+  { role: 'Regular', label: 'Regular', desc: 'Standard app access, no admin controls', icon: User },
+];
+
+// Modal shown when admin tries to change a View-only user's permissions
+function ViewOnlyUpgradeModal({
+  isEssentials,
+  seatsAvailable,
+  onClose,
+  onUpgrade,
+  onChangeRole,
+}: {
+  isEssentials: boolean;
+  seatsAvailable: number;
+  onClose: () => void;
+  onUpgrade?: () => void;
+  onChangeRole?: () => void;
+}) {
+  const [selectedRole, setSelectedRole] = useState<UserRole | null>(null);
+
+  if (isEssentials) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-[440px]">
+          <div className="flex items-start gap-4 px-7 pt-7 pb-5">
+            <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+              <Lock className="w-5 h-5 text-blue-600" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h2 className="text-base font-semibold text-gray-900">Upgrade required</h2>
+              <p className="text-sm text-gray-500 mt-1 leading-relaxed">
+                Giving this user edit or customize access requires a paid seat, which is not available on your current Essentials plan.
+              </p>
+              <p className="text-sm text-gray-500 mt-2 leading-relaxed">
+                Upgrade to <span className="font-semibold text-gray-700">Build</span> or higher to add full seats and change this user's role.
+              </p>
+            </div>
+            <button onClick={onClose} className="text-gray-400 hover:text-gray-600 flex-shrink-0 mt-0.5"><X className="w-5 h-5" /></button>
+          </div>
+          <div className="bg-gray-50 border-t border-gray-100 px-7 py-4 flex items-center justify-between gap-3 rounded-b-2xl">
+            <button onClick={onClose} className="text-sm font-medium text-gray-500 hover:text-gray-700">Cancel</button>
+            <button onClick={() => { onClose(); onUpgrade?.(); }}
+              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+              <TrendingUp className="w-4 h-4" /> Upgrade to Build
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const hasSeats = seatsAvailable > 0;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-[480px]">
+        <div className="flex items-start gap-4 px-7 pt-7 pb-3">
+          <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+            <AlertTriangle className="w-5 h-5 text-amber-600" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <h2 className="text-base font-semibold text-gray-900">Different seat type required</h2>
+            <p className="text-sm text-gray-500 mt-1 leading-relaxed">
+              Giving this user edit or full access requires changing their role to a paid seat type.
+              {hasSeats
+                ? ` You have ${seatsAvailable} seat${seatsAvailable !== 1 ? 's' : ''} available — no extra charge.`
+                : ` You have no seats remaining — adding a paid seat will cost $${EXTRA_FULL_SEAT_PRICE}/mo.`}
+            </p>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 flex-shrink-0 mt-0.5"><X className="w-5 h-5" /></button>
+        </div>
+
+        <div className="px-7 py-4 space-y-2">
+          <p className="text-xs font-medium text-gray-500 mb-3">Select the new role for this user:</p>
+          {ROLE_OPTIONS_FOR_UPGRADE.map(({ role, label, desc, icon: Icon }) => (
+            <button
+              key={role}
+              type="button"
+              onClick={() => setSelectedRole(role)}
+              className={`w-full flex items-center gap-3 p-3 rounded-xl border text-left transition-colors ${
+                selectedRole === role ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+              }`}
+            >
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${selectedRole === role ? 'bg-blue-100' : 'bg-gray-100'}`}>
+                <Icon className={`w-4 h-4 ${selectedRole === role ? 'text-blue-600' : 'text-gray-500'}`} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-gray-900">{label}</p>
+                <p className="text-xs text-gray-500">{desc}</p>
+              </div>
+              <div className="text-right flex-shrink-0">
+                {hasSeats
+                  ? <span className="text-xs font-medium text-green-600">Included</span>
+                  : <div>
+                      <p className="text-xs font-medium text-amber-600">${EXTRA_FULL_SEAT_PRICE}/mo</p>
+                      <p className="text-[10px] text-gray-400">Extra seat</p>
+                    </div>
+                }
+              </div>
+              {selectedRole === role && <Check className="w-4 h-4 text-blue-600 flex-shrink-0" />}
+            </button>
+          ))}
+
+          {!hasSeats && selectedRole && (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mt-2">
+              <p className="text-xs text-amber-800">
+                <span className="font-semibold">Cost impact:</span> Adding {selectedRole} role will add{' '}
+                <span className="font-semibold">${EXTRA_FULL_SEAT_PRICE}/mo</span> to your bill.
+              </p>
+            </div>
+          )}
+        </div>
+
+        <div className="bg-gray-50 border-t border-gray-100 px-7 py-4 flex items-center justify-between gap-3 rounded-b-2xl">
+          <button onClick={onClose} className="text-sm font-medium text-gray-500 hover:text-gray-700">Cancel</button>
+          <button
+            disabled={!selectedRole}
+            onClick={() => { onClose(); onChangeRole?.(); }}
+            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            Change role & unlock permissions
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 type Permission = 'view' | 'edit' | 'customize';
@@ -87,6 +226,79 @@ const PERMISSION_TOOLTIP = (
     <div><span className="font-semibold text-white">Edit & customize</span><span className="text-gray-300"> — Full access including app layout, fields, and settings.</span></div>
   </div>
 );
+
+// ── Copy from user picker ──────────────────────────────────────────────────────
+
+const COPY_FROM_USERS = [
+  { id: '1', name: 'Paul McLane', role: 'Admin', color: 'bg-indigo-600', perm: 'customize' as Permission },
+  { id: '2', name: 'Sarah Chen', role: 'Admin', color: 'bg-violet-600', perm: 'customize' as Permission },
+  { id: '3', name: 'Jake Wilson', role: 'Customizer', color: 'bg-emerald-600', perm: 'edit' as Permission },
+  { id: '4', name: 'Tyler Copeland', role: 'Regular', color: 'bg-blue-600', perm: 'view' as Permission },
+];
+
+function CopyFromUserPicker({ onCopyFrom }: { onCopyFrom: (perm: Permission) => void }) {
+  const [open, setOpen] = useState(false);
+  const [selected, setSelected] = useState<string>('');
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const [style, setStyle] = useState<React.CSSProperties>({});
+
+  const selectedUser = COPY_FROM_USERS.find((u) => u.id === selected);
+
+  function handleOpen() {
+    if (triggerRef.current) {
+      const r = triggerRef.current.getBoundingClientRect();
+      setStyle({ position: 'fixed', top: r.bottom + 4, left: r.left, width: Math.max(r.width, 260), zIndex: 9999 });
+    }
+    setOpen((o) => !o);
+  }
+
+  function handleSelect(id: string) {
+    setSelected(id);
+    const u = COPY_FROM_USERS.find((x) => x.id === id);
+    if (u) onCopyFrom(u.perm);
+    setOpen(false);
+  }
+
+  return (
+    <div className="relative">
+      <button
+        ref={triggerRef}
+        type="button"
+        onClick={handleOpen}
+        className="w-full flex items-center justify-between gap-2 border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+      >
+        {selectedUser ? (
+          <div className="flex items-center gap-2">
+            <div className={`w-5 h-5 rounded-full ${selectedUser.color} flex items-center justify-center text-white text-[10px] font-semibold flex-shrink-0`}>
+              {selectedUser.name.split(' ').map((n) => n[0]).join('').slice(0, 2)}
+            </div>
+            <span className="text-gray-900 font-medium">{selectedUser.name}</span>
+            <span className="text-gray-400 text-xs">{selectedUser.role}</span>
+          </div>
+        ) : (
+          <span className="text-gray-400">Select a user to copy permissions from...</span>
+        )}
+        <Check className="w-3.5 h-3.5 text-gray-300 flex-shrink-0" />
+      </button>
+      {open && (
+        <div ref={panelRef} style={style} className="bg-white rounded-xl border border-gray-200 shadow-xl overflow-hidden">
+          {COPY_FROM_USERS.map((u) => (
+            <button key={u.id} type="button" onClick={() => handleSelect(u.id)}
+              className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-left hover:bg-gray-50 transition-colors">
+              <div className={`w-6 h-6 rounded-full ${u.color} flex items-center justify-center text-white text-xs font-semibold flex-shrink-0`}>
+                {u.name.split(' ').map((n) => n[0]).join('').slice(0, 2)}
+              </div>
+              <span className="flex-1 text-gray-900">{u.name}</span>
+              <span className="text-gray-400 text-xs">{u.role}</span>
+              {selected === u.id && <Check className="w-4 h-4 text-blue-600 flex-shrink-0" />}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 // ── Shared toggle ──────────────────────────────────────────────────────────────
 
@@ -233,10 +445,16 @@ export function ApplicationsAccessPage({
   user,
   scrollToApp,
   isAdmin = false,
+  userRole,
+  subscription,
   onBack,
   onChangeRole,
   onNavigate,
+  onUpgrade,
 }: ApplicationsAccessPageProps) {
+  const isViewOnly = userRole === 'View-only';
+  const isEssentials = subscription?.planId === 'essentials';
+  const [showViewOnlyModal, setShowViewOnlyModal] = useState(false);
   const stockApps: AppDef[] = appTiles.map((a) => ({
     name: a.name,
     description: a.description ?? '',
@@ -260,7 +478,8 @@ export function ApplicationsAccessPage({
   });
   const [appPermission, setAppPermission] = useState<Record<string, Permission>>(() => {
     const m: Record<string, Permission> = {};
-    allApps.forEach((a) => { m[a.name] = 'customize'; });
+    // View-only users always have 'view' permission
+    allApps.forEach((a) => { m[a.name] = isViewOnly ? 'view' : 'customize'; });
     initPerm.current = { ...m };
     return m;
   });
@@ -316,6 +535,7 @@ export function ApplicationsAccessPage({
   }
 
   function setAllPermission(p: Permission) {
+    if (isViewOnly && p !== 'view') { setShowViewOnlyModal(true); return; }
     const nextPerm: Record<string, Permission> = {};
     const nextAccess: Record<string, boolean> = {};
     allApps.forEach((a) => { nextPerm[a.name] = p; nextAccess[a.name] = true; });
@@ -328,6 +548,7 @@ export function ApplicationsAccessPage({
   }
 
   function setPermission(name: string, p: Permission) {
+    if (isViewOnly && p !== 'view') { setShowViewOnlyModal(true); return; }
     setAppPermission((prev) => ({ ...prev, [name]: p }));
   }
 
@@ -409,13 +630,33 @@ export function ApplicationsAccessPage({
             </div>
           )}
 
-          {/* ── Quick overrides (hidden for admins) ── */}
-          {!isAdmin && <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+          {/* ── View-only locked banner ── */}
+          {isViewOnly && (
+            <div className="flex items-start gap-3 bg-slate-50 border border-slate-200 rounded-xl px-5 py-4">
+              <Eye className="w-5 h-5 text-slate-500 flex-shrink-0 mt-0.5" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-slate-900">View-only users have read access to all apps</p>
+                <p className="text-sm text-slate-600 mt-0.5">
+                  All permissions are locked to view-only for this seat type.
+                  To grant edit or customize access, change this user to a paid seat role.
+                </p>
+              </div>
+              <button
+                onClick={() => setShowViewOnlyModal(true)}
+                className="flex items-center gap-1 text-sm font-medium text-slate-600 hover:text-slate-800 whitespace-nowrap transition-colors flex-shrink-0 mt-0.5 border border-slate-300 rounded-lg px-3 py-1.5 hover:bg-slate-100"
+              >
+                Change role <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
+
+          {/* ── Quick overrides (hidden for admins and view-only) ── */}
+          {!isAdmin && !isViewOnly && <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
             <h2 className="text-sm font-semibold text-gray-700 mb-0.5">Quick overrides</h2>
             <p className="text-xs text-gray-500 mb-4">
               Apply a permission level to all apps at once. Individual settings can be adjusted after.
             </p>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2 mb-4">
               {(
                 [
                   { label: 'View only — all apps', p: 'view' as Permission },
@@ -432,6 +673,14 @@ export function ApplicationsAccessPage({
                   {label}
                 </button>
               ))}
+            </div>
+            <div className="border-t border-gray-100 pt-4">
+              <p className="text-xs text-gray-400 mb-2">Or copy all permissions from an existing user:</p>
+              <CopyFromUserPicker onCopyFrom={(perm) => {
+                const nextPerm: Record<string, Permission> = {};
+                allApps.forEach((a) => { nextPerm[a.name] = perm; });
+                setAppPermission(nextPerm);
+              }} />
             </div>
           </div>}
 
@@ -635,8 +884,19 @@ export function ApplicationsAccessPage({
         </div>
       </div>
 
-      {/* Floating save bar (never for admins — their settings are read-only) */}
-      {!isAdmin && (hasChanges || savedAll) && (
+      {/* View-only upgrade modal */}
+      {showViewOnlyModal && (
+        <ViewOnlyUpgradeModal
+          isEssentials={isEssentials}
+          seatsAvailable={0}
+          onClose={() => setShowViewOnlyModal(false)}
+          onUpgrade={() => { setShowViewOnlyModal(false); onUpgrade?.(); }}
+          onChangeRole={() => { setShowViewOnlyModal(false); onChangeRole?.(); }}
+        />
+      )}
+
+      {/* Floating save bar (never for admins or view-only — their settings are read-only) */}
+      {!isAdmin && !isViewOnly && (hasChanges || savedAll) && (
         <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 bg-white rounded-xl shadow-2xl border border-gray-200 px-4 py-2.5">
           <span className="text-xs text-gray-400 mr-1">Unsaved changes</span>
           <button

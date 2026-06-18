@@ -67,6 +67,7 @@ const sections: SettingsSection[] = [
     description:
       'Set up multi-entity management for your multiple franchises, locations, or QuickBooks accounts.',
     linkLabel: 'Multi-entity settings',
+    page: 'multi-entity',
   },
 ];
 

@@ -670,6 +670,7 @@ export function InviteModal({
 
   const [rows, setRows] = useState<InviteRow[]>(() => [newInviteRow(defaultRole)]);
   const [sent, setSent] = useState(false);
+  const [copyFromUserId, setCopyFromUserId] = useState<string>('');
 
   const handleEmailChange = (id: string, value: string) => {
     setRows((prev) => {
@@ -748,6 +749,14 @@ export function InviteModal({
       totalExtra: extraFull * EXTRA_FULL_SEAT_PRICE + extraFieldCrew * EXTRA_FIELD_CREW_PRICE,
     };
   })();
+
+  const handleCopyFromUser = (userId: string) => {
+    setCopyFromUserId(userId);
+    if (!userId) return;
+    const sourceUser = ALL_MOCK_USERS.find((u) => u.id === userId);
+    if (!sourceUser) return;
+    setRows((prev) => prev.map((r) => ({ ...r, role: sourceUser.role })));
+  };
 
   const handleSend = () => {
     if (!canSend) return;
@@ -911,6 +920,32 @@ export function InviteModal({
               </p>
             </div>
           )}
+
+          {/* All apps note */}
+          <div className="flex items-center gap-2 py-1">
+            <Info className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+            <p className="text-xs text-gray-500">
+              Newly invited users will have access to all apps.{' '}
+              <span
+                className="inline-flex items-center gap-0.5 text-gray-400 cursor-not-allowed select-none"
+                title="App-specific permissions coming soon"
+              >
+                Specify which apps
+                <span className="text-[10px] ml-0.5 px-1 py-0.5 bg-gray-100 rounded text-gray-400 font-medium">Soon</span>
+              </span>
+            </p>
+          </div>
+
+          {/* Copy role from existing user */}
+          <div className="border-t border-gray-100 pt-3">
+            <p className="text-xs text-gray-400 mb-1.5">Or copy role from an existing user:</p>
+            <UserDropdownSelect
+              value={copyFromUserId}
+              onChange={handleCopyFromUser}
+              options={ALL_MOCK_USERS}
+              placeholder="Select a user to copy role from..."
+            />
+          </div>
 
           {/* Actions */}
           <div className="flex items-center justify-end gap-3">
@@ -1923,6 +1958,12 @@ export function UserManagementPage({
       if (!search) return true;
       const q = search.toLowerCase();
       return u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q);
+    })
+    .sort((a, b) => {
+      const aInvited = a.status === 'Invited' ? 0 : 1;
+      const bInvited = b.status === 'Invited' ? 0 : 1;
+      if (aInvited !== bInvited) return aInvited - bInvited;
+      return a.name.localeCompare(b.name);
     });
 
   if (selectedUser && viewingAppAccess) {
@@ -1930,9 +1971,12 @@ export function UserManagementPage({
       <ApplicationsAccessPage
         user={selectedUser.name}
         isAdmin={selectedUser.role === 'Admin'}
+        userRole={selectedUser.role}
+        subscription={subscription}
         onBack={() => setViewingAppAccess(false)}
         onChangeRole={() => { setViewingAppAccess(false); setRoleHighlight(true); }}
         onNavigate={onNavigate}
+        onUpgrade={() => onNavigate('subscription-upgrade')}
       />
     );
   }

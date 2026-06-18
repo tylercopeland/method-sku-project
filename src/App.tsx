@@ -12,6 +12,7 @@ import { AppStudioPage, aiApps } from '@/components/AppStudioPage';
 import { AppMarketplacePage } from '@/components/AppMarketplacePage';
 import { ApplicationsAccessPage } from '@/components/ApplicationsAccessPage';
 import { UserManagementPage, InviteModal } from '@/components/UserManagementPage';
+import { MultiEntityPage } from '@/components/MultiEntityPage';
 import { OnboardingModal } from '@/components/OnboardingModal';
 import { AIFieldsProvider, AddFieldChatPanel, FieldSurfaceRegistrar } from '@/lib/ai-fields';
 import { Switch } from '@/components/ui/switch';
@@ -150,6 +151,7 @@ function App() {
     'subscription': 'Subscription',
     'account-settings': 'Account Settings',
     'users': 'Users',
+    'multi-entity': 'Multi-entity Management',
   };
 
   // Determine if current page should show empty state
@@ -163,7 +165,7 @@ function App() {
 
   // System pages (not CRM app/object screens) — these don't get the app-title menu.
   const nonAppScreens = [
-    'home', 'subscription', 'account-settings', 'marketplace', 'applications-access', 'app-studio',
+    'home', 'subscription', 'account-settings', 'marketplace', 'applications-access', 'app-studio', 'multi-entity',
   ];
 
   const handlePageNavigation = (page: string) => {
@@ -392,6 +394,11 @@ function App() {
             onNavigate={handlePageNavigation}
             onBack={() => setCurrentPage('account-settings')}
             isTrial={isInTrial && !subscription}
+          />
+        ) : currentPage === 'multi-entity' ? (
+          <MultiEntityPage
+            onBack={() => setCurrentPage('account-settings')}
+            onNavigate={handlePageNavigation}
           />
         ) : currentPage === 'account-settings' ? (
           <AccountSettingsPage
