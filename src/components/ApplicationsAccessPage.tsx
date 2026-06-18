@@ -1,17 +1,173 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronDown, Search } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import {
+  Search, X, Check, Bell, Download, Users, CreditCard,
+  ChevronRight, SlidersHorizontal, LayoutDashboard, Kanban,
+} from 'lucide-react';
 import { appTiles } from '@/components/AppsGrid';
 
 interface ApplicationsAccessPageProps {
-  /** The user whose application access is being managed. */
   user: string;
-  /** App name to scroll to + highlight on open (the app the user came from). */
   scrollToApp?: string;
   onBack?: () => void;
   onNavigate?: (page: string) => void;
 }
 
-const FILTERS = ['All', 'Subscribed', 'CRM', 'Sales', 'Field Services', 'Non-Profit', 'Custom'];
+type Permission = 'view' | 'edit' | 'customize';
+
+interface AppDef {
+  name: string;
+  description: string;
+  icon: React.ComponentType<{ className?: string }>;
+}
+
+const CUSTOM_APPS: AppDef[] = [
+  {
+    name: 'Customer Intake Form',
+    description: 'Custom web form for capturing new customer details and routing them into CRM.',
+    icon: LayoutDashboard,
+  },
+  {
+    name: 'Project Tracker',
+    description: 'Internal project management board built for the ops team.',
+    icon: Kanban,
+  },
+];
+
+const PERM_LABELS: Record<Permission, string> = { view: 'View', edit: 'Edit', customize: 'Customize' };
+
+// ── Shared toggle ──────────────────────────────────────────────────────────────
+
+function Toggle({
+  checked,
+  onChange,
+  disabled,
+}: {
+  checked: boolean;
+  onChange: (v: boolean) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      disabled={disabled}
+      onClick={(e) => { e.stopPropagation(); onChange(!checked); }}
+      className={`relative inline-flex h-5 w-9 flex-shrink-0 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 ${
+        checked ? 'bg-blue-600' : 'bg-gray-200'
+      } ${disabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}
+    >
+      <span
+        className={`pointer-events-none inline-block h-3.5 w-3.5 rounded-full bg-white shadow-sm transition-transform mt-[3px] ${
+          checked ? 'translate-x-[18px]' : 'translate-x-[3px]'
+        }`}
+      />
+    </button>
+  );
+}
+
+// ── Permission segmented control ───────────────────────────────────────────────
+
+function PermissionControl({
+  value,
+  onChange,
+  disabled,
+}: {
+  value: Permission;
+  onChange: (p: Permission) => void;
+  disabled?: boolean;
+}) {
+  const perms: Permission[] = ['view', 'edit', 'customize'];
+  return (
+    <div
+      className={`flex items-center rounded-md border border-gray-200 overflow-hidden text-xs font-medium select-none ${
+        disabled ? 'opacity-30 pointer-events-none' : ''
+      }`}
+    >
+      {perms.map((p, i) => (
+        <button
+          key={p}
+          type="button"
+          onClick={(e) => { e.stopPropagation(); onChange(p); }}
+          className={`px-2.5 py-1 transition-colors ${
+            value === p
+              ? 'bg-blue-600 text-white'
+              : 'bg-white text-gray-600 hover:bg-gray-50'
+          } ${i > 0 ? 'border-l border-gray-200' : ''}`}
+        >
+          {PERM_LABELS[p]}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// ── App row ────────────────────────────────────────────────────────────────────
+
+function AppRow({
+  app,
+  access,
+  permission,
+  multiSelectMode,
+  isSelected,
+  highlighted,
+  onToggleAccess,
+  onPermissionChange,
+  onToggleSelect,
+}: {
+  app: AppDef;
+  access: boolean;
+  permission: Permission;
+  multiSelectMode: boolean;
+  isSelected: boolean;
+  highlighted: boolean;
+  onToggleAccess: () => void;
+  onPermissionChange: (p: Permission) => void;
+  onToggleSelect: () => void;
+}) {
+  const Icon = app.icon;
+  return (
+    <div
+      className={`flex items-center gap-3 px-4 py-3 border-b border-gray-100 last:border-0 transition-colors ${
+        highlighted ? 'bg-blue-50' : isSelected ? 'bg-blue-50/50' : 'hover:bg-gray-50/60'
+      }`}
+    >
+      {multiSelectMode && (
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); onToggleSelect(); }}
+          className={`flex-shrink-0 w-4 h-4 rounded border flex items-center justify-center transition-colors ${
+            isSelected ? 'bg-blue-600 border-blue-600' : 'border-gray-300 hover:border-blue-400 bg-white'
+          }`}
+        >
+          {isSelected && <Check className="w-2.5 h-2.5 text-white" />}
+        </button>
+      )}
+      <Icon
+        className={`w-4 h-4 flex-shrink-0 transition-colors ${
+          access ? 'text-blue-500' : 'text-gray-300'
+        }`}
+      />
+      <span
+        className={`flex-1 text-sm font-medium min-w-0 truncate transition-colors ${
+          access ? 'text-gray-900' : 'text-gray-400'
+        }`}
+      >
+        {app.name}
+      </span>
+      <div className="flex items-center gap-3 flex-shrink-0">
+        <PermissionControl
+          value={permission}
+          onChange={onPermissionChange}
+          disabled={!access}
+        />
+        <Toggle checked={access} onChange={onToggleAccess} />
+      </div>
+    </div>
+  );
+}
+
+// ── Main page ──────────────────────────────────────────────────────────────────
 
 export function ApplicationsAccessPage({
   user,
@@ -19,143 +175,413 @@ export function ApplicationsAccessPage({
   onBack,
   onNavigate,
 }: ApplicationsAccessPageProps) {
+  const stockApps: AppDef[] = appTiles.map((a) => ({
+    name: a.name,
+    description: a.description ?? '',
+    icon: a.icon,
+  }));
+  const allApps = [...stockApps, ...CUSTOM_APPS];
+
+  // Per-app state
+  const [appAccess, setAppAccess] = useState<Record<string, boolean>>(() => {
+    const m: Record<string, boolean> = {};
+    allApps.forEach((a) => { m[a.name] = true; });
+    return m;
+  });
+  const [appPermission, setAppPermission] = useState<Record<string, Permission>>(() => {
+    const m: Record<string, Permission> = {};
+    allApps.forEach((a) => { m[a.name] = 'customize'; });
+    return m;
+  });
+
+  // Multi-select
+  const [multiSelectMode, setMultiSelectMode] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+
+  // Search + highlight
   const [query, setQuery] = useState('');
-  const [activeFilter, setActiveFilter] = useState('All');
-  const [expanded, setExpanded] = useState<string | null>(null);
-  const [highlighted, setHighlighted] = useState<string | null>(scrollToApp ?? null);
-  const rowRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const [highlighted] = useState<string | null>(scrollToApp ?? null);
 
-  // Installed apps shown as access rows — same set + order as the home App tab.
-  const apps = useMemo(
-    () => appTiles.filter((a) => a.name.toLowerCase().includes(query.trim().toLowerCase())),
-    [query]
-  );
+  // Extra permissions
+  const [billingAccess, setBillingAccess] = useState(false);
+  const [userMgmtAccess, setUserMgmtAccess] = useState(false);
+  const [exportAccess, setExportAccess] = useState(false);
 
-  // On open, scroll to the originating app and pulse a highlight so it's easy to spot.
-  useEffect(() => {
-    if (!scrollToApp) return;
-    const row = rowRefs.current[scrollToApp];
-    if (row) row.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    const t = setTimeout(() => setHighlighted(null), 2200);
-    return () => clearTimeout(t);
-  }, [scrollToApp]);
+  // Notifications
+  const [notifInvoice, setNotifInvoice] = useState(false);
+  const [notifEstimate, setNotifEstimate] = useState(false);
+  const [notifBilling, setNotifBilling] = useState(false);
+  const [notifUser, setNotifUser] = useState(false);
+
+  // Save feedback
+  const [saved, setSaved] = useState(false);
+
+  // ── Helpers ──
+
+  function setAllPermission(p: Permission) {
+    const nextPerm: Record<string, Permission> = {};
+    const nextAccess: Record<string, boolean> = {};
+    allApps.forEach((a) => { nextPerm[a.name] = p; nextAccess[a.name] = true; });
+    setAppPermission(nextPerm);
+    setAppAccess(nextAccess);
+  }
+
+  function toggleAccess(name: string) {
+    setAppAccess((prev) => ({ ...prev, [name]: !prev[name] }));
+  }
+
+  function setPermission(name: string, p: Permission) {
+    setAppPermission((prev) => ({ ...prev, [name]: p }));
+  }
+
+  function toggleSelect(name: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(name)) next.delete(name); else next.add(name);
+      return next;
+    });
+  }
+
+  function bulkSetPermission(p: Permission) {
+    const nextPerm = { ...appPermission };
+    const nextAccess = { ...appAccess };
+    selected.forEach((name) => { nextPerm[name] = p; nextAccess[name] = true; });
+    setAppPermission(nextPerm);
+    setAppAccess(nextAccess);
+  }
+
+  function bulkSetAccess(v: boolean) {
+    const next = { ...appAccess };
+    selected.forEach((name) => { next[name] = v; });
+    setAppAccess(next);
+  }
+
+  function filterApps(apps: AppDef[]) {
+    const q = query.trim().toLowerCase();
+    return q ? apps.filter((a) => a.name.toLowerCase().includes(q)) : apps;
+  }
+
+  const filteredStock = filterApps(stockApps);
+  const filteredCustom = filterApps(CUSTOM_APPS);
+  const noResults = filteredStock.length === 0 && filteredCustom.length === 0;
+
+  function handleSave() {
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  }
 
   return (
-    <div className="flex-1 overflow-y-auto bg-white p-4 sm:p-8">
-      <div className="max-w-5xl mx-auto">
+    <div className="flex-1 overflow-y-auto bg-gray-50 p-4 sm:p-8">
+      <div className="max-w-4xl mx-auto space-y-5">
+
         {/* Breadcrumb */}
-        <div className="flex flex-wrap items-center gap-1.5 text-sm mb-4">
+        <div className="flex flex-wrap items-center gap-1.5 text-sm">
           <button
             onClick={() => onNavigate?.('account-settings')}
             className="text-blue-600 hover:underline"
           >
             Account Settings
           </button>
-          <span className="text-gray-300">/</span>
-          <button onClick={onBack} className="text-blue-600 hover:underline">
-            Users
-          </button>
-          <span className="text-gray-300">/</span>
+          <ChevronRight className="w-3.5 h-3.5 text-gray-400" />
+          <button onClick={onBack} className="text-blue-600 hover:underline">Users</button>
+          <ChevronRight className="w-3.5 h-3.5 text-gray-400" />
           <span className="text-blue-600">{user}</span>
-          <span className="text-gray-300">/</span>
-          <span className="text-gray-500">Applications Access</span>
+          <ChevronRight className="w-3.5 h-3.5 text-gray-400" />
+          <span className="text-gray-500">App Access</span>
         </div>
 
-        {/* Title */}
-        <h1 className="text-2xl font-semibold text-gray-900 mb-1">Applications access</h1>
-        <p className="text-gray-500 max-w-3xl mb-6">
-          Manage which applications or features {user} can access within the system, ensuring they
-          have access to the data they need to do their job effectively.
-        </p>
+        <div>
+          <h1 className="text-2xl font-semibold text-gray-900">App access</h1>
+          <p className="mt-1 text-sm text-gray-500">
+            Control which apps {user} can use and what they can do in each one.
+          </p>
+        </div>
 
-        {/* Filters + search */}
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 mb-5">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-sm font-medium text-gray-500 mr-1">Apps</span>
-            {FILTERS.map((f) => (
+        {/* ── Quick overrides ── */}
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+          <h2 className="text-sm font-semibold text-gray-700 mb-0.5">Quick overrides</h2>
+          <p className="text-xs text-gray-500 mb-4">
+            Apply a permission level to all apps at once. Individual settings can be adjusted after.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {(
+              [
+                { label: 'View only — all apps', p: 'view' as Permission },
+                { label: 'Edit — all apps', p: 'edit' as Permission },
+                { label: 'Full access — all apps', p: 'customize' as Permission },
+              ] as const
+            ).map(({ label, p }) => (
               <button
-                key={f}
-                onClick={() => setActiveFilter(f)}
-                className={`rounded-full border px-3 py-1 text-sm transition-colors ${
-                  activeFilter === f
-                    ? 'border-blue-600 bg-blue-50 text-blue-700'
-                    : 'border-gray-200 text-gray-600 hover:bg-gray-50'
-                }`}
+                key={p}
+                type="button"
+                onClick={() => setAllPermission(p)}
+                className="px-3.5 py-2 rounded-lg border border-gray-200 text-sm text-gray-700 hover:border-blue-400 hover:text-blue-700 hover:bg-blue-50 transition-colors"
               >
-                {f}
+                {label}
               </button>
             ))}
           </div>
-          <div className="relative w-full lg:w-72">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search"
-              className="w-full rounded-md border border-gray-200 pl-9 pr-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            />
-          </div>
         </div>
 
-        {/* App rows */}
-        <div className="space-y-2">
-          {apps.map((app) => {
-            const Icon = app.icon;
-            const isHighlighted = highlighted === app.name;
-            const isOpen = expanded === app.name;
-            return (
-              <div
-                key={app.name}
-                ref={(el) => (rowRefs.current[app.name] = el)}
-                className={`rounded-md border bg-white transition-colors ${
-                  isHighlighted
-                    ? 'border-blue-400 ring-2 ring-blue-200'
-                    : 'border-gray-200'
+        {/* ── Apps ── */}
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+
+          {/* Header */}
+          <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-100">
+            <h2 className="text-sm font-semibold text-gray-700">Apps</h2>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => { setMultiSelectMode((m) => !m); setSelected(new Set()); }}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                  multiSelectMode
+                    ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                    : 'text-gray-500 hover:bg-gray-100 border border-transparent'
                 }`}
               >
-                <button
-                  onClick={() => setExpanded(isOpen ? null : app.name)}
-                  className="w-full flex items-center justify-between gap-4 px-4 py-3 text-left"
-                >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <Icon className="w-5 h-5 text-blue-500 flex-shrink-0" />
-                    <span className="font-medium text-gray-800 truncate">{app.name}</span>
-                    <span className="inline-flex items-center gap-1 text-xs font-medium text-green-700">
-                      <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
-                      Subscribed
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-4 sm:gap-6 flex-shrink-0">
-                    <span className="hidden sm:inline text-xs font-medium text-blue-600">
-                      1 App enabled
-                    </span>
-                    <ChevronDown
-                      className={`w-4 h-4 text-gray-400 transition-transform ${
-                        isOpen ? 'rotate-180' : ''
-                      }`}
-                    />
-                  </div>
-                </button>
-                {isOpen && (
-                  <div className="px-4 py-3 border-t border-gray-100 text-sm text-gray-500">
-                    Configure who can view, create, edit, and delete records in {app.name} for{' '}
-                    {user}.
-                  </div>
-                )}
+                <SlidersHorizontal className="w-3.5 h-3.5" />
+                Multi-select
+              </button>
+              <div className="relative">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+                <input
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Search apps"
+                  className="rounded-lg border border-gray-200 pl-8 pr-3 py-1.5 text-xs text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 w-44"
+                />
               </div>
-            );
-          })}
-          {apps.length === 0 && (
-            <p className="text-sm text-gray-400 py-8 text-center">No apps match "{query}".</p>
+            </div>
+          </div>
+
+          {/* Bulk action bar */}
+          {multiSelectMode && selected.size > 0 && (
+            <div className="flex flex-wrap items-center gap-2 px-5 py-2.5 bg-blue-50 border-b border-blue-100">
+              <span className="text-xs font-semibold text-blue-700">{selected.size} selected</span>
+              <span className="text-blue-300 text-xs">|</span>
+              <span className="text-xs text-blue-600">Set to:</span>
+              {(['view', 'edit', 'customize'] as Permission[]).map((p) => (
+                <button
+                  key={p}
+                  type="button"
+                  onClick={() => bulkSetPermission(p)}
+                  className="px-2.5 py-1 rounded text-xs font-medium bg-white border border-blue-200 text-blue-700 hover:bg-blue-100 transition-colors capitalize"
+                >
+                  {p}
+                </button>
+              ))}
+              <span className="text-blue-300 text-xs">|</span>
+              <button
+                type="button"
+                onClick={() => bulkSetAccess(true)}
+                className="px-2.5 py-1 rounded text-xs font-medium bg-white border border-blue-200 text-blue-700 hover:bg-blue-100 transition-colors"
+              >
+                Enable all
+              </button>
+              <button
+                type="button"
+                onClick={() => bulkSetAccess(false)}
+                className="px-2.5 py-1 rounded text-xs font-medium bg-white border border-red-200 text-red-600 hover:bg-red-50 transition-colors"
+              >
+                Disable all
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelected(new Set())}
+                className="ml-auto p-1 text-blue-400 hover:text-blue-600 transition-colors"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
+
+          {/* Column labels */}
+          {!noResults && (
+            <div className="flex items-center gap-3 px-4 py-2 bg-gray-50/80 border-b border-gray-100">
+              {multiSelectMode && <div className="w-4 flex-shrink-0" />}
+              <div className="w-4 flex-shrink-0" />
+              <span className="flex-1 text-xs font-medium text-gray-400 uppercase tracking-wide">App</span>
+              <span className="text-xs font-medium text-gray-400 uppercase tracking-wide mr-12">Permission</span>
+              <span className="text-xs font-medium text-gray-400 uppercase tracking-wide w-9 text-center">Access</span>
+            </div>
+          )}
+
+          {/* Method Apps group */}
+          {filteredStock.length > 0 && (
+            <>
+              <div className="px-4 py-2 bg-gray-50 border-b border-gray-100">
+                <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
+                  Method Apps
+                </span>
+              </div>
+              {filteredStock.map((app) => (
+                <AppRow
+                  key={app.name}
+                  app={app}
+                  access={appAccess[app.name] ?? true}
+                  permission={appPermission[app.name] ?? 'customize'}
+                  multiSelectMode={multiSelectMode}
+                  isSelected={selected.has(app.name)}
+                  highlighted={highlighted === app.name}
+                  onToggleAccess={() => toggleAccess(app.name)}
+                  onPermissionChange={(p) => setPermission(app.name, p)}
+                  onToggleSelect={() => toggleSelect(app.name)}
+                />
+              ))}
+            </>
+          )}
+
+          {/* Custom Apps group */}
+          {filteredCustom.length > 0 && (
+            <>
+              <div className="px-4 py-2 bg-gray-50 border-b border-gray-100">
+                <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
+                  Custom Apps
+                </span>
+              </div>
+              {filteredCustom.map((app) => (
+                <AppRow
+                  key={app.name}
+                  app={app}
+                  access={appAccess[app.name] ?? true}
+                  permission={appPermission[app.name] ?? 'customize'}
+                  multiSelectMode={multiSelectMode}
+                  isSelected={selected.has(app.name)}
+                  highlighted={false}
+                  onToggleAccess={() => toggleAccess(app.name)}
+                  onPermissionChange={(p) => setPermission(app.name, p)}
+                  onToggleSelect={() => toggleSelect(app.name)}
+                />
+              ))}
+            </>
+          )}
+
+          {noResults && (
+            <p className="text-sm text-gray-400 py-10 text-center">No apps match "{query}".</p>
           )}
         </div>
 
+        {/* ── Extra permissions ── */}
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+          <div className="px-5 py-4 border-b border-gray-100">
+            <h2 className="text-sm font-semibold text-gray-700">Extra permissions</h2>
+            <p className="text-xs text-gray-500 mt-0.5">
+              Grant access to admin areas outside of regular apps.
+            </p>
+          </div>
+          {(
+            [
+              {
+                label: 'Billing',
+                desc: 'View and manage billing, invoices, and plan changes',
+                Icon: CreditCard,
+                value: billingAccess,
+                onChange: setBillingAccess,
+              },
+              {
+                label: 'User management',
+                desc: 'Invite, edit, and remove team members',
+                Icon: Users,
+                value: userMgmtAccess,
+                onChange: setUserMgmtAccess,
+              },
+              {
+                label: 'Data export',
+                desc: 'Export records and data to CSV or Excel',
+                Icon: Download,
+                value: exportAccess,
+                onChange: setExportAccess,
+              },
+            ] as const
+          ).map(({ label, desc, Icon, value, onChange }, i) => (
+            <div
+              key={label}
+              className={`flex items-center gap-4 px-5 py-3.5 ${i > 0 ? 'border-t border-gray-100' : ''}`}
+            >
+              <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
+                <Icon className="w-4 h-4 text-gray-500" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-gray-900">{label}</p>
+                <p className="text-xs text-gray-500">{desc}</p>
+              </div>
+              <Toggle checked={value} onChange={onChange} />
+            </div>
+          ))}
+        </div>
+
+        {/* ── Notification settings ── */}
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+          <div className="px-5 py-4 border-b border-gray-100">
+            <h2 className="text-sm font-semibold text-gray-700">Notification settings</h2>
+            <p className="text-xs text-gray-500 mt-0.5">
+              Email notifications {user} receives for account activity.
+            </p>
+          </div>
+          {(
+            [
+              {
+                label: 'Invoice paid',
+                desc: 'Notify when a customer pays an invoice',
+                value: notifInvoice,
+                onChange: setNotifInvoice,
+              },
+              {
+                label: 'Estimate accepted',
+                desc: 'Notify when a customer accepts an estimate',
+                value: notifEstimate,
+                onChange: setNotifEstimate,
+              },
+              {
+                label: 'Billing changes',
+                desc: 'Notify when the account plan or billing details change',
+                value: notifBilling,
+                onChange: setNotifBilling,
+              },
+              {
+                label: 'User added or removed',
+                desc: 'Notify when a team member is invited or removed',
+                value: notifUser,
+                onChange: setNotifUser,
+              },
+            ] as const
+          ).map(({ label, desc, value, onChange }, i) => (
+            <div
+              key={label}
+              className={`flex items-center gap-4 px-5 py-3.5 ${i > 0 ? 'border-t border-gray-100' : ''}`}
+            >
+              <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
+                <Bell className="w-4 h-4 text-gray-500" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-gray-900">{label}</p>
+                <p className="text-xs text-gray-500">{desc}</p>
+              </div>
+              <Toggle checked={value} onChange={onChange} />
+            </div>
+          ))}
+        </div>
+
         {/* Save */}
-        <div className="flex mt-8">
-          <button className="rounded-full bg-blue-600 px-6 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-700">
-            Save all changes
+        <div className="pb-8">
+          <button
+            onClick={handleSave}
+            className={`rounded-lg px-5 py-2.5 text-sm font-semibold transition-all ${
+              saved
+                ? 'bg-green-50 text-green-700 border border-green-200'
+                : 'bg-blue-600 text-white hover:bg-blue-700'
+            }`}
+          >
+            {saved ? (
+              <span className="flex items-center gap-1.5">
+                <Check className="w-4 h-4" /> Saved
+              </span>
+            ) : (
+              'Save changes'
+            )}
           </button>
         </div>
+
       </div>
     </div>
   );

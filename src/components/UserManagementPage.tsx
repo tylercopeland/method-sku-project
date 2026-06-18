@@ -1020,17 +1020,36 @@ function RemoveUserModal({
   const activeOthers = otherUsers.filter((u) => u.status === 'Active');
   const [reassignTo, setReassignTo] = useState(activeOthers[0]?.id ?? '');
   const [dropdownOpen, setDropdownOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
+  const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+      if (
+        panelRef.current && !panelRef.current.contains(e.target as Node) &&
+        triggerRef.current && !triggerRef.current.contains(e.target as Node)
+      ) {
         setDropdownOpen(false);
       }
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, []);
+
+  function openDropdown() {
+    if (triggerRef.current) {
+      const rect = triggerRef.current.getBoundingClientRect();
+      setDropdownStyle({
+        position: 'fixed',
+        top: rect.bottom + 4,
+        left: rect.left,
+        width: rect.width,
+        zIndex: 9999,
+      });
+    }
+    setDropdownOpen((o) => !o);
+  }
 
   const selectedUser = otherUsers.find((u) => u.id === reassignTo);
 
@@ -1060,10 +1079,11 @@ function RemoveUserModal({
           {/* Reassign to */}
           <div className="space-y-1.5">
             <label className="text-sm font-medium text-gray-700">Reassign records to</label>
-            <div className="relative" ref={dropdownRef}>
+            <div>
               <button
+                ref={triggerRef}
                 type="button"
-                onClick={() => setDropdownOpen((o) => !o)}
+                onClick={openDropdown}
                 className="w-full flex items-center justify-between gap-2 border border-gray-300 rounded-lg px-3 py-2.5 text-sm text-gray-900 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
               >
                 {selectedUser ? (
@@ -1080,7 +1100,7 @@ function RemoveUserModal({
                 <ChevronDown className={`w-4 h-4 text-gray-400 flex-shrink-0 transition-transform ${dropdownOpen ? 'rotate-180' : ''}`} />
               </button>
               {dropdownOpen && (
-                <div className="absolute top-full mt-1 left-0 right-0 z-50 bg-white rounded-xl border border-gray-200 shadow-xl overflow-hidden">
+                <div ref={panelRef} style={dropdownStyle} className="bg-white rounded-xl border border-gray-200 shadow-xl overflow-hidden">
                   {activeOthers.map((u) => (
                     <button
                       key={u.id}
