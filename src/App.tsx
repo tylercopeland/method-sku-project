@@ -41,7 +41,7 @@ function App() {
   // Demo: enables the "Add field with AI" custom-fields experience on detail screens.
   const [aiFieldsEnabled, setAiFieldsEnabled] = useState(false);
   // Demo: emphasize the annual discount with the discounted monthly price on plan cards.
-  const [showDiscountedPrice, setShowDiscountedPrice] = useState(true);
+  const [showDiscountedPrice, setShowDiscountedPrice] = useState(false);
   // Applications Access deep-link: which user, scrolled to which app they came from.
   const [accessUser, setAccessUser] = useState<string | null>(null);
   const [accessScrollApp, setAccessScrollApp] = useState<string | undefined>(undefined);
@@ -146,7 +146,7 @@ function App() {
     'purchase-orders': 'Purchase Orders',
     'bills': 'Bills',
     'proposals': 'Proposals',
-    'marketplace': 'App Launchpad',
+    'marketplace': 'App Marketplace',
     'applications-access': 'Account Settings',
     'subscription': 'Subscription',
     'account-settings': 'Account Settings',
@@ -363,6 +363,12 @@ function App() {
         ) : currentPage === 'marketplace' ? (
           <AppMarketplacePage
             onBack={navigateToHome}
+            lockedApps={lockedApps}
+            onOpenApp={(lockKey) => setCurrentPage(lockKey)}
+            onUpgrade={() => {
+              setOpenToChangePlan(true);
+              setCurrentPage('subscription');
+            }}
             onOpenUserAccess={(user, appName) => {
               setAccessUser(user);
               setAccessScrollApp(appName);
