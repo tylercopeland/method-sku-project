@@ -1370,6 +1370,8 @@ function UserDetailPage({
   subscription,
   onViewAppAccess,
   onInviteAdmin,
+  highlightRole,
+  onRoleHighlightDone,
 }: {
   user: MockUser;
   allUsers: MockUser[];
@@ -1377,6 +1379,8 @@ function UserDetailPage({
   onBack: () => void;
   subscription: ActiveSubscription | null;
   onViewAppAccess: () => void;
+  highlightRole?: boolean;
+  onRoleHighlightDone?: () => void;
   onInviteAdmin: () => void;
 }) {
   const [username, setUsername] = useState(user.name);
@@ -1392,6 +1396,19 @@ function UserDetailPage({
   const [savedAll, setSavedAll] = useState(false);
   const [showRemoveModal, setShowRemoveModal] = useState(false);
   const [showRoleDowngradeModal, setShowRoleDowngradeModal] = useState(false);
+  const [rolePulse, setRolePulse] = useState(false);
+  const roleRowRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (highlightRole) {
+      const t1 = setTimeout(() => {
+        roleRowRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        setRolePulse(true);
+      }, 120);
+      const t2 = setTimeout(() => { setRolePulse(false); onRoleHighlightDone?.(); }, 2000);
+      return () => { clearTimeout(t1); clearTimeout(t2); };
+    }
+  }, [highlightRole]);
 
   const initial = useRef({ username: user.name, role: user.role as UserRole, qbEmployee: '', peerRecords: true, apiEnabled: false, entities: ['Method HQ'] });
 
@@ -1494,7 +1511,10 @@ function UserDetailPage({
                 />
                 <p className="mt-1.5 text-xs text-gray-400">The user can update their own sign-in email from their account settings.</p>
               </div>
-              <div>
+              <div
+                ref={roleRowRef}
+                className={`rounded-lg transition-all duration-300 ${rolePulse ? 'ring-2 ring-blue-400 ring-offset-2 bg-blue-50/40' : ''}`}
+              >
                 <label className="block text-xs font-medium text-gray-500 mb-1.5">Role</label>
                 <RoleSelect
                   value={role}
@@ -1773,6 +1793,7 @@ export function UserManagementPage({
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [selectedUser, setSelectedUser] = useState<MockUser | null>(null);
   const [viewingAppAccess, setViewingAppAccess] = useState(false);
+  const [roleHighlight, setRoleHighlight] = useState(false);
 
   const isEssentials = subscription?.planId === 'essentials';
 
@@ -1831,7 +1852,9 @@ export function UserManagementPage({
     return (
       <ApplicationsAccessPage
         user={selectedUser.name}
+        isAdmin={selectedUser.role === 'Admin'}
         onBack={() => setViewingAppAccess(false)}
+        onChangeRole={() => { setViewingAppAccess(false); setRoleHighlight(true); }}
         onNavigate={onNavigate}
       />
     );
@@ -1847,6 +1870,8 @@ export function UserManagementPage({
         subscription={subscription}
         onViewAppAccess={() => setViewingAppAccess(true)}
         onInviteAdmin={() => { setSelectedUser(null); setShowInviteModal(true); }}
+        highlightRole={roleHighlight}
+        onRoleHighlightDone={() => setRoleHighlight(false)}
       />
     );
   }

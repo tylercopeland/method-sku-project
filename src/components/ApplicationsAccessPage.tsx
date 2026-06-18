@@ -1,14 +1,16 @@
 import { useState, useRef, useMemo } from 'react';
 import {
   Search, X, Check, Bell, Download, Users, CreditCard,
-  ChevronRight, SlidersHorizontal, LayoutDashboard, Kanban, RotateCcw,
+  ChevronRight, SlidersHorizontal, LayoutDashboard, Kanban, RotateCcw, ShieldCheck, ArrowRight,
 } from 'lucide-react';
 import { appTiles } from '@/components/AppsGrid';
 
 interface ApplicationsAccessPageProps {
   user: string;
   scrollToApp?: string;
+  isAdmin?: boolean;
   onBack?: () => void;
+  onChangeRole?: () => void;
   onNavigate?: (page: string) => void;
 }
 
@@ -159,6 +161,7 @@ function AppRow({
   app,
   access,
   permission,
+  disabled = false,
   multiSelectMode,
   isSelected,
   highlighted,
@@ -169,6 +172,7 @@ function AppRow({
   app: AppDef;
   access: boolean;
   permission: Permission;
+  disabled?: boolean;
   multiSelectMode: boolean;
   isSelected: boolean;
   highlighted: boolean;
@@ -215,9 +219,9 @@ function AppRow({
         <PermissionControl
           value={permission}
           onChange={onPermissionChange}
-          disabled={!access}
+          disabled={disabled || !access}
         />
-        <Toggle checked={access} onChange={onToggleAccess} />
+        <Toggle checked={access} onChange={onToggleAccess} disabled={disabled} />
       </div>
     </div>
   );
@@ -228,7 +232,9 @@ function AppRow({
 export function ApplicationsAccessPage({
   user,
   scrollToApp,
+  isAdmin = false,
   onBack,
+  onChangeRole,
   onNavigate,
 }: ApplicationsAccessPageProps) {
   const stockApps: AppDef[] = appTiles.map((a) => ({
@@ -407,8 +413,27 @@ export function ApplicationsAccessPage({
             </p>
           </div>
 
-          {/* ── Quick overrides ── */}
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+          {/* ── Admin locked banner ── */}
+          {isAdmin && (
+            <div className="flex items-start gap-3 bg-blue-50 border border-blue-200 rounded-xl px-5 py-4">
+              <ShieldCheck className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-blue-900">Admins have full access to everything</p>
+                <p className="text-sm text-blue-700 mt-0.5">
+                  All app permissions are automatically granted to admins and cannot be restricted individually. To limit access, change this user's role first.
+                </p>
+              </div>
+              <button
+                onClick={onChangeRole}
+                className="flex items-center gap-1 text-sm font-medium text-blue-600 hover:text-blue-800 whitespace-nowrap transition-colors flex-shrink-0 mt-0.5"
+              >
+                Change role <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
+
+          {/* ── Quick overrides (hidden for admins) ── */}
+          {!isAdmin && <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
             <h2 className="text-sm font-semibold text-gray-700 mb-0.5">Quick overrides</h2>
             <p className="text-xs text-gray-500 mb-4">
               Apply a permission level to all apps at once. Individual settings can be adjusted after.
@@ -431,7 +456,7 @@ export function ApplicationsAccessPage({
                 </button>
               ))}
             </div>
-          </div>
+          </div>}
 
           {/* ── Apps ── */}
           <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
@@ -440,18 +465,20 @@ export function ApplicationsAccessPage({
             <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-100">
               <h2 className="text-sm font-semibold text-gray-700">Apps</h2>
               <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => { setMultiSelectMode((m) => !m); setSelected(new Set()); }}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                    multiSelectMode
-                      ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                      : 'text-gray-500 hover:bg-gray-100 border border-transparent'
-                  }`}
-                >
-                  <SlidersHorizontal className="w-3.5 h-3.5" />
-                  Multi-select
-                </button>
+                {!isAdmin && (
+                  <button
+                    type="button"
+                    onClick={() => { setMultiSelectMode((m) => !m); setSelected(new Set()); }}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                      multiSelectMode
+                        ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                        : 'text-gray-500 hover:bg-gray-100 border border-transparent'
+                    }`}
+                  >
+                    <SlidersHorizontal className="w-3.5 h-3.5" />
+                    Multi-select
+                  </button>
+                )}
                 <div className="relative">
                   <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
                   <input
@@ -531,10 +558,11 @@ export function ApplicationsAccessPage({
                   <AppRow
                     key={app.name}
                     app={app}
-                    access={appAccess[app.name] ?? true}
-                    permission={appPermission[app.name] ?? 'customize'}
-                    multiSelectMode={multiSelectMode}
-                    isSelected={selected.has(app.name)}
+                    access={isAdmin ? true : (appAccess[app.name] ?? true)}
+                    permission={isAdmin ? 'customize' : (appPermission[app.name] ?? 'customize')}
+                    disabled={isAdmin}
+                    multiSelectMode={isAdmin ? false : multiSelectMode}
+                    isSelected={isAdmin ? false : selected.has(app.name)}
                     highlighted={highlighted === app.name}
                     onToggleAccess={() => toggleAccess(app.name)}
                     onPermissionChange={(p) => setPermission(app.name, p)}
@@ -556,10 +584,11 @@ export function ApplicationsAccessPage({
                   <AppRow
                     key={app.name}
                     app={app}
-                    access={appAccess[app.name] ?? true}
-                    permission={appPermission[app.name] ?? 'customize'}
-                    multiSelectMode={multiSelectMode}
-                    isSelected={selected.has(app.name)}
+                    access={isAdmin ? true : (appAccess[app.name] ?? true)}
+                    permission={isAdmin ? 'customize' : (appPermission[app.name] ?? 'customize')}
+                    disabled={isAdmin}
+                    multiSelectMode={isAdmin ? false : multiSelectMode}
+                    isSelected={isAdmin ? false : selected.has(app.name)}
                     highlighted={false}
                     onToggleAccess={() => toggleAccess(app.name)}
                     onPermissionChange={(p) => setPermission(app.name, p)}
@@ -618,7 +647,7 @@ export function ApplicationsAccessPage({
                   <p className="text-sm font-medium text-gray-900">{label}</p>
                   <p className="text-xs text-gray-500">{desc}</p>
                 </div>
-                <Toggle checked={value} onChange={onChange} />
+                <Toggle checked={isAdmin ? true : value} onChange={onChange} disabled={isAdmin} />
               </div>
             ))}
           </div>
@@ -670,7 +699,7 @@ export function ApplicationsAccessPage({
                   <p className="text-sm font-medium text-gray-900">{label}</p>
                   <p className="text-xs text-gray-500">{desc}</p>
                 </div>
-                <Toggle checked={value} onChange={onChange} />
+                <Toggle checked={value} onChange={onChange} disabled={isAdmin} />
               </div>
             ))}
           </div>
@@ -681,8 +710,8 @@ export function ApplicationsAccessPage({
         </div>
       </div>
 
-      {/* Floating save bar */}
-      {(hasChanges || savedAll) && (
+      {/* Floating save bar (never for admins — their settings are read-only) */}
+      {!isAdmin && (hasChanges || savedAll) && (
         <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 bg-white rounded-xl shadow-2xl border border-gray-200 px-4 py-2.5">
           <span className="text-xs text-gray-400 mr-1">Unsaved changes</span>
           <button
