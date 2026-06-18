@@ -605,7 +605,7 @@ function SeatMeter({
         <div className="flex-shrink-0">
           <button
             onClick={onUpgrade}
-            className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+            className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors border border-blue-600 bg-transparent text-blue-600 hover:bg-blue-50"
           >
             {isOverLimit || isNearLimit || isApproaching ? (
               <><TrendingUp className="w-3.5 h-3.5" /> Upgrade plan</>
@@ -939,6 +939,66 @@ const QB_EMPLOYEES = [
 
 const MOCK_ENTITIES = ['Method HQ', 'Method NYC', 'Method LA', 'Method UK', 'Method Canada'];
 
+function EmpSelect({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const [panelStyle, setPanelStyle] = useState<React.CSSProperties>({});
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (
+        panelRef.current && !panelRef.current.contains(e.target as Node) &&
+        triggerRef.current && !triggerRef.current.contains(e.target as Node)
+      ) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
+  const handleOpen = () => {
+    if (triggerRef.current) {
+      const rect = triggerRef.current.getBoundingClientRect();
+      setPanelStyle({ position: 'fixed', top: rect.bottom + 6, left: rect.left, width: rect.width, zIndex: 9999 });
+    }
+    setOpen(!open);
+  };
+
+  const selected = QB_EMPLOYEES.find((e) => e.value === value) ?? QB_EMPLOYEES[0];
+
+  return (
+    <div className="relative">
+      <button
+        ref={triggerRef}
+        type="button"
+        onClick={handleOpen}
+        className="w-full flex items-center justify-between gap-2 border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors h-[44px]"
+      >
+        <span className={`truncate ${!value ? 'text-gray-400' : 'font-medium'}`}>{selected.label}</span>
+        <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform flex-shrink-0 ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && (
+        <div ref={panelRef} style={panelStyle} className="bg-white rounded-xl border border-gray-200 shadow-xl overflow-hidden">
+          {QB_EMPLOYEES.map((emp, idx) => (
+            <button
+              key={emp.value}
+              type="button"
+              onClick={() => { onChange(emp.value); setOpen(false); }}
+              className={`w-full flex items-center justify-between px-4 py-2.5 text-sm text-left transition-colors hover:bg-gray-50 ${idx !== 0 ? 'border-t border-gray-100' : ''}`}
+            >
+              <span className={value === emp.value ? 'font-medium text-gray-900' : 'text-gray-700'}>
+                {emp.label}
+              </span>
+              {value === emp.value && <Check className="w-4 h-4 text-blue-600 flex-shrink-0" />}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function UserDetailPage({
   user,
   onBack,
@@ -1026,19 +1086,19 @@ function UserDetailPage({
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
 
           {/* Profile & role */}
-          <div className="grid grid-cols-1 md:grid-cols-[220px_1fr] gap-6 py-8 px-6">
+          <div className="grid grid-cols-1 md:grid-cols-[220px_1fr] gap-8 py-7 px-6">
             <div>
               <h2 className="text-sm font-semibold text-gray-900">Profile & role</h2>
               <p className="mt-1 text-sm text-gray-500 leading-relaxed">Display name and permission level within Method.</p>
             </div>
-            <div className="space-y-4">
+            <div className="space-y-3">
               <div>
                 <label className="block text-xs font-medium text-gray-500 mb-1.5">Display name</label>
                 <input
                   type="text"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent h-[44px]"
                 />
               </div>
               <div>
@@ -1047,9 +1107,9 @@ function UserDetailPage({
                   type="text"
                   value={user.email}
                   readOnly
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-400 bg-gray-50 cursor-not-allowed"
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-400 bg-gray-50 cursor-not-allowed h-[44px]"
                 />
-                <p className="mt-1 text-xs text-gray-400">Email cannot be changed. Contact support to transfer an account.</p>
+                <p className="mt-1.5 text-xs text-gray-400">The user can update their own sign-in email from their account settings.</p>
               </div>
               <div>
                 <label className="block text-xs font-medium text-gray-500 mb-1.5">Role</label>
@@ -1067,41 +1127,31 @@ function UserDetailPage({
           <hr className="mx-6 border-gray-100" />
 
           {/* QuickBooks employee */}
-          <div className="grid grid-cols-1 md:grid-cols-[220px_1fr] gap-6 py-8 px-6">
+          <div className="grid grid-cols-1 md:grid-cols-[220px_1fr] gap-8 py-7 px-6 md:items-center">
             <div>
               <h2 className="text-sm font-semibold text-gray-900">QuickBooks employee</h2>
               <p className="mt-1 text-sm text-gray-500 leading-relaxed">Link to a QB employee record to sync labour data automatically.</p>
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1.5">Linked employee</label>
-              <select
-                value={qbEmployee}
-                onChange={(e) => setQbEmployee(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                {QB_EMPLOYEES.map((emp) => (
-                  <option key={emp.value} value={emp.value}>{emp.label}</option>
-                ))}
-              </select>
+              <EmpSelect value={qbEmployee} onChange={setQbEmployee} />
             </div>
           </div>
 
           <hr className="mx-6 border-gray-100" />
 
           {/* Records access */}
-          <div className="grid grid-cols-1 md:grid-cols-[220px_1fr] gap-6 py-8 px-6">
+          <div className="grid grid-cols-1 md:grid-cols-[220px_1fr] gap-8 py-7 px-6 md:items-center">
             <div>
               <h2 className="text-sm font-semibold text-gray-900">Records access</h2>
               <p className="mt-1 text-sm text-gray-500 leading-relaxed">Control visibility of records owned by other team members.</p>
             </div>
-            <div>
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <p className="text-sm font-medium text-gray-900">Access all peer records on grids</p>
-                  <p className="text-xs text-gray-500 mt-0.5">When off, this user only sees records assigned directly to them.</p>
-                </div>
-                <SettingsToggle enabled={peerRecords} onChange={setPeerRecords} />
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p className="text-sm font-medium text-gray-900">Access all peer records</p>
+                <p className="text-xs text-gray-500 mt-0.5">When off, this user only sees records assigned directly to them.</p>
               </div>
+              <SettingsToggle enabled={peerRecords} onChange={setPeerRecords} />
             </div>
           </div>
 
@@ -1110,21 +1160,16 @@ function UserDetailPage({
           {/* Application access */}
           <button
             onClick={onViewAppAccess}
-            className="w-full grid grid-cols-1 md:grid-cols-[220px_1fr] gap-6 py-8 px-6 hover:bg-gray-50 transition-colors text-left group"
+            className="w-full grid grid-cols-1 md:grid-cols-[220px_1fr] gap-8 py-7 px-6 hover:bg-gray-50 transition-colors text-left group md:items-center rounded-none"
           >
             <div>
               <h2 className="text-sm font-semibold text-gray-900">Application access</h2>
-              <p className="mt-1 text-sm text-gray-500 leading-relaxed">Control which apps and features this user can access.</p>
+              <p className="mt-1 text-sm text-gray-500 leading-relaxed">Choose which apps this user can access.</p>
             </div>
             <div className="flex items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
-                  <ExternalLink className="w-3.5 h-3.5 text-blue-600" />
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-900">Manage app access</p>
-                  <p className="text-xs text-gray-500">{user.apps.length} {user.apps.length === 1 ? 'app' : 'apps'} currently enabled</p>
-                </div>
+              <div>
+                <p className="text-sm font-medium text-gray-900">Manage app access</p>
+                <p className="text-xs text-gray-500 mt-0.5">{user.apps.length} {user.apps.length === 1 ? 'app' : 'apps'} currently enabled</p>
               </div>
               <ChevronRight className="w-4 h-4 text-gray-400 group-hover:text-blue-500 transition-colors flex-shrink-0" />
             </div>
@@ -1133,52 +1178,39 @@ function UserDetailPage({
           <hr className="mx-6 border-gray-100" />
 
           {/* Developer access */}
-          <div className="grid grid-cols-1 md:grid-cols-[220px_1fr] gap-6 py-8 px-6">
+          <div className="grid grid-cols-1 md:grid-cols-[220px_1fr] gap-8 py-7 px-6 md:items-center">
             <div>
               <h2 className="text-sm font-semibold text-gray-900">Developer access</h2>
               <p className="mt-1 text-sm text-gray-500 leading-relaxed">Allow this user to connect to the Method API for custom integrations.</p>
             </div>
-            <div>
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <div className="flex items-center gap-2 mb-0.5">
-                    <Key className="w-3.5 h-3.5 text-gray-400" />
-                    <p className="text-sm font-medium text-gray-900">Allow Method API access</p>
-                  </div>
-                  <p className="text-xs text-gray-500">User can generate API keys and authenticate programmatically.</p>
-                </div>
-                <SettingsToggle enabled={apiEnabled} onChange={setApiEnabled} />
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p className="text-sm font-medium text-gray-900">Allow Method API access</p>
+                <p className="text-xs text-gray-500 mt-0.5">User can generate API keys and authenticate programmatically.</p>
               </div>
+              <SettingsToggle enabled={apiEnabled} onChange={setApiEnabled} />
             </div>
           </div>
 
           <hr className="mx-6 border-gray-100" />
 
           {/* Two-factor authentication */}
-          <div className="grid grid-cols-1 md:grid-cols-[220px_1fr] gap-6 py-8 px-6">
+          <div className="grid grid-cols-1 md:grid-cols-[220px_1fr] gap-8 py-7 px-6 md:items-center">
             <div>
               <h2 className="text-sm font-semibold text-gray-900">Two-factor authentication</h2>
-              <p className="mt-1 text-sm text-gray-500 leading-relaxed">Resetting forces the user to reconfigure their authenticator app on next sign-in.</p>
+              <p className="mt-1 text-sm text-gray-500 leading-relaxed">Resetting forces the user to reconfigure their authenticator on next sign-in.</p>
             </div>
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <div className="flex items-center gap-2 mb-0.5">
-                  <p className="text-sm font-medium text-gray-900">Status</p>
-                  {twoFAStatus === 'enabled' ? (
-                    <span className="inline-flex items-center gap-1 text-xs font-medium text-green-700 bg-green-50 border border-green-100 rounded-full px-2 py-0.5">
-                      <ShieldCheck className="w-3 h-3" /> Enabled
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center gap-1 text-xs font-medium text-gray-500 bg-gray-100 rounded-full px-2 py-0.5">
-                      Not set up
-                    </span>
-                  )}
-                </div>
-                <p className="text-xs text-gray-500">
-                  {twoFAStatus === 'enabled'
-                    ? 'This user has 2FA active on their account.'
-                    : 'This user has not configured 2FA yet.'}
-                </p>
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-2.5">
+                {twoFAStatus === 'enabled' ? (
+                  <span className="inline-flex items-center gap-1.5 text-sm font-medium text-green-700 bg-green-50 border border-green-100 rounded-lg px-3 py-1.5">
+                    <ShieldCheck className="w-4 h-4" /> 2FA enabled
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 text-sm font-medium text-gray-500 bg-gray-100 rounded-lg px-3 py-1.5">
+                    Not set up
+                  </span>
+                )}
               </div>
               {twoFAStatus === 'enabled' && (
                 <button
@@ -1186,7 +1218,7 @@ function UserDetailPage({
                   className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
                     twoFaReset
                       ? 'bg-green-50 text-green-700 border-green-200'
-                      : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                      : 'border-blue-600 text-blue-600 hover:bg-blue-50'
                   }`}
                 >
                   {twoFaReset ? 'Reset sent' : 'Reset 2FA'}
@@ -1199,7 +1231,7 @@ function UserDetailPage({
 
           {/* Entity access — Scale plan only */}
           {isScale && (
-            <div className="grid grid-cols-1 md:grid-cols-[220px_1fr] gap-6 py-8 px-6">
+            <div className="grid grid-cols-1 md:grid-cols-[220px_1fr] gap-8 py-7 px-6">
               <div>
                 <div className="flex items-center gap-2 mb-1">
                   <h2 className="text-sm font-semibold text-gray-900">Entity access</h2>
@@ -1240,7 +1272,7 @@ function UserDetailPage({
           <hr className="mx-6 border-gray-100" />
 
           {/* Remove user */}
-          <div className={`grid grid-cols-1 md:grid-cols-[220px_1fr] gap-6 py-8 px-6 ${isOwner ? 'opacity-40 pointer-events-none select-none' : ''}`}>
+          <div className={`grid grid-cols-1 md:grid-cols-[220px_1fr] gap-8 py-7 px-6 md:items-center ${isOwner ? 'opacity-40 pointer-events-none select-none' : ''}`}>
             <div>
               <h2 className="text-sm font-semibold text-red-500">Remove user</h2>
               <p className="mt-1 text-sm text-gray-500 leading-relaxed">
@@ -1420,7 +1452,7 @@ export function UserManagementPage({
           <div className="flex items-center gap-2 ml-auto">
             <button
               onClick={() => setShow2FAModal(true)}
-              className="inline-flex items-center gap-1.5 border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-700 bg-white hover:bg-gray-50 transition-colors h-9 whitespace-nowrap"
+              className="inline-flex items-center gap-1.5 border border-blue-600 rounded-lg px-3 py-2 text-sm font-medium text-blue-600 bg-transparent hover:bg-blue-50 transition-colors h-9 whitespace-nowrap"
             >
               <Shield className="w-4 h-4" /> Enable 2FA
             </button>

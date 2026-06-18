@@ -63,6 +63,15 @@ function App() {
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', onUp);
   };
+  // Shift+/ skips onboarding straight to the home screen.
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.shiftKey && e.key === '?') setShowOnboarding(false);
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
+
   // Team size — drives the recommended plan and seat-based pricing on the cards.
   const [teamSize, setTeamSize] = useState(1);
   // Days remaining in the free trial (0 = expired). Drives banner + deferred-billing copy.
