@@ -24,7 +24,6 @@ import {
   CornerDownRight,
   SlidersHorizontal,
   Key,
-  Trash2,
   Building2,
   ShieldCheck,
 } from 'lucide-react';
@@ -1339,8 +1338,8 @@ function UserDetailPage({
     JSON.stringify(entities) !== JSON.stringify(initial.current.entities);
 
   const isScale = subscription?.planId === 'scale';
-  // Prototype: the logged-in user is always Paul (user-1)
-  const isSelf = user.id === 'user-1';
+  // Prototype: the logged-in user is always Paul (id '1')
+  const isSelf = user.id === '1';
   const isOnlyAdmin = user.role === 'Admin' && allUsers.filter((u) => u.role === 'Admin').length <= 1;
 
   function saveAll() {
@@ -1592,7 +1591,6 @@ function UserDetailPage({
               </p>
             </div>
             <div className="flex items-center gap-3">
-              <Trash2 className="w-4 h-4 text-red-400 flex-shrink-0" />
               <div>
                 <p className="text-sm font-medium text-gray-900">
                   {isSelf ? 'Remove your access from this account' : `Remove ${username} from this account`}
