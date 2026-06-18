@@ -1290,7 +1290,14 @@ export function CustomersPage({ initialFilter }: CustomersPageProps) {
                 {/* AI-added field columns */}
                 {listFields.map(
                   (field) =>
-                    showColumn(field.id) && <TableHead key={field.id}>{field.label}</TableHead>,
+                    showColumn(field.id) && (
+                      <TableHead
+                        key={field.id}
+                        className={field.id === ai.lastAddedId ? 'field-added-glow' : undefined}
+                      >
+                        {field.label}
+                      </TableHead>
+                    ),
                 )}
                 <TableHead className="w-[100px]">Actions</TableHead>
               </TableRow>
@@ -1352,7 +1359,12 @@ export function CustomersPage({ initialFilter }: CustomersPageProps) {
                   {listFields.map(
                     (field) =>
                       showColumn(field.id) && (
-                        <TableCell key={field.id} className="text-sm text-gray-600">
+                        <TableCell
+                          key={field.id}
+                          className={`text-sm text-gray-600 ${
+                            field.id === ai.lastAddedId ? 'field-added-glow' : ''
+                          }`}
+                        >
                           {formatFieldValue(field, ai.getValue('customer', customer.id, field.id))}
                         </TableCell>
                       ),

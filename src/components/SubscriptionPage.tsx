@@ -50,7 +50,7 @@ const plans: Plan[] = [
       'Full Method for a single user. Perfect for independent operators who want power without complexity.',
     monthlyPrice: 50,
     seats: 1,
-    seatsNote: 'Additional seats available',
+    seatsNote: 'Upgrade to Build for more seats',
     includedLabel: "What's included",
     features: [
       'All stock apps — CRM, invoicing, proposals, cases',
@@ -1323,6 +1323,32 @@ export function SubscriptionPage({
                   className="mt-2 inline-flex items-center gap-1.5 text-sm font-semibold text-blue-700 hover:text-blue-800"
                 >
                   Switch to Build — ${buildMonthly}/mo
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Essentials is single-seat — extra users convert to view-only */}
+          {selectedPlan.id === 'essentials' && teamSize > 1 && (
+            <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 p-4 flex items-start gap-3">
+              <Users className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-amber-900">
+                  Only 1 seat — your other {teamSize - 1} {teamSize - 1 === 1 ? 'user' : 'users'} will
+                  become view-only
+                </p>
+                <p className="text-sm text-amber-800 mt-0.5">
+                  Essentials includes a single seat (yours). Your other {teamSize - 1}{' '}
+                  {teamSize - 1 === 1 ? 'user' : 'users'} will be switched to view-only access — they can
+                  still sign in and read data, but can't edit. Upgrade to Build to give everyone a full
+                  seat.
+                </p>
+                <button
+                  onClick={() => setSelectedPlanId('build')}
+                  className="mt-2 inline-flex items-center gap-1.5 text-sm font-semibold text-amber-900 hover:underline"
+                >
+                  Upgrade to Build — ${buildMonthly}/mo
                   <ArrowRight className="w-4 h-4" />
                 </button>
               </div>

@@ -39,6 +39,8 @@ interface AIFieldsApi {
   getFields: (entityType: string) => CustomField[];
   addField: (entityType: string, field: CustomField) => void;
   removeField: (entityType: string, fieldId: string) => void;
+  /** Id of the field added most recently (for a brief glow); null once it clears. */
+  lastAddedId: string | null;
   /** Per-record values, keyed by entity + record id. */
   getValue: (entityType: string, recordId: string, fieldId: string) => string;
   setValue: (entityType: string, recordId: string, fieldId: string, value: string) => void;
@@ -71,6 +73,8 @@ export function AIFieldsProvider({
   const [valuesByRecord, setValuesByRecord] = useState<Record<string, Record<string, string>>>({});
   const [activeSurface, setActiveSurface] = useState<FieldContext | null>(null);
   const [pending, setPending] = useState<FieldContext | null>(null);
+  // The most recently added field id — drives a brief "just added" glow, then clears.
+  const [lastAddedId, setLastAddedId] = useState<string | null>(null);
 
   const getFields = useCallback(
     (entityType: string) => fieldsByEntity[entityType] ?? [],
@@ -78,10 +82,14 @@ export function AIFieldsProvider({
   );
 
   const addField = useCallback((entityType: string, field: CustomField) => {
+    const id = field.id || nextId();
     setFieldsByEntity((prev) => ({
       ...prev,
-      [entityType]: [...(prev[entityType] ?? []), { ...field, id: field.id || nextId() }],
+      [entityType]: [...(prev[entityType] ?? []), { ...field, id }],
     }));
+    setLastAddedId(id);
+    // Clear after the glow animation so it only plays once on add.
+    setTimeout(() => setLastAddedId((curr) => (curr === id ? null : curr)), 1800);
   }, []);
 
   const removeField = useCallback((entityType: string, fieldId: string) => {
@@ -125,6 +133,7 @@ export function AIFieldsProvider({
       getFields,
       addField,
       removeField,
+      lastAddedId,
       getValue,
       setValue,
       activeSurface,
@@ -133,7 +142,7 @@ export function AIFieldsProvider({
       request: pending,
       closeRequest: () => setPending(null),
     }),
-    [enabled, mode, getFields, addField, removeField, getValue, setValue, activeSurface, registerSurface, openAddField, pending],
+    [enabled, mode, getFields, addField, removeField, lastAddedId, getValue, setValue, activeSurface, registerSurface, openAddField, pending],
   );
 
   return <AIFieldsContext.Provider value={api}>{children}</AIFieldsContext.Provider>;
@@ -326,7 +335,10 @@ export function AIFieldGroup({
       {fields.length > 0 && (
         <div className="space-y-4 mb-4">
           {fields.map((field) => (
-            <div key={field.id} className="group">
+            <div
+              key={field.id}
+              className={`group ${field.id === api.lastAddedId ? 'field-added-glow' : ''}`}
+            >
               <div className="flex items-center justify-between mb-1">
                 <div className="text-sm font-medium text-gray-900">{field.label}</div>
                 <button
@@ -407,16 +419,20 @@ export function GlobalAddFieldButton() {
     <TooltipProvider delayDuration={150}>
       <Tooltip>
         <TooltipTrigger asChild>
-          <button
-            onClick={() => openAddField()}
-            aria-label="Customize the screen by adding a custom field using Method AI"
-            className="group inline-flex h-6 min-w-[24px] items-center justify-center rounded-full border border-purple-200 bg-purple-50 px-1 text-xs font-semibold text-purple-600 hover:bg-purple-100 hover:px-2.5 transition-all"
-          >
-            <Sparkles className="w-3.5 h-3.5 shrink-0" />
-            <span className="max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-all duration-200 group-hover:ml-1 group-hover:max-w-[80px] group-hover:opacity-100">
-              Customize
-            </span>
-          </button>
+          {/* Fixed 24px footprint keeps surrounding layout (the global search) static;
+              the button expands as an absolute overlay on hover instead of reflowing. */}
+          <span className="relative inline-block h-6 w-6 flex-shrink-0">
+            <button
+              onClick={() => openAddField()}
+              aria-label="Customize the screen by adding a custom field using Method AI"
+              className="group absolute left-0 top-0 z-10 inline-flex h-6 items-center rounded-full border border-purple-200 bg-purple-50 px-1 text-xs font-semibold text-purple-600 hover:bg-purple-100 hover:px-2.5 transition-all"
+            >
+              <Sparkles className="w-3.5 h-3.5 shrink-0" />
+              <span className="max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-all duration-200 group-hover:ml-1 group-hover:max-w-[80px] group-hover:opacity-100">
+                Customize
+              </span>
+            </button>
+          </span>
         </TooltipTrigger>
         <TooltipContent
           side="bottom"

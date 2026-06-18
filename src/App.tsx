@@ -277,7 +277,7 @@ function App() {
         />
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col min-w-0">
         {/* Top Header */}
         <TopHeader
           currentPageLabel={isLocked ? 'Subscription' : pageLabels[currentPage] || 'Home'}
@@ -289,7 +289,7 @@ function App() {
 
         {/* Page + chat panel share a row below the top bar */}
         <div className="flex-1 flex overflow-hidden">
-        <div className="flex-1 overflow-hidden flex flex-col">
+        <div className="flex-1 min-w-0 overflow-hidden flex flex-col">
 
         {/* Render different pages based on current page. When the trial has expired
             with no subscription, the app is locked to the Subscribe screen. */}
@@ -410,6 +410,11 @@ function App() {
           <AccountSettingsPage
             onBack={navigateToHome}
             onNavigate={handlePageNavigation}
+            upgradeRequired={premiumLocked}
+            onUpgrade={() => {
+              setOpenToChangePlan(true);
+              setCurrentPage('subscription');
+            }}
           />
         ) : shouldShowEmptyState && ['activities', 'vendors', 'invoices'].includes(currentPage) ? (
           // Inline mode with banner and sample data for activities, vendors, invoices

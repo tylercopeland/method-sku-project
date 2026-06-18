@@ -166,3 +166,13 @@
   word-wrap: break-word;
   overflow-wrap: break-word;
 }
+/* Transient purple glow when a custom field/column is added to a screen. */
+@keyframes field-added-glow {
+  0%   { box-shadow: 0 0 0 0 rgba(168, 85, 247, 0); }
+  25%  { box-shadow: 0 0 14px 3px rgba(168, 85, 247, 0.55); }
+  100% { box-shadow: 0 0 0 0 rgba(168, 85, 247, 0); }
+}
+.field-added-glow {
+  border-radius: 0.5rem;
+  animation: field-added-glow 1.8s ease-out;
+}
