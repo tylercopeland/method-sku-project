@@ -11,7 +11,7 @@ import { UpgradeRequiredPage } from '@/components/UpgradeRequiredPage';
 import { AppStudioPage, aiApps } from '@/components/AppStudioPage';
 import { AppMarketplacePage } from '@/components/AppMarketplacePage';
 import { ApplicationsAccessPage } from '@/components/ApplicationsAccessPage';
-import { UserManagementPage } from '@/components/UserManagementPage';
+import { UserManagementPage, InviteModal } from '@/components/UserManagementPage';
 import { OnboardingModal } from '@/components/OnboardingModal';
 import { AIFieldsProvider, AddFieldChatPanel, FieldSurfaceRegistrar } from '@/lib/ai-fields';
 import { Switch } from '@/components/ui/switch';
@@ -27,6 +27,7 @@ function App() {
   const [showTrialBanner, setShowTrialBanner] = useState(true);
   const [subscription, setSubscription] = useState<ActiveSubscription | null>(null);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const [showNavbarInvite, setShowNavbarInvite] = useState(false);
   // First-run onboarding modal — shows over Home until the user completes it.
   const [showOnboarding, setShowOnboarding] = useState(true);
   // When entering the subscription page from an upgrade prompt, open on the change-plan grid.
@@ -281,6 +282,7 @@ function App() {
           isAppScreen={!isLocked && !nonAppScreens.includes(currentPage)}
           onNavigate={handlePageNavigation}
           onMobileMenuToggle={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
+          onInviteUser={() => setShowNavbarInvite(true)}
         />
 
         {/* Page + chat panel share a row below the top bar */}
@@ -666,6 +668,17 @@ function App() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Navbar invite modal — same as the full InviteModal on the Users page */}
+      {showNavbarInvite && (
+        <InviteModal
+          subscription={subscription}
+          isTrial={isInTrial && !subscription}
+          seatsAvailable={999}
+          onNavigate={handlePageNavigation}
+          onClose={() => setShowNavbarInvite(false)}
+        />
       )}
 
       {/* First-run onboarding — modal over Home, blocks the app until completed */}
