@@ -14,6 +14,7 @@ import { ApplicationsAccessPage } from '@/components/ApplicationsAccessPage';
 import { UserManagementPage, InviteModal } from '@/components/UserManagementPage';
 import { MultiEntityPage } from '@/components/MultiEntityPage';
 import { OnboardingModal } from '@/components/OnboardingModal';
+import { HelpDrawer } from '@/components/HelpDrawer';
 import { AIFieldsProvider, AddFieldChatPanel, FieldSurfaceRegistrar } from '@/lib/ai-fields';
 import { Switch } from '@/components/ui/switch';
 import { useState, useEffect } from 'react';
@@ -53,6 +54,8 @@ function App() {
   const [upgradeTargetPlanId, setUpgradeTargetPlanId] = useState<string | null>(null);
   // Feature flag: folder-based sidebar navigation.
   const [navFoldersEnabled, setNavFoldersEnabled] = useState(false);
+  // Help Center (help drawer) — opened from the header or the AI chat panel.
+  const [helpOpen, setHelpOpen] = useState(false);
 
   const startDemoDrag = (e: React.PointerEvent<HTMLElement>) => {
     const panel = e.currentTarget.closest('[data-demo-panel]') as HTMLElement | null;
@@ -285,6 +288,7 @@ function App() {
           onNavigate={handlePageNavigation}
           onMobileMenuToggle={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
           onInviteUser={() => setShowNavbarInvite(true)}
+          onOpenHelp={() => setHelpOpen(true)}
         />
 
         {/* Page + chat panel share a row below the top bar */}
@@ -440,7 +444,15 @@ function App() {
           )}
 
         {/* Add-field chat panel — sits below the top bar, beside the page */}
-        <AddFieldChatPanel />
+        <AddFieldChatPanel
+          onOpenAppBuilder={() => setCurrentPage('app-studio')}
+          appBuilderLocked={premiumLocked}
+          onUpgrade={() => {
+            setOpenToChangePlan(true);
+            setCurrentPage('subscription');
+          }}
+          onOpenHelpCenter={() => setHelpOpen(true)}
+        />
         </div>
         </div>
       </div>
@@ -701,6 +713,9 @@ function App() {
 
       {/* First-run onboarding — modal over Home, blocks the app until completed */}
       {showOnboarding && <OnboardingModal onComplete={() => setShowOnboarding(false)} />}
+
+      {/* Help Center drawer — opened from the header or the AI chat panel */}
+      <HelpDrawer isOpen={helpOpen} onClose={() => setHelpOpen(false)} />
     </div>
     </AIFieldsProvider>
   );

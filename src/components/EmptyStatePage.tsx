@@ -644,7 +644,11 @@ export function EmptyStatePage({ page, showBanner = false, showSampleData = fals
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Value Proposition Banner */}
         {showBanner && !bannerDismissed && config.valueProps.length > 0 && (
-          <Card className="border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50 animate-in slide-in-from-top duration-300">
+          <Card
+            className={`border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50 ${
+              page === 'vendors' ? '' : 'animate-in slide-in-from-top duration-300'
+            }`}
+          >
             <CardContent className="p-6">
               <div className="flex items-start justify-between">
                 <div className="flex-1">

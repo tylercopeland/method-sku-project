@@ -11,10 +11,8 @@ import {
   Plus, Settings, Lightbulb, Menu, CircleUser, Share2, Contact, LogOut,
   ChevronDown, UserPlus,
 } from 'lucide-react';
-import { HelpDrawer } from '@/components/HelpDrawer';
 import { GlobalAddFieldButton } from '@/lib/ai-fields';
 import { GlobalSearch } from '@/components/GlobalSearch';
-import { useState } from 'react';
 
 interface TopHeaderProps {
   currentPageLabel?: string;
@@ -22,11 +20,11 @@ interface TopHeaderProps {
   onNavigate?: (page: string) => void;
   onMobileMenuToggle?: () => void;
   onInviteUser?: () => void;
+  /** Open the Help Center (help drawer), now owned by App. */
+  onOpenHelp?: () => void;
 }
 
-export function TopHeader({ currentPageLabel = 'Home', isAppScreen = false, onNavigate, onMobileMenuToggle, onInviteUser }: TopHeaderProps) {
-  const [isHelpDrawerOpen, setIsHelpDrawerOpen] = useState(false);
-
+export function TopHeader({ currentPageLabel = 'Home', isAppScreen = false, onNavigate, onMobileMenuToggle, onInviteUser, onOpenHelp }: TopHeaderProps) {
   return (
     <>
       <header className="bg-white border-b border-gray-200 px-3 sm:px-5 py-3 flex-shrink-0">
@@ -47,7 +45,7 @@ export function TopHeader({ currentPageLabel = 'Home', isAppScreen = false, onNa
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button className="group flex items-center gap-1.5 focus:outline-none">
-                    <h1 className="text-base sm:text-lg font-semibold text-gray-900 truncate max-w-[160px]">
+                    <h1 className="text-base sm:text-lg font-semibold text-gray-900 whitespace-nowrap">
                       {currentPageLabel}
                     </h1>
                     <ChevronDown className="w-4 h-4 text-gray-500 group-hover:text-gray-700 transition-colors" />
@@ -63,7 +61,7 @@ export function TopHeader({ currentPageLabel = 'Home', isAppScreen = false, onNa
                 </DropdownMenuContent>
               </DropdownMenu>
             ) : (
-              <h1 className="text-base sm:text-lg font-semibold text-gray-900 truncate max-w-[200px]">
+              <h1 className="text-base sm:text-lg font-semibold text-gray-900 whitespace-nowrap">
                 {currentPageLabel}
               </h1>
             )}
@@ -98,7 +96,7 @@ export function TopHeader({ currentPageLabel = 'Home', isAppScreen = false, onNa
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => setIsHelpDrawerOpen(true)}
+              onClick={() => onOpenHelp?.()}
               className="hidden sm:flex p-2"
             >
               <Lightbulb className="w-5 h-5 text-gray-600" />
@@ -161,8 +159,6 @@ export function TopHeader({ currentPageLabel = 'Home', isAppScreen = false, onNa
           </div>
         </div>
       </header>
-
-      <HelpDrawer isOpen={isHelpDrawerOpen} onClose={() => setIsHelpDrawerOpen(false)} />
     </>
   );
 }

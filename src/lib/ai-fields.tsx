@@ -153,7 +153,17 @@ export function AIFieldsProvider({
  * top banner, beside the content) so the panel pushes content instead of
  * overlaying the whole viewport.
  */
-export function AddFieldChatPanel() {
+export function AddFieldChatPanel({
+  onOpenAppBuilder,
+  appBuilderLocked = false,
+  onUpgrade,
+  onOpenHelpCenter,
+}: {
+  onOpenAppBuilder?: () => void;
+  appBuilderLocked?: boolean;
+  onUpgrade?: () => void;
+  onOpenHelpCenter?: () => void;
+} = {}) {
   const { request, activeSurface, closeRequest, addField } = useAIFields();
   // The panel follows the screen you're on: `request` controls open/closed, while
   // the live `activeSurface` drives the context (pill, copy) and where fields land.
@@ -173,6 +183,31 @@ export function AddFieldChatPanel() {
         // Keep the panel open so the user can keep chatting and add more fields.
         if (context) addField(context.entityType, { ...field, group: context.group });
       }}
+      onOpenAppBuilder={
+        onOpenAppBuilder
+          ? () => {
+              closeRequest();
+              onOpenAppBuilder();
+            }
+          : undefined
+      }
+      appBuilderLocked={appBuilderLocked}
+      onUpgrade={
+        onUpgrade
+          ? () => {
+              closeRequest();
+              onUpgrade();
+            }
+          : undefined
+      }
+      onOpenHelpCenter={
+        onOpenHelpCenter
+          ? () => {
+              closeRequest();
+              onOpenHelpCenter();
+            }
+          : undefined
+      }
     />
   );
 }
