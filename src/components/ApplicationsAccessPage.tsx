@@ -33,7 +33,7 @@ const CUSTOM_APPS: AppDef[] = [
   },
 ];
 
-const PERM_LABELS: Record<Permission, string> = { view: 'View', edit: 'Edit', customize: 'Customize' };
+const PERM_LABELS: Record<Permission, string> = { view: 'View only', edit: 'Edit', customize: 'Edit & customize' };
 
 // ── Fixed-position hover tooltip ───────────────────────────────────────────────
 
@@ -199,16 +199,18 @@ function AppRow({
           access ? 'text-blue-500' : 'text-gray-300'
         }`}
       />
-      <span
-        className={`flex-1 text-sm font-medium min-w-0 truncate transition-colors ${
-          access ? 'text-gray-900' : 'text-gray-400'
-        }`}
-      >
-        {app.name}
-      </span>
-      {app.description && (
-        <InfoTooltip content={<span className="text-gray-300 leading-relaxed">{app.description}</span>} />
-      )}
+      <div className="flex items-center gap-1.5 flex-1 min-w-0">
+        <span
+          className={`text-sm font-medium truncate transition-colors ${
+            access ? 'text-gray-900' : 'text-gray-400'
+          }`}
+        >
+          {app.name}
+        </span>
+        {app.description && (
+          <InfoTooltip content={<span className="text-gray-300 leading-relaxed">{app.description}</span>} />
+        )}
+      </div>
       <div className="flex items-center gap-3 flex-shrink-0">
         <PermissionControl
           value={permission}
