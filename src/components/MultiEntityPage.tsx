@@ -591,11 +591,128 @@ function UsersTab({ users, entities, onSelectUser }: { users: MEUser[]; entities
   );
 }
 
+// ── Edit Entity Modal ──────────────────────────────────────────────────────────
+
+function EditEntityModal({ entity, onClose, onSave }: {
+  entity: Entity;
+  onClose: () => void;
+  onSave: (name: string, tags: string[]) => void;
+}) {
+  const [name, setName] = useState(entity.name);
+  const [tags, setTags] = useState<string[]>(entity.tags);
+  const [tagInput, setTagInput] = useState('');
+
+  const addTag = (value: string) => {
+    const trimmed = value.trim();
+    if (trimmed && !tags.includes(trimmed)) setTags(prev => [...prev, trimmed]);
+    setTagInput('');
+  };
+
+  const removeTag = (tag: string) => setTags(prev => prev.filter(t => t !== tag));
+
+  const handleTagKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault();
+      addTag(tagInput);
+    } else if (e.key === 'Backspace' && !tagInput && tags.length > 0) {
+      setTags(prev => prev.slice(0, -1));
+    }
+  };
+
+  const canSave = name.trim().length > 0;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 pt-6 pb-4">
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900">Edit entity</h2>
+            <p className="text-sm text-gray-500 mt-0.5">Update entity details.</p>
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="px-6 pb-6 space-y-5">
+          {/* Entity name */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">
+              Entity name <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              value={name}
+              onChange={e => setName(e.target.value)}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+          </div>
+
+          {/* Entity tags */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Entity tags</label>
+            <div
+              className="min-h-[44px] w-full border border-gray-300 rounded-lg px-3 py-2 flex flex-wrap items-center gap-1.5 focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-transparent cursor-text"
+              onClick={() => document.getElementById('tag-input')?.focus()}
+            >
+              {tags.map(tag => (
+                <span key={tag} className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                  {tag}
+                  <button type="button" onClick={() => removeTag(tag)} className="text-blue-500 hover:text-blue-700 flex-shrink-0">
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              ))}
+              <input
+                id="tag-input"
+                type="text"
+                value={tagInput}
+                onChange={e => setTagInput(e.target.value)}
+                onKeyDown={handleTagKeyDown}
+                onBlur={() => tagInput.trim() && addTag(tagInput)}
+                placeholder={tags.length === 0 ? 'Add tags...' : ''}
+                className="flex-1 min-w-[80px] text-sm text-gray-900 placeholder-gray-400 focus:outline-none bg-transparent"
+              />
+              <ChevronDown className="w-4 h-4 text-gray-400 flex-shrink-0 ml-auto" />
+            </div>
+            <p className="text-xs text-gray-500 mt-1.5">Recommended for filtering by region, crew, division, type</p>
+          </div>
+
+          {/* Actions */}
+          <div className="flex items-center justify-end gap-3 pt-1">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 text-sm font-medium border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              disabled={!canSave}
+              onClick={() => { onSave(name.trim(), tags); onClose(); }}
+              className="px-4 py-2 text-sm font-semibold bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              Save changes
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Entity Detail View ─────────────────────────────────────────────────────────
 
-function EntityDetailView({ entity, onBack, onBackToRoot }: { entity: Entity; onBack: () => void; onBackToRoot: () => void }) {
+function EntityDetailView({ entity, onBack, onBackToRoot, onUpdateEntity }: {
+  entity: Entity;
+  onBack: () => void;
+  onBackToRoot: () => void;
+  onUpdateEntity: (updated: Entity) => void;
+}) {
   const [search, setSearch] = useState('');
   const [addUsersOpen, setAddUsersOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [localEntity, setLocalEntity] = useState<Entity>(entity);
   const entityUsers = ENTITY_USERS_MAP[entity.id] ?? [];
   const filtered = entityUsers.filter(u => !search || u.name.toLowerCase().includes(search.toLowerCase()) || u.email.toLowerCase().includes(search.toLowerCase()));
 
@@ -608,15 +725,15 @@ function EntityDetailView({ entity, onBack, onBackToRoot }: { entity: Entity; on
           <span className="text-gray-400">/</span>
           <button onClick={onBack} className="text-blue-600 hover:underline font-medium">Multi-entity management</button>
           <span className="text-gray-400">/</span>
-          <span className="text-gray-600">{entity.name}</span>
+          <span className="text-gray-600">{localEntity.name}</span>
         </nav>
 
         {/* Title row */}
         <div className="flex items-start justify-between mb-2">
           <div className="flex items-center gap-3">
-            <EntityIcon isMain={entity.isMain} lg />
-            <h1 className="text-2xl font-semibold text-gray-900">{entity.name}</h1>
-            <button className="inline-flex items-center gap-1 text-sm text-blue-600 hover:underline">
+            <EntityIcon isMain={localEntity.isMain} lg />
+            <h1 className="text-2xl font-semibold text-gray-900">{localEntity.name}</h1>
+            <button onClick={() => setEditOpen(true)} className="inline-flex items-center gap-1 text-sm text-blue-600 hover:underline">
               <Pencil className="w-3.5 h-3.5" /> Edit
             </button>
           </div>
@@ -627,8 +744,8 @@ function EntityDetailView({ entity, onBack, onBackToRoot }: { entity: Entity; on
 
         {/* Status + tags */}
         <div className="flex items-center gap-2 mb-5">
-          <SyncedBadge status={entity.status} />
-          {entity.tags.map(tag => (
+          <SyncedBadge status={localEntity.status} />
+          {localEntity.tags.map(tag => (
             <span key={tag} className="px-3 py-0.5 text-xs border border-gray-300 rounded-full text-gray-600">{tag}</span>
           ))}
         </div>
@@ -698,6 +815,18 @@ function EntityDetailView({ entity, onBack, onBackToRoot }: { entity: Entity; on
 
         <HelpArticles />
       </div>
+
+      {editOpen && (
+        <EditEntityModal
+          entity={localEntity}
+          onClose={() => setEditOpen(false)}
+          onSave={(newName, newTags) => {
+            const updated = { ...localEntity, name: newName, tags: newTags };
+            setLocalEntity(updated);
+            onUpdateEntity(updated);
+          }}
+        />
+      )}
 
       {addUsersOpen && (
         <InviteModal
@@ -811,7 +940,7 @@ interface MultiEntityPageProps {
 
 export function MultiEntityPage({ onBack }: MultiEntityPageProps) {
   const [activeTab, setActiveTab] = useState<Tab>('entities');
-  const [entities] = useState<Entity[]>(INITIAL_ENTITIES);
+  const [entities, setEntities] = useState<Entity[]>(INITIAL_ENTITIES);
   const [users, setUsers] = useState<MEUser[]>(INITIAL_ME_USERS);
   const [selectedEntity, setSelectedEntity] = useState<Entity | null>(null);
   const [selectedUser, setSelectedUser] = useState<MEUser | null>(null);
@@ -837,6 +966,10 @@ export function MultiEntityPage({ onBack }: MultiEntityPageProps) {
         entity={selectedEntity}
         onBack={() => setSelectedEntity(null)}
         onBackToRoot={onBack}
+        onUpdateEntity={(updated) => {
+          setEntities(prev => prev.map(e => e.id === updated.id ? updated : e));
+          setSelectedEntity(updated);
+        }}
       />
     );
   }
