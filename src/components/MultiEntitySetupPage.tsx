@@ -208,10 +208,10 @@ export function MultiEntitySetupPage({
               </p>
               <p>
                 Your account will be{' '}
-                <span className="font-semibold text-gray-800">permanently locked to the Scale plan</span>
-                {' '}— you will not be able to downgrade or switch plans at any point in the future.
-                A new <span className="font-semibold text-gray-800">Super Admin</span> role will
-                also be introduced, and you will become the sole Super Admin on this account.
+                <span className="font-semibold text-gray-800">permanently locked to Scale</span>
+                {' '}with no option to downgrade. A new{' '}
+                <span className="font-semibold text-gray-800">Super Admin</span> role will be
+                introduced and you will become the sole Super Admin.
               </p>
               <p>
                 If you have any questions or concerns,{' '}
