@@ -544,7 +544,7 @@ function App() {
           <div className="border-t border-gray-100 pt-2">
             <div className="flex items-center justify-between">
               <span className="text-gray-500">
-                {subscription ? `Subscribed: ${subscription.planId}` : 'Not subscribed'}
+                {subscription ? 'Trial ended' : 'Not subscribed'}
               </span>
               {subscription && (
                 <button
