@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   ChevronLeft, Building2, Users, Search, Settings, LogIn, Plus,
-  ChevronDown, ChevronUp, Check, MoreVertical, ArrowUpDown, LayoutList,
+  ChevronDown, ChevronUp, MoreVertical, ArrowUpDown, LayoutList,
   X, Mail, Pencil, Info,
 } from 'lucide-react';
 
@@ -197,12 +197,16 @@ function StatusDot({ status }: { status: 'Active' | 'Invited' }) {
 }
 
 function SyncedBadge({ status }: { status: 'Synced' | 'Unsynced' }) {
+  if (status === 'Synced') {
+    return (
+      <span className="inline-flex items-center gap-1.5 text-xs font-medium text-green-700">
+        <span className="w-2 h-2 rounded-full bg-green-500 flex-shrink-0" /> Synced
+      </span>
+    );
+  }
   return (
-    <span className={`inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full border ${
-      status === 'Synced' ? 'border-gray-300 text-gray-600 bg-white' : 'border-amber-300 text-amber-700 bg-amber-50'
-    }`}>
-      {status === 'Synced' && <Check className="w-3 h-3 text-green-600" />}
-      {status}
+    <span className="inline-flex items-center gap-1.5 text-xs font-medium text-amber-600">
+      <span className="w-2 h-2 rounded-full bg-amber-400 flex-shrink-0" /> Unsynced
     </span>
   );
 }
@@ -557,9 +561,9 @@ function UsersTab({ users, entities, onSelectUser }: { users: MEUser[]; entities
                 <div><RoleBadge role={user.role} /></div>
                 <div className="flex items-center gap-1 flex-wrap">
                   {shown.map(e => (
-                    <span key={e} className="px-2 py-0.5 text-xs border border-gray-200 rounded text-gray-600 bg-gray-50 whitespace-nowrap">{e}</span>
+                    <span key={e} className="px-2.5 py-0.5 text-xs border border-gray-300 rounded-full text-gray-600 whitespace-nowrap">{e}</span>
                   ))}
-                  {extra > 0 && <span className="px-2 py-0.5 text-xs border border-gray-200 rounded text-gray-500 bg-gray-50">+{extra}</span>}
+                  {extra > 0 && <span className="px-2.5 py-0.5 text-xs border border-gray-300 rounded-full text-gray-500">+{extra}</span>}
                 </div>
                 <div><StatusDot status={user.status} /></div>
                 <div>
