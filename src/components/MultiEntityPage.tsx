@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { InviteModal } from '@/components/UserManagementPage';
 import {
   ChevronLeft, Building2, Users, Search, Settings, LogIn, Plus,
   ChevronDown, ChevronUp, MoreVertical, ArrowUpDown, LayoutList,
@@ -594,6 +595,7 @@ function UsersTab({ users, entities, onSelectUser }: { users: MEUser[]; entities
 
 function EntityDetailView({ entity, onBack, onBackToRoot }: { entity: Entity; onBack: () => void; onBackToRoot: () => void }) {
   const [search, setSearch] = useState('');
+  const [addUsersOpen, setAddUsersOpen] = useState(false);
   const entityUsers = ENTITY_USERS_MAP[entity.id] ?? [];
   const filtered = entityUsers.filter(u => !search || u.name.toLowerCase().includes(search.toLowerCase()) || u.email.toLowerCase().includes(search.toLowerCase()));
 
@@ -635,7 +637,10 @@ function EntityDetailView({ entity, onBack, onBackToRoot }: { entity: Entity; on
 
         {/* Add users */}
         <div className="flex justify-end mb-4">
-          <button className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-semibold bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+          <button
+            onClick={() => setAddUsersOpen(true)}
+            className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-semibold bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
             <Plus className="w-4 h-4" /> Add users to entity
           </button>
         </div>
@@ -693,6 +698,16 @@ function EntityDetailView({ entity, onBack, onBackToRoot }: { entity: Entity; on
 
         <HelpArticles />
       </div>
+
+      {addUsersOpen && (
+        <InviteModal
+          onClose={() => setAddUsersOpen(false)}
+          seatsAvailable={99}
+          subscription={{ planId: 'scale', billingCycle: 'annual', cardLast4: '4242' }}
+          isTrial={false}
+          onNavigate={() => {}}
+        />
+      )}
     </div>
   );
 }
