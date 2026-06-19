@@ -404,6 +404,7 @@ function App() {
             onNavigate={handlePageNavigation}
             onBack={() => setCurrentPage('account-settings')}
             isTrial={isInTrial && !subscription}
+            onUpgrade={(planId) => openUpgradeModal(planId)}
           />
         ) : currentPage === 'multi-entity' ? (
           <MultiEntityPage

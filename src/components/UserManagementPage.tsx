@@ -65,6 +65,8 @@ interface InviteRow {
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
+const PLAN_ORDER = ['essentials', 'build', 'scale'] as const;
+
 const PLAN_SEATS: Record<string, number> = {
   essentials: 1,
   build: 3,
@@ -1920,6 +1922,7 @@ interface UserManagementPageProps {
   onNavigate: (page: string) => void;
   onBack: () => void;
   isTrial?: boolean;
+  onUpgrade?: (planId: string) => void;
 }
 
 export function UserManagementPage({
@@ -1928,6 +1931,7 @@ export function UserManagementPage({
   onNavigate,
   onBack,
   isTrial = false,
+  onUpgrade,
 }: UserManagementPageProps) {
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState<'All' | 'Active' | 'Invited' | 'Deactivated'>('All');
@@ -1962,6 +1966,11 @@ export function UserManagementPage({
   const totalSeatsUsed = fullSeatsUsed + fieldCrewCount;
   const seatsAvailable = isTrial ? 999 : Math.max(0, includedSeats - totalSeatsUsed);
   const planName = subscription ? PLAN_NAMES[subscription.planId] : 'Trial';
+
+  const currentPlanIndex = subscription ? PLAN_ORDER.indexOf(subscription.planId as typeof PLAN_ORDER[number]) : -1;
+  const nextPlanId = currentPlanIndex >= 0 && currentPlanIndex < PLAN_ORDER.length - 1
+    ? PLAN_ORDER[currentPlanIndex + 1]
+    : null;
 
   // Per-user cost: full seats fill pool first, field crew fill remaining slots
   const userCosts: Record<string, string> = (() => {
@@ -2079,7 +2088,7 @@ export function UserManagementPage({
           fieldCrewCount={fieldCrewCount}
           planName={planName}
           basePrice={basePrice}
-          onUpgrade={() => onNavigate('subscription-upgrade')}
+          onUpgrade={() => nextPlanId && onUpgrade ? onUpgrade(nextPlanId) : onNavigate('subscription-upgrade')}
         />
 
         {/* Grid header: title dropdown + search */}
