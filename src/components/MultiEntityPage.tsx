@@ -932,9 +932,103 @@ function EntityDetailView({ entity, onBack, onBackToRoot, onUpdateEntity }: {
 
 // ── User Detail View ───────────────────────────────────────────────────────────
 
-function UserDetailView({ user, onBack }: { user: MEUser; onBack: () => void }) {
+function AddToEntitiesModal({
+  user,
+  entities,
+  currentEntityIds,
+  onClose,
+  onAdd,
+}: {
+  user: MEUser;
+  entities: Entity[];
+  currentEntityIds: string[];
+  onClose: () => void;
+  onAdd: (entityIds: string[]) => void;
+}) {
+  const available = entities.filter(e => !currentEntityIds.includes(e.id));
+  const [selected, setSelected] = useState<string[]>([]);
+  const allSelected = selected.length === available.length && available.length > 0;
+  const someSelected = selected.length > 0 && !allSelected;
+
+  const toggle = (id: string) =>
+    setSelected(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+
+  const toggleAll = () =>
+    setSelected(allSelected ? [] : available.map(e => e.id));
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md relative">
+        <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-gray-100">
+          <div>
+            <h2 className="text-base font-semibold text-gray-900">Add to entities</h2>
+            <p className="text-sm text-gray-500 mt-0.5">Select which entities to give {user.name.split(' ')[0]} access to.</p>
+          </div>
+          <button onClick={onClose} className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {available.length === 0 ? (
+          <p className="px-6 py-8 text-sm text-gray-500 text-center">This user already has access to all entities.</p>
+        ) : (
+          <div className="px-6 py-4 space-y-1 max-h-72 overflow-y-auto">
+            {/* Select all row */}
+            <label className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-50 cursor-pointer border border-gray-200 mb-3">
+              <input
+                type="checkbox"
+                checked={allSelected}
+                ref={el => { if (el) el.indeterminate = someSelected; }}
+                onChange={toggleAll}
+                className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              />
+              <span className="text-sm font-medium text-gray-900">Add to all entities</span>
+              <span className="ml-auto text-xs text-gray-400">{available.length} available</span>
+            </label>
+
+            {available.map(entity => (
+              <label key={entity.id} className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-50 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={selected.includes(entity.id)}
+                  onChange={() => toggle(entity.id)}
+                  className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <EntityIcon isMain={entity.isMain} />
+                <div className="flex-1 min-w-0">
+                  <span className="text-sm text-gray-900">{entity.name}</span>
+                  {entity.isMain && <span className="ml-2 text-xs text-blue-600 font-medium">Main</span>}
+                </div>
+                {entity.tags.length > 0 && (
+                  <span className="text-xs text-gray-400">{entity.tags[0]}</span>
+                )}
+              </label>
+            ))}
+          </div>
+        )}
+
+        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-100">
+          <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50">
+            Cancel
+          </button>
+          <button
+            disabled={selected.length === 0}
+            onClick={() => { onAdd(selected); onClose(); }}
+            className="px-4 py-2 text-sm font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            Add to {selected.length > 0 ? `${selected.length} ${selected.length === 1 ? 'entity' : 'entities'}` : 'entities'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function UserDetailView({ user, entities, onBack }: { user: MEUser; entities: Entity[]; onBack: () => void }) {
   const [search, setSearch] = useState('');
-  const entityAccess = USER_ENTITY_ACCESS[user.id] ?? [];
+  const [entityAccess, setEntityAccess] = useState(() => USER_ENTITY_ACCESS[user.id] ?? []);
+  const [addToEntitiesOpen, setAddToEntitiesOpen] = useState(false);
+  const currentEntityIds = entityAccess.map(a => a.entityId);
   const filtered = entityAccess.filter(a => !search || a.entityName.toLowerCase().includes(search.toLowerCase()));
 
   return (
@@ -985,6 +1079,12 @@ function UserDetailView({ user, onBack }: { user: MEUser; onBack: () => void }) 
               <button className="p-1.5 border border-gray-200 rounded-lg hover:bg-gray-50 text-gray-500">
                 <ArrowUpDown className="w-4 h-4" />
               </button>
+              <button
+                onClick={() => setAddToEntitiesOpen(true)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
+                <Plus className="w-3.5 h-3.5" /> Add to entities
+              </button>
             </div>
           </div>
 
@@ -1016,6 +1116,22 @@ function UserDetailView({ user, onBack }: { user: MEUser; onBack: () => void }) 
 
         <HelpArticles />
       </div>
+
+      {addToEntitiesOpen && (
+        <AddToEntitiesModal
+          user={user}
+          entities={entities}
+          currentEntityIds={currentEntityIds}
+          onClose={() => setAddToEntitiesOpen(false)}
+          onAdd={(ids) => {
+            const newAccess = ids.map(id => {
+              const entity = entities.find(e => e.id === id)!;
+              return { entityId: id, entityName: entity.name, isMain: entity.isMain, apps: ALL_APPS.slice(0, 8) };
+            });
+            setEntityAccess(prev => [...prev, ...newAccess]);
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -1208,7 +1324,7 @@ export function MultiEntityPage({ onBack, firstRun = false, onFirstRunDismissed 
   }
 
   if (selectedUser) {
-    return <UserDetailView user={selectedUser} onBack={() => setSelectedUser(null)} />;
+    return <UserDetailView user={selectedUser} entities={entities} onBack={() => setSelectedUser(null)} />;
   }
 
   const hasSelection = selectedEntityIds.length > 0;
