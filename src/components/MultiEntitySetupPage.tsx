@@ -176,7 +176,7 @@ export function MultiEntitySetupPage({
       {/* Confirmation modal */}
       {confirmOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8 relative">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xl p-8 relative">
             <button
               onClick={() => setConfirmOpen(false)}
               className="absolute top-4 right-4 p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"
