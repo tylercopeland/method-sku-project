@@ -110,6 +110,12 @@ function App() {
   const premiumLocked = subscription?.planId === 'essentials';
   const lockedApps = premiumLocked ? premiumApps : [];
 
+  const PLAN_ORDER = ['essentials', 'build', 'scale'] as const;
+  const currentPlanIdx = subscription ? PLAN_ORDER.indexOf(subscription.planId as typeof PLAN_ORDER[number]) : -1;
+  const nextPlanId: string | null = currentPlanIdx >= 0 && currentPlanIdx < PLAN_ORDER.length - 1
+    ? PLAN_ORDER[currentPlanIdx + 1]
+    : null;
+
   // Close mobile sidebar when navigating
   useEffect(() => {
     setIsMobileSidebarOpen(false);
@@ -349,13 +355,13 @@ function App() {
         ) : premiumLocked && premiumApps.includes(currentPage) ? (
           <UpgradeRequiredPage
             page={currentPage}
-            onUpgrade={openUpgradeModal}
+            onUpgrade={() => openUpgradeModal(nextPlanId ?? undefined)}
           />
         ) : currentPage === 'app-studio' && appStudioEnabled ? (
           <AppStudioPage
             userName={adminUserName}
             locked={premiumLocked}
-            onUpgrade={openUpgradeModal}
+            onUpgrade={() => openUpgradeModal(nextPlanId ?? undefined)}
           />
         ) : currentPage === 'applications-access' && accessUser ? (
           <ApplicationsAccessPage
@@ -369,10 +375,7 @@ function App() {
             onBack={navigateToHome}
             lockedApps={lockedApps}
             onOpenApp={(lockKey) => setCurrentPage(lockKey)}
-            onUpgrade={() => {
-              setOpenToChangePlan(true);
-              setCurrentPage('subscription');
-            }}
+            onUpgrade={() => openUpgradeModal(nextPlanId ?? undefined)}
             onOpenUserAccess={(user, appName) => {
               setAccessUser(user);
               setAccessScrollApp(appName);
@@ -404,7 +407,7 @@ function App() {
             onNavigate={handlePageNavigation}
             onBack={() => setCurrentPage('account-settings')}
             isTrial={isInTrial && !subscription}
-            onUpgrade={(planId) => openUpgradeModal(planId)}
+            onUpgrade={(planId) => openUpgradeModal(planId ?? undefined)}
           />
         ) : currentPage === 'multi-entity' ? (
           <MultiEntityPage
