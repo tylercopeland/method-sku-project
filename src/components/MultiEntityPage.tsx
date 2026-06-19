@@ -287,7 +287,7 @@ function MEInviteModal({
   onClose: () => void;
   onInvite: (emails: string[]) => void;
 }) {
-  const [rows, setRows] = useState<MEInviteRow[]>([newMERow(), newMERow()]);
+  const [rows, setRows] = useState<MEInviteRow[]>([newMERow()]);
   const [sent, setSent] = useState(false);
 
   const handleEmailChange = (id: string, value: string) => {
