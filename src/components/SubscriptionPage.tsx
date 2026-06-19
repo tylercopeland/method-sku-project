@@ -1089,11 +1089,11 @@ export function SubscriptionPage({
               <PhoneCall className="w-8 h-8 text-blue-600" />
             </div>
             <h1 className="text-2xl font-semibold text-gray-900 mb-2">
-              We've got your request
+              Downgrade request received
             </h1>
             <p className="text-gray-600 mb-5">
-              A Method specialist will reach out within one business day to help you move from{' '}
-              {currentPlan?.name} to {selectedPlan.name} without losing your apps or data.
+              We'll process your downgrade from {currentPlan?.name} to {selectedPlan.name}. Someone from
+              our team may reach out via email if we need anything from you — no call required unless you want one.
             </p>
             {/* When the downgraded plan takes effect */}
             <div className="rounded-xl bg-blue-50 border border-blue-100 p-4 mb-6 text-left">
@@ -1143,12 +1143,11 @@ export function SubscriptionPage({
                 </div>
               </div>
               <h1 className="text-2xl font-semibold text-gray-900 mb-2">
-                Let's talk before you downgrade
+                Request a downgrade to {selectedPlan.name}
               </h1>
               <p className="text-gray-600">
-                Moving from {currentPlan?.name} to {selectedPlan.name} means turning off features
-                your team may rely on. A Method specialist will help you migrate safely — so nothing
-                important is lost — and won't change your plan until you're ready.
+                Submit your request and we'll take it from there. Someone from our team may reach out to
+                confirm a few details or help with the transition — but there's no call required.
               </p>
             </div>
 
@@ -1211,7 +1210,7 @@ export function SubscriptionPage({
             {/* Contact form */}
             <div className="p-6 sm:p-8">
               <p className="text-sm font-semibold text-gray-900 mb-4">
-                How can our team reach you?
+                Where should we follow up?
               </p>
               <div className="space-y-4">
                 <div className="space-y-1.5">
@@ -1270,8 +1269,7 @@ export function SubscriptionPage({
                   disabled={!downgradeContact.email.trim()}
                   className="bg-blue-600 hover:bg-blue-700 text-white sm:ml-auto disabled:opacity-50"
                 >
-                  <PhoneCall className="w-4 h-4 mr-1.5" />
-                  Request a call from sales
+                  Request downgrade
                 </Button>
               </div>
             </div>
