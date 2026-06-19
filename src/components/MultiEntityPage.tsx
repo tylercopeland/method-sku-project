@@ -269,10 +269,10 @@ function HelpArticles() {
 
 // ── Invite Modal ───────────────────────────────────────────────────────────────
 
-interface MEInviteRow { id: string; email: string; username: string }
+interface MEInviteRow { id: string; email: string; username: string; usernameEdited: boolean }
 
 function newMERow(): MEInviteRow {
-  return { id: Math.random().toString(36).slice(2), email: '', username: '' };
+  return { id: Math.random().toString(36).slice(2), email: '', username: '', usernameEdited: false };
 }
 
 function MEInviteModal({
@@ -287,7 +287,15 @@ function MEInviteModal({
 
   const handleEmailChange = (id: string, value: string) => {
     setRows(prev => {
-      const next = prev.map(r => r.id === id ? { ...r, email: value } : r);
+      const next = prev.map(r => {
+        if (r.id !== id) return r;
+        const prefix = value.split('@')[0];
+        return {
+          ...r,
+          email: value,
+          username: r.usernameEdited ? r.username : prefix,
+        };
+      });
       const filled = next.filter(r => r.email.trim());
       const empty = next.filter(r => !r.email.trim());
       const changed = next.find(r => r.id === id);
@@ -299,7 +307,7 @@ function MEInviteModal({
   };
 
   const handleUsernameChange = (id: string, value: string) =>
-    setRows(prev => prev.map(r => r.id === id ? { ...r, username: value } : r));
+    setRows(prev => prev.map(r => r.id === id ? { ...r, username: value, usernameEdited: true } : r));
 
   const removeRow = (id: string) =>
     setRows(prev => {
@@ -360,7 +368,7 @@ function MEInviteModal({
                     type="text"
                     value={row.username}
                     onChange={e => handleUsernameChange(row.id, e.target.value)}
-                    placeholder="Username (optional)"
+                    placeholder={row.email.trim() ? row.email.split('@')[0] : 'Auto-calculated from email'}
                     disabled={!row.email.trim()}
                     className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors h-[44px] bg-white disabled:opacity-40 disabled:cursor-not-allowed"
                   />

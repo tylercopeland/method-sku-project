@@ -435,6 +435,7 @@ function App() {
             onBack={navigateToHome}
             onNavigate={handlePageNavigation}
             upgradeRequired={premiumLocked}
+            multiEntityEnabled={multiEntityEnabled}
             onUpgrade={() => {
               setOpenToChangePlan(true);
               setCurrentPage('subscription');

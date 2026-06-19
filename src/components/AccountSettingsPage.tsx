@@ -76,13 +76,22 @@ const sections: SettingsSection[] = [
 interface AccountSettingsPageProps {
   onBack?: () => void;
   onNavigate?: (page: string) => void;
-  /** True when the current plan (Essentials) can't access higher-tier sections. */
   upgradeRequired?: boolean;
-  /** Open the upgrade screen for a locked section. */
   onUpgrade?: () => void;
+  multiEntityEnabled?: boolean;
 }
 
-export function AccountSettingsPage({ onBack, onNavigate, upgradeRequired = false, onUpgrade }: AccountSettingsPageProps) {
+export function AccountSettingsPage({ onBack, onNavigate, upgradeRequired = false, onUpgrade, multiEntityEnabled = false }: AccountSettingsPageProps) {
+  const visibleSections = (() => {
+    const base = sections.filter(s => s.page !== 'multi-entity');
+    const meSection = {
+      title: multiEntityEnabled ? 'Multi-entity management' : 'Multi-entity setup',
+      description: 'Set up multi-entity management for your multiple franchises, locations, or QuickBooks accounts.',
+      linkLabel: multiEntityEnabled ? 'Manage multi-entity' : 'Multi-entity settings',
+      page: 'multi-entity' as const,
+    };
+    return multiEntityEnabled ? [meSection, ...base] : [...base, meSection];
+  })();
   return (
     <div className="flex-1 overflow-y-auto p-4 sm:p-8">
       <div className="max-w-6xl mx-auto">
@@ -107,7 +116,7 @@ export function AccountSettingsPage({ onBack, onNavigate, upgradeRequired = fals
 
         {/* Sections */}
         <div className="divide-y divide-transparent">
-          {sections.map((section) => {
+          {visibleSections.map((section) => {
             const locked = Boolean(section.requiresUpgrade) && upgradeRequired;
             return (
               <div
