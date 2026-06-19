@@ -603,6 +603,7 @@ function SeatMeter({
   const extraFieldCrewCost = extraFieldCrew * EXTRA_FIELD_CREW_PRICE;
   const totalCost = basePrice + extraFullCost + extraFieldCrewCost;
 
+  const isEssentials = subscription?.planId === 'essentials';
   const theme = { bar: 'bg-blue-500', bg: 'bg-blue-50', border: 'border-blue-100', text: 'text-blue-700', label: 'text-gray-900', tag: 'bg-white text-blue-700' };
 
   return (
@@ -618,20 +619,22 @@ function SeatMeter({
                 {multiEntityEnabled ? 'Seat usage' : isOverLimit ? 'Over seat limit' : isNearLimit ? 'Seat limit reached' : isApproaching ? 'Approaching seat limit' : 'Seat usage'}
               </p>
             </div>
-            <p className={`text-xs ${theme.text} mb-2 flex items-center gap-1`}>
+            <p className={`text-xs ${theme.text} mb-2 flex items-center gap-1 flex-wrap`}>
               {multiEntityEnabled ? (
                 <>
-                  Unlimited seats &middot; {totalSeatsUsed} of {includedSeats} included used
+                  Unlimited regular seats &middot; {totalSeatsUsed} of {includedSeats} included used
                   <span className="relative group inline-flex items-center">
                     <Info className="w-3 h-3 text-blue-400 cursor-default" />
-                    <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 w-56 rounded-lg bg-gray-900 px-3 py-2 text-xs text-white opacity-0 group-hover:opacity-100 transition-opacity z-10 leading-relaxed">
-                      Additional seats beyond your {includedSeats} included cost ${EXTRA_FULL_SEAT_PRICE}/month each.
+                    <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 w-60 rounded-lg bg-gray-900 px-3 py-2 text-xs text-white opacity-0 group-hover:opacity-100 transition-opacity z-10 leading-relaxed">
+                      Your Scale plan includes {includedSeats} regular seats. Each additional seat costs ${EXTRA_FULL_SEAT_PRICE}/month. View-only seats are always free and never count toward this limit.
                     </span>
                   </span>
                 </>
+              ) : isEssentials ? (
+                <>{totalSeatsUsed} of 1 regular seat used &middot; unlimited view-only seats included</>
               ) : (
                 <>
-                  {totalSeatsUsed} of {includedSeats} seats used on {planName}
+                  {totalSeatsUsed} of {includedSeats} regular seats used on {planName}
                   {!isOverLimit && totalSeatsUsed < includedSeats ? ` — ${includedSeats - totalSeatsUsed} remaining` : ''}
                 </>
               )}
@@ -639,6 +642,9 @@ function SeatMeter({
             <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
               <div className={`h-full rounded-full transition-all ${theme.bar}`} style={{ width: `${pct}%` }} />
             </div>
+            {!multiEntityEnabled && !isEssentials && (
+              <p className="text-xs text-blue-400 mt-1.5">View-only seats are free and don't count toward this limit.</p>
+            )}
             {isOverLimit && (
               <div className="mt-2 flex items-center justify-between gap-4">
                 <span className="text-xs text-gray-500">
