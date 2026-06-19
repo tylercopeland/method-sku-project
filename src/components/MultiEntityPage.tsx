@@ -423,16 +423,99 @@ function MEInviteModal({
   );
 }
 
+// ── Bulk Tags Modal ────────────────────────────────────────────────────────────
+
+function BulkTagsModal({ count, onClose, onAdd }: {
+  count: number;
+  onClose: () => void;
+  onAdd: (tags: string[]) => void;
+}) {
+  const [tags, setTags] = useState<string[]>([]);
+  const [input, setInput] = useState('');
+
+  const addTag = (value: string) => {
+    const trimmed = value.trim();
+    if (trimmed && !tags.includes(trimmed)) setTags(prev => [...prev, trimmed]);
+    setInput('');
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); addTag(input); }
+    else if (e.key === 'Backspace' && !input && tags.length > 0) setTags(prev => prev.slice(0, -1));
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg">
+        <div className="flex items-center justify-between px-6 pt-6 pb-1">
+          <h2 className="text-lg font-semibold text-gray-900">Add tags to {count} {count === 1 ? 'entity' : 'entities'}</h2>
+          <button onClick={onClose} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+        <div className="px-6 pb-6 space-y-4">
+          <p className="text-sm text-gray-500">Add tags to your entities. If a tag already exists in any of the entities, it will not be duplicated.</p>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Entity tags</label>
+            <div
+              className="min-h-[44px] w-full border border-gray-300 rounded-lg px-3 py-2 flex flex-wrap items-center gap-1.5 focus-within:ring-2 focus-within:ring-blue-500 cursor-text"
+              onClick={() => document.getElementById('bulk-tag-input')?.focus()}
+            >
+              {tags.map(tag => (
+                <span key={tag} className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                  {tag}
+                  <button type="button" onClick={() => setTags(prev => prev.filter(t => t !== tag))} className="text-blue-500 hover:text-blue-700">
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              ))}
+              <input
+                id="bulk-tag-input"
+                type="text"
+                value={input}
+                onChange={e => setInput(e.target.value)}
+                onKeyDown={handleKeyDown}
+                onBlur={() => input.trim() && addTag(input)}
+                placeholder={tags.length === 0 ? 'Search or create tags (e.g., East Coast)' : ''}
+                className="flex-1 min-w-[120px] text-sm text-gray-900 placeholder-gray-400 focus:outline-none bg-transparent"
+              />
+              <ChevronDown className="w-4 h-4 text-gray-400 flex-shrink-0 ml-auto" />
+            </div>
+            <p className="text-xs text-gray-500 mt-1.5">Recommended for filtering by region, crew, division, type</p>
+          </div>
+
+          <div className="flex items-center justify-end gap-3 pt-1">
+            <button onClick={onClose} className="px-4 py-2 text-sm font-medium border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors">Cancel</button>
+            <button
+              disabled={tags.length === 0}
+              onClick={() => { onAdd(tags); onClose(); }}
+              className="px-4 py-2 text-sm font-semibold bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              Add tags
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Entities Tab ───────────────────────────────────────────────────────────────
 
-function EntitiesTab({ entities, onSelectEntity }: { entities: Entity[]; onSelectEntity: (e: Entity) => void }) {
+function EntitiesTab({ entities, onSelectEntity, selected, onSelectionChange }: {
+  entities: Entity[];
+  onSelectEntity: (e: Entity) => void;
+  selected: string[];
+  onSelectionChange: (ids: string[]) => void;
+}) {
   const [search, setSearch] = useState('');
-  const [selected, setSelected] = useState<string[]>([]);
 
   const filtered = entities.filter(e => !search || e.name.toLowerCase().includes(search.toLowerCase()));
   const allChecked = filtered.length > 0 && filtered.every(e => selected.includes(e.id));
-  const toggleAll = () => setSelected(allChecked ? [] : filtered.map(e => e.id));
-  const toggleOne = (id: string) => setSelected(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  const someChecked = filtered.some(e => selected.includes(e.id)) && !allChecked;
+  const toggleAll = () => onSelectionChange(allChecked ? [] : filtered.map(e => e.id));
+  const toggleOne = (id: string) => onSelectionChange(selected.includes(id) ? selected.filter(x => x !== id) : [...selected, id]);
 
   return (
     <>
@@ -445,7 +528,13 @@ function EntitiesTab({ entities, onSelectEntity }: { entities: Entity[]; onSelec
 
         {/* Table header */}
         <div className="grid grid-cols-[40px_2fr_2fr_1fr_1fr_180px] items-center px-4 py-2.5 bg-gray-50 border-b border-gray-100 gap-3">
-          <input type="checkbox" checked={allChecked} onChange={toggleAll} className="rounded border-gray-300" />
+          <input
+            type="checkbox"
+            checked={allChecked}
+            ref={el => { if (el) el.indeterminate = someChecked; }}
+            onChange={toggleAll}
+            className="rounded border-gray-300"
+          />
           <span className="text-xs font-semibold text-gray-500">Name</span>
           <span className="text-xs font-semibold text-gray-500">Tags</span>
           <span className="text-xs font-semibold text-gray-500">Users</span>
@@ -459,7 +548,7 @@ function EntitiesTab({ entities, onSelectEntity }: { entities: Entity[]; onSelec
         <div className="divide-y divide-gray-100">
           {filtered.map(entity => (
             <div key={entity.id} className="grid grid-cols-[40px_2fr_2fr_1fr_1fr_180px] items-center px-4 py-3.5 hover:bg-gray-50 gap-3">
-              <input type="checkbox" checked={selected.includes(entity.id)} onChange={() => toggleOne(entity.id)} className="rounded border-gray-300" />
+              <input type="checkbox" checked={selected.includes(entity.id)} onChange={() => toggleOne(entity.id)} className="rounded border-gray-300 accent-blue-600" />
               <button className="flex items-center gap-2.5 min-w-0 text-left" onClick={() => onSelectEntity(entity)}>
                 <EntityIcon isMain={entity.isMain} />
                 <span className="text-sm font-semibold text-gray-900 hover:text-blue-600 truncate">{entity.name}</span>
@@ -945,6 +1034,15 @@ export function MultiEntityPage({ onBack }: MultiEntityPageProps) {
   const [selectedEntity, setSelectedEntity] = useState<Entity | null>(null);
   const [selectedUser, setSelectedUser] = useState<MEUser | null>(null);
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
+  const [selectedEntityIds, setSelectedEntityIds] = useState<string[]>([]);
+  const [toast, setToast] = useState<string | null>(null);
+  const [bulkTagsOpen, setBulkTagsOpen] = useState(false);
+  const [bulkAddUsersOpen, setBulkAddUsersOpen] = useState(false);
+
+  const showToast = (msg: string) => {
+    setToast(msg);
+    setTimeout(() => setToast(null), 3000);
+  };
 
   const handleInvite = (emails: string[]) => {
     const newUsers: MEUser[] = emails.map((email, idx) => ({
@@ -977,6 +1075,8 @@ export function MultiEntityPage({ onBack }: MultiEntityPageProps) {
   if (selectedUser) {
     return <UserDetailView user={selectedUser} onBack={() => setSelectedUser(null)} />;
   }
+
+  const hasSelection = selectedEntityIds.length > 0;
 
   return (
     <div className="flex-1 overflow-y-auto bg-gray-50">
@@ -1016,9 +1116,32 @@ export function MultiEntityPage({ onBack }: MultiEntityPageProps) {
           <div className="flex items-center gap-3">
             {activeTab === 'entities' && (
               <>
-                <button className="text-sm font-medium text-blue-600 hover:underline">
-                  Bulk edit entities
-                </button>
+                {hasSelection ? (
+                  <>
+                    <span className="text-sm font-medium text-gray-600">
+                      {selectedEntityIds.length} {selectedEntityIds.length === 1 ? 'entity' : 'entities'} selected
+                    </span>
+                    <button
+                      onClick={() => setBulkTagsOpen(true)}
+                      className="inline-flex items-center gap-1.5 text-sm font-medium text-blue-600 hover:underline"
+                    >
+                      <LayoutList className="w-4 h-4" /> Add tags
+                    </button>
+                    <button
+                      onClick={() => setBulkAddUsersOpen(true)}
+                      className="inline-flex items-center gap-1.5 text-sm font-medium text-blue-600 hover:underline"
+                    >
+                      <Users className="w-4 h-4" /> Add users
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    onClick={() => showToast('Select one or more entities to use bulk edit.')}
+                    className="text-sm font-medium text-blue-600 hover:underline"
+                  >
+                    Bulk edit entities
+                  </button>
+                )}
                 <button className="inline-flex items-center gap-1.5 px-4 py-1.5 text-sm font-semibold bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
                   <Plus className="w-4 h-4" /> Add new entity
                 </button>
@@ -1037,17 +1160,54 @@ export function MultiEntityPage({ onBack }: MultiEntityPageProps) {
 
         {/* Tab content */}
         {activeTab === 'entities' && (
-          <EntitiesTab entities={entities} onSelectEntity={setSelectedEntity} />
+          <EntitiesTab
+            entities={entities}
+            onSelectEntity={setSelectedEntity}
+            selected={selectedEntityIds}
+            onSelectionChange={setSelectedEntityIds}
+          />
         )}
         {activeTab === 'users' && (
           <UsersTab users={users} entities={entities} onSelectUser={setSelectedUser} />
         )}
       </div>
 
+      {/* Toast */}
+      {toast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2.5 bg-gray-900 text-white text-sm font-medium px-4 py-3 rounded-xl shadow-lg">
+          <Info className="w-4 h-4 text-blue-400 flex-shrink-0" />
+          {toast}
+        </div>
+      )}
+
       {inviteModalOpen && (
         <MEInviteModal
           onClose={() => setInviteModalOpen(false)}
           onInvite={handleInvite}
+        />
+      )}
+
+      {bulkTagsOpen && (
+        <BulkTagsModal
+          count={selectedEntityIds.length}
+          onClose={() => setBulkTagsOpen(false)}
+          onAdd={(tags) => {
+            setEntities(prev => prev.map(e =>
+              selectedEntityIds.includes(e.id)
+                ? { ...e, tags: [...e.tags, ...tags.filter(t => !e.tags.includes(t))] }
+                : e
+            ));
+          }}
+        />
+      )}
+
+      {bulkAddUsersOpen && (
+        <InviteModal
+          onClose={() => setBulkAddUsersOpen(false)}
+          seatsAvailable={99}
+          subscription={{ planId: 'scale', billingCycle: 'annual', cardLast4: '4242' }}
+          isTrial={false}
+          onNavigate={() => {}}
         />
       )}
     </div>

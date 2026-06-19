@@ -549,7 +549,7 @@ function App() {
                   }}
                   className="font-medium text-blue-600 hover:underline"
                 >
-                  Reset
+                  Back to trial
                 </button>
               )}
             </div>
@@ -667,13 +667,10 @@ function App() {
           </div>
           <div className="border-t border-gray-100 pt-2 mt-2">
             <button
-              onClick={() => {
-                navigateToHome();
-                setShowOnboarding(true);
-              }}
+              onClick={() => window.location.reload()}
               className="font-medium text-blue-600 hover:underline"
             >
-              Replay onboarding
+              Reset prototype
             </button>
           </div>
             </>
