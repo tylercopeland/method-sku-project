@@ -856,9 +856,9 @@ export function InviteModal({
                   {row.showName && (
                     <div className="flex gap-1.5 mt-1.5 pl-1 pb-2">
                       <CornerDownRight className="w-3.5 h-3.5 text-gray-300 flex-shrink-0 ml-1 mt-6" />
-                      <div className="flex-1 min-w-0">
+                      <div className="flex-1 min-w-0 pr-9">
                         <label className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1">
-                          Display name
+                          Username
                         </label>
                         <input
                           type="text"
@@ -957,7 +957,7 @@ export function InviteModal({
                 </p>
               </div>
               {copyFromUserId !== '' && (
-                <div className="mt-1.5">
+                <div className="mt-2.5">
                   <UserDropdownSelect
                     value={copyFromUserId === '__open__' ? '' : copyFromUserId}
                     onChange={handleCopyFromUser}
