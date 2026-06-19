@@ -651,9 +651,9 @@ function SeatMeter({
             </button>
           </div>
         )}
-        {multiEntityEnabled && isOverLimit && (
+        {multiEntityEnabled && (
           <p className="text-xs text-gray-500 flex-shrink-0 max-w-[180px] text-right">
-            Additional seats are billed at ${EXTRA_FULL_SEAT_PRICE}/month each.
+            You can add more seats — each one over the limit costs ${EXTRA_FULL_SEAT_PRICE}/month extra.
           </p>
         )}
       </div>
