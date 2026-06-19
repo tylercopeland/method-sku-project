@@ -325,6 +325,8 @@ interface SubscriptionPageProps {
   /** Called when the user clicks "Upgrade plan" in the manage view — lets the parent
    *  open an upgrade modal instead of navigating within this component. */
   onUpgrade?: (planId: string) => void;
+  /** When true, multi-entity is enabled and the plan is locked to Scale permanently. */
+  multiEntityEnabled?: boolean;
 }
 
 export function SubscriptionPage({
@@ -345,6 +347,7 @@ export function SubscriptionPage({
   showDiscountedPrice = true,
   upgradeFromPlanId,
   onUpgrade,
+  multiEntityEnabled = false,
 }: SubscriptionPageProps) {
   const [billingCycle, setBillingCycle] = useState<BillingCycle>(
     activeSubscription?.billingCycle ?? 'annual'
@@ -877,27 +880,43 @@ export function SubscriptionPage({
             </div>
           </div>
 
+          {/* Multi-entity lock banner */}
+          {multiEntityEnabled && (
+            <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 mt-6">
+              <svg className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+              <div>
+                <p className="text-sm font-semibold text-amber-900">Plan locked — multi-entity enabled</p>
+                <p className="text-sm text-amber-800 mt-0.5">
+                  Multi-entity management is active on this account. Your plan is permanently locked to Scale. To discuss plan changes, contact{' '}
+                  <a href="mailto:support@method.me" className="underline font-medium">support@method.me</a>.
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* Actions */}
-          <div className="flex flex-col sm:flex-row sm:items-center gap-3 mt-6">
-            <button
-              onClick={() => setStep('plans')}
-              className="inline-flex items-center justify-center rounded-lg border border-blue-600 bg-transparent text-blue-600 hover:bg-blue-50 px-4 py-2 text-sm font-medium transition-colors"
-            >
-              Change plan
-            </button>
-            {!isCanceling && (
+          {!multiEntityEnabled && (
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3 mt-6">
               <button
-                onClick={() => {
-                  setCancelReason('');
-                  setCancelDetail('');
-                  setStep('cancel');
-                }}
-                className="text-sm text-gray-400 hover:text-red-600 sm:ml-auto transition-colors"
+                onClick={() => setStep('plans')}
+                className="inline-flex items-center justify-center rounded-lg border border-blue-600 bg-transparent text-blue-600 hover:bg-blue-50 px-4 py-2 text-sm font-medium transition-colors"
               >
-                Cancel subscription
+                Change plan
               </button>
-            )}
-          </div>
+              {!isCanceling && (
+                <button
+                  onClick={() => {
+                    setCancelReason('');
+                    setCancelDetail('');
+                    setStep('cancel');
+                  }}
+                  className="text-sm text-gray-400 hover:text-red-600 sm:ml-auto transition-colors"
+                >
+                  Cancel subscription
+                </button>
+              )}
+            </div>
+          )}
         </div>
       </div>
     );

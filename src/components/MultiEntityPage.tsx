@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   ChevronLeft, ChevronDown, Building2, Users, DollarSign, TrendingUp,
   Plus, Search, Settings, LogIn, AlertTriangle, X, UserPlus, Tag,
   ExternalLink, SlidersHorizontal, Package, Palette, FileText, List,
-  Shield,
+  Shield, Check, ChevronUp, Mail,
 } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 
@@ -461,84 +461,353 @@ function SubEntitiesTab({ entities, onSelectEntity, onAddEntity }: {
 
 // ── ME Users Tab ──────────────────────────────────────────────────────────────
 
-function UsersTab() {
-  const [search, setSearch] = useState('');
-  const [selected, setSelected] = useState<string[]>([]);
-  const filtered = ME_USERS.filter(u => !search || u.name.toLowerCase().includes(search.toLowerCase()) || u.email.toLowerCase().includes(search.toLowerCase()));
+// ── ME Invite Modal ───────────────────────────────────────────────────────────
 
-  const toggleRow = (id: string) => setSelected(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
+const ME_ROLES = ['Super Admin', 'Admin', 'Customizer', 'Regular'] as const;
+
+interface MEInviteRow {
+  email: string;
+  role: string;
+  username: string;
+  showUsername: boolean;
+}
+
+function MEInviteModal({
+  onClose,
+  onInvite,
+  entities,
+}: {
+  onClose: () => void;
+  onInvite: (emails: string[]) => void;
+  entities: Entity[];
+}) {
+  const defaultEntityIds = entities.filter(e => !e.isMain).map(e => e.id);
+  const [rows, setRows] = useState<MEInviteRow[]>([{ email: '', role: 'Regular', username: '', showUsername: false }]);
+  const [selectedEntityIds, setSelectedEntityIds] = useState<string[]>(defaultEntityIds);
+  const [copyFromUserId, setCopyFromUserId] = useState('');
+  const [copyDropdownOpen, setCopyDropdownOpen] = useState(false);
+  const copyRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (copyRef.current && !copyRef.current.contains(e.target as Node)) {
+        setCopyDropdownOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
+
+  const updateRow = (i: number, patch: Partial<MEInviteRow>) =>
+    setRows(prev => prev.map((r, idx) => idx === i ? { ...r, ...patch } : r));
+
+  const addRow = () => setRows(prev => [...prev, { email: '', role: 'Regular', username: '', showUsername: false }]);
+
+  const removeRow = (i: number) => setRows(prev => prev.filter((_, idx) => idx !== i));
+
+  const toggleEntity = (id: string) =>
+    setSelectedEntityIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+
+  const selectedCopyUser = ME_USERS.find(u => u.id === copyFromUserId);
+
+  const canSend = rows.some(r => r.email.trim().length > 0) && selectedEntityIds.length > 0;
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center gap-3">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-          <input type="text" placeholder="Search users..." value={search} onChange={e => setSearch(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xl max-h-[90vh] flex flex-col">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-gray-100">
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900">Invite to your team</h2>
+            <p className="text-xs text-gray-500 mt-0.5">Invited users will receive an email with login instructions.</p>
+          </div>
+          <button onClick={onClose} className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors">
+            <X className="w-5 h-5" />
+          </button>
         </div>
-        <div className="flex-1" />
-        <button className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-          <UserPlus className="w-4 h-4" /> Add new users
-        </button>
-      </div>
 
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <div className="px-5 py-3.5 border-b border-gray-100 flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-gray-700">All Users <span className="text-gray-400 font-normal">({filtered.length})</span></h3>
-          <div className="flex items-center gap-4">
-            <button className="text-xs font-medium text-blue-600 hover:underline flex items-center gap-1">
-              <Building2 className="w-3.5 h-3.5" /> Add users to a sub-entity
-            </button>
-            <button className="text-xs font-medium text-red-500 hover:underline flex items-center gap-1">
-              <X className="w-3.5 h-3.5" /> Remove users
+        <div className="overflow-y-auto flex-1 px-6 py-5 space-y-5">
+          {/* Invite rows */}
+          <div className="space-y-3">
+            {rows.map((row, i) => (
+              <div key={i} className="space-y-2">
+                <div className="flex gap-2 items-start">
+                  {/* Email */}
+                  <div className="flex-1 min-w-0">
+                    <label className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Email</label>
+                    <input
+                      type="email"
+                      placeholder="user@company.com"
+                      value={row.email}
+                      onChange={e => updateRow(i, { email: e.target.value })}
+                      className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                  {/* Role */}
+                  <div className="flex-1 min-w-0">
+                    <label className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Role</label>
+                    <div className="relative">
+                      <select
+                        value={row.role}
+                        onChange={e => updateRow(i, { role: e.target.value })}
+                        className="w-full appearance-none border border-gray-200 rounded-lg px-3 py-1.5 pr-8 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      >
+                        {ME_ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+                      </select>
+                      <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                    </div>
+                  </div>
+                  {/* Remove row */}
+                  {rows.length > 1 && (
+                    <button
+                      onClick={() => removeRow(i)}
+                      className="mt-5 p-1.5 text-gray-300 hover:text-red-500 rounded transition-colors flex-shrink-0"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+
+                {/* Expand username */}
+                <button
+                  type="button"
+                  onClick={() => updateRow(i, { showUsername: !row.showUsername })}
+                  className="flex items-center gap-1 text-xs text-blue-600 hover:underline"
+                >
+                  {row.showUsername ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                  {row.showUsername ? 'Hide' : 'Set'} username
+                </button>
+
+                {row.showUsername && (
+                  <div>
+                    <label className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Username</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. sarah.wilson"
+                      value={row.username}
+                      onChange={e => updateRow(i, { username: e.target.value })}
+                      className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                )}
+              </div>
+            ))}
+
+            <button
+              type="button"
+              onClick={addRow}
+              className="flex items-center gap-1.5 text-xs font-medium text-blue-600 hover:underline"
+            >
+              <Plus className="w-3.5 h-3.5" /> Add another
             </button>
           </div>
-        </div>
 
-        <div className="grid grid-cols-[40px_2fr_1fr_2fr_1fr_1fr] bg-gray-50 px-4 py-2.5 border-b border-gray-100 gap-3">
-          <div><input type="checkbox" className="rounded border-gray-300" /></div>
-          {['Name', 'Role', 'Companies', 'Status', 'Actions'].map(h => (
-            <span key={h} className="text-xs font-semibold text-gray-400 uppercase tracking-wide">{h}</span>
-          ))}
-        </div>
-
-        <div className="divide-y divide-gray-100">
-          {filtered.map(user => (
-            <div key={user.id} className="grid grid-cols-[40px_2fr_1fr_2fr_1fr_1fr] items-center px-4 py-3.5 hover:bg-gray-50 gap-3">
-              <div>
-                <input type="checkbox" checked={selected.includes(user.id)} onChange={() => toggleRow(user.id)} className="rounded border-gray-300" />
-              </div>
-              <div className="flex items-center gap-3 min-w-0">
-                <div className={`w-8 h-8 rounded-full ${user.color} flex items-center justify-center text-white text-xs font-semibold flex-shrink-0`}>
-                  {user.initials}
-                </div>
-                <div className="min-w-0">
-                  <p className="text-sm font-medium text-gray-900 truncate">{user.name}</p>
-                  <p className="text-xs text-gray-500 truncate">{user.email}</p>
-                </div>
-              </div>
-              <div><RoleBadge role={user.role} /></div>
-              <div className="flex items-center gap-1 flex-wrap">
-                {user.companies.slice(0, 2).map((c, i) => (
-                  <span key={i} className="px-2 py-0.5 bg-gray-100 text-gray-600 text-xs rounded-md">{c}</span>
-                ))}
-                {user.companies.length > 2 && <span className="text-xs text-gray-500">+{user.companies.length - 2}</span>}
-              </div>
-              <div>
-                {user.status === 'Active'
-                  ? <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-700 border border-green-200">Active</span>
-                  : <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200"><AlertTriangle className="w-3 h-3" /> Invite pending</span>}
-              </div>
-              <div>
-                {user.status === 'Invite pending'
-                  ? <button className="text-xs font-medium text-amber-700 border border-amber-300 rounded-lg px-3 py-1.5 hover:bg-amber-50 transition-colors">Resend invite →</button>
-                  : <button className="text-gray-400 hover:text-gray-600 p-1 rounded hover:bg-gray-100"><Settings className="w-4 h-4" /></button>}
-              </div>
+          {/* Entity access */}
+          <div>
+            <label className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-2">Entity access</label>
+            <div className="grid grid-cols-2 gap-1.5">
+              {entities.map(entity => (
+                <label key={entity.id} className="flex items-center gap-2.5 px-3 py-2 rounded-lg border border-gray-200 hover:bg-gray-50 cursor-pointer transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={selectedEntityIds.includes(entity.id)}
+                    onChange={() => toggleEntity(entity.id)}
+                    className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <span className="text-sm text-gray-800 truncate">{entity.name}</span>
+                  {entity.isMain && <span className="ml-auto text-[10px] font-semibold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded">Main</span>}
+                </label>
+              ))}
             </div>
-          ))}
+            {selectedEntityIds.length === 0 && (
+              <p className="text-xs text-red-500 mt-1">Select at least one entity.</p>
+            )}
+          </div>
+
+          {/* Copy role from existing user */}
+          <div>
+            <button
+              type="button"
+              onClick={() => setCopyDropdownOpen(o => !o)}
+              className="flex items-center gap-1 text-xs text-blue-600 hover:underline"
+            >
+              <ChevronDown className={`w-3 h-3 transition-transform ${copyDropdownOpen ? 'rotate-180' : ''}`} />
+              Or copy role and permissions from an existing user
+            </button>
+            {copyDropdownOpen && (
+              <div ref={copyRef} className="mt-2 border border-gray-200 rounded-xl overflow-hidden bg-white shadow-sm">
+                {ME_USERS.map(u => (
+                  <button
+                    key={u.id}
+                    type="button"
+                    onClick={() => { setCopyFromUserId(u.id); setCopyDropdownOpen(false); }}
+                    className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-blue-50 transition-colors text-left ${copyFromUserId === u.id ? 'bg-blue-50' : ''}`}
+                  >
+                    <div className={`w-8 h-8 rounded-full ${u.color} flex items-center justify-center text-white text-xs font-semibold flex-shrink-0`}>
+                      {u.initials}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-900 truncate">{u.name}</p>
+                      <p className="text-xs text-gray-500 truncate">{u.role}</p>
+                    </div>
+                    {copyFromUserId === u.id && <Check className="w-4 h-4 text-blue-600 flex-shrink-0" />}
+                  </button>
+                ))}
+              </div>
+            )}
+            {selectedCopyUser && !copyDropdownOpen && (
+              <div className="mt-2 flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-50 border border-blue-200">
+                <div className={`w-6 h-6 rounded-full ${selectedCopyUser.color} flex items-center justify-center text-white text-[10px] font-semibold flex-shrink-0`}>
+                  {selectedCopyUser.initials}
+                </div>
+                <span className="text-xs text-blue-800 font-medium flex-1 min-w-0 truncate">Copying role from {selectedCopyUser.name}</span>
+                <button
+                  type="button"
+                  onClick={() => setCopyFromUserId('')}
+                  className="text-blue-400 hover:text-blue-600 flex-shrink-0"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* App access note */}
+          <p className="text-xs text-gray-400 flex items-start gap-1.5">
+            <Mail className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+            Users will get access to all apps enabled on the entities you've selected. App-level permissions can be adjusted after invite.
+          </p>
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-between px-6 py-4 border-t border-gray-100 gap-3">
+          <button onClick={onClose} className="text-sm text-gray-500 hover:text-gray-700 transition-colors">Cancel</button>
+          <button
+            disabled={!canSend}
+            onClick={() => {
+              onInvite(rows.filter(r => r.email.trim()).map(r => r.email));
+              onClose();
+            }}
+            className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-5 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          >
+            Send invites
+          </button>
         </div>
       </div>
     </div>
+  );
+}
+
+// ── Users Tab ─────────────────────────────────────────────────────────────────
+
+function UsersTab({ entities }: { entities: Entity[] }) {
+  const [search, setSearch] = useState('');
+  const [selected, setSelected] = useState<string[]>([]);
+  const [users, setUsers] = useState<MEUser[]>(ME_USERS);
+  const [inviteModalOpen, setInviteModalOpen] = useState(false);
+  const filtered = users.filter(u => !search || u.name.toLowerCase().includes(search.toLowerCase()) || u.email.toLowerCase().includes(search.toLowerCase()));
+
+  const toggleRow = (id: string) => setSelected(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
+
+  const handleInvite = (emails: string[]) => {
+    const newUsers: MEUser[] = emails.map((email, idx) => ({
+      id: `new-${Date.now()}-${idx}`,
+      initials: email.slice(0, 2).toUpperCase(),
+      color: 'bg-gray-500',
+      name: email.split('@')[0],
+      email,
+      role: 'Regular',
+      companies: [],
+      status: 'Invite pending' as const,
+    }));
+    setUsers(prev => [...prev, ...newUsers]);
+  };
+
+  return (
+    <>
+      <div className="space-y-4">
+        <div className="flex items-center gap-3">
+          <div className="relative flex-1 max-w-sm">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input type="text" placeholder="Search users..." value={search} onChange={e => setSearch(e.target.value)}
+              className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+          <div className="flex-1" />
+          <button
+            onClick={() => setInviteModalOpen(true)}
+            className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            <UserPlus className="w-4 h-4" /> Add new users
+          </button>
+        </div>
+
+        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <div className="px-5 py-3.5 border-b border-gray-100 flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-gray-700">All Users <span className="text-gray-400 font-normal">({filtered.length})</span></h3>
+            <div className="flex items-center gap-4">
+              <button className="text-xs font-medium text-blue-600 hover:underline flex items-center gap-1">
+                <Building2 className="w-3.5 h-3.5" /> Add users to a sub-entity
+              </button>
+              <button className="text-xs font-medium text-red-500 hover:underline flex items-center gap-1">
+                <X className="w-3.5 h-3.5" /> Remove users
+              </button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-[40px_2fr_1fr_2fr_1fr_1fr] bg-gray-50 px-4 py-2.5 border-b border-gray-100 gap-3">
+            <div><input type="checkbox" className="rounded border-gray-300" /></div>
+            {['Name', 'Role', 'Companies', 'Status', 'Actions'].map(h => (
+              <span key={h} className="text-xs font-semibold text-gray-400 uppercase tracking-wide">{h}</span>
+            ))}
+          </div>
+
+          <div className="divide-y divide-gray-100">
+            {filtered.map(user => (
+              <div key={user.id} className="grid grid-cols-[40px_2fr_1fr_2fr_1fr_1fr] items-center px-4 py-3.5 hover:bg-gray-50 gap-3">
+                <div>
+                  <input type="checkbox" checked={selected.includes(user.id)} onChange={() => toggleRow(user.id)} className="rounded border-gray-300" />
+                </div>
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className={`w-8 h-8 rounded-full ${user.color} flex items-center justify-center text-white text-xs font-semibold flex-shrink-0`}>
+                    {user.initials}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-gray-900 truncate">{user.name}</p>
+                    <p className="text-xs text-gray-500 truncate">{user.email}</p>
+                  </div>
+                </div>
+                <div><RoleBadge role={user.role} /></div>
+                <div className="flex items-center gap-1 flex-wrap">
+                  {user.companies.slice(0, 2).map((c, i) => (
+                    <span key={i} className="px-2 py-0.5 bg-gray-100 text-gray-600 text-xs rounded-md">{c}</span>
+                  ))}
+                  {user.companies.length > 2 && <span className="text-xs text-gray-500">+{user.companies.length - 2}</span>}
+                  {user.companies.length === 0 && <span className="text-xs text-gray-400">All entities</span>}
+                </div>
+                <div>
+                  {user.status === 'Active'
+                    ? <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-700 border border-green-200">Active</span>
+                    : <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200"><AlertTriangle className="w-3 h-3" /> Invite pending</span>}
+                </div>
+                <div>
+                  {user.status === 'Invite pending'
+                    ? <button className="text-xs font-medium text-amber-700 border border-amber-300 rounded-lg px-3 py-1.5 hover:bg-amber-50 transition-colors">Resend invite →</button>
+                    : <button className="text-gray-400 hover:text-gray-600 p-1 rounded hover:bg-gray-100"><Settings className="w-4 h-4" /></button>}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {inviteModalOpen && (
+        <MEInviteModal
+          onClose={() => setInviteModalOpen(false)}
+          onInvite={handleInvite}
+          entities={entities}
+        />
+      )}
+    </>
   );
 }
 
@@ -911,7 +1180,7 @@ export function MultiEntityPage({ onBack }: MultiEntityPageProps) {
           <EntityDetailView entity={selectedEntity} onBack={() => setSelectedEntity(null)} />
         )}
 
-        {activeTab === 'users' && <UsersTab />}
+        {activeTab === 'users' && <UsersTab entities={entities} />}
         {activeTab === 'preferences' && <PreferencesTab />}
       </div>
 

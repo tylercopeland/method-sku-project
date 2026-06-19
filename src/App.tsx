@@ -13,6 +13,7 @@ import { AppMarketplacePage } from '@/components/AppMarketplacePage';
 import { ApplicationsAccessPage } from '@/components/ApplicationsAccessPage';
 import { UserManagementPage, InviteModal } from '@/components/UserManagementPage';
 import { MultiEntityPage } from '@/components/MultiEntityPage';
+import { MultiEntitySetupPage } from '@/components/MultiEntitySetupPage';
 import { OnboardingModal } from '@/components/OnboardingModal';
 import { HelpDrawer } from '@/components/HelpDrawer';
 import { AIFieldsProvider, AddFieldChatPanel, FieldSurfaceRegistrar } from '@/lib/ai-fields';
@@ -56,6 +57,8 @@ function App() {
   const [navFoldersEnabled, setNavFoldersEnabled] = useState(false);
   // Help Center (help drawer) — opened from the header or the AI chat panel.
   const [helpOpen, setHelpOpen] = useState(false);
+  // Multi-entity: when enabled, account is locked to Scale plan permanently.
+  const [multiEntityEnabled, setMultiEntityEnabled] = useState(false);
 
   const startDemoDrag = (e: React.PointerEvent<HTMLElement>) => {
     const panel = e.currentTarget.closest('[data-demo-panel]') as HTMLElement | null;
@@ -320,6 +323,7 @@ function App() {
             checkoutMode={checkoutMode}
             hasAppStudioAccess={appStudioEnabled}
             showDiscountedPrice={showDiscountedPrice}
+            multiEntityEnabled={multiEntityEnabled}
             onUpgrade={openUpgradeModal}
             onSubscribed={(sub) => {
               setSubscription(sub);
@@ -410,10 +414,22 @@ function App() {
             onUpgrade={(planId) => openUpgradeModal(planId ?? undefined)}
           />
         ) : currentPage === 'multi-entity' ? (
-          <MultiEntityPage
-            onBack={() => setCurrentPage('account-settings')}
-            onNavigate={handlePageNavigation}
-          />
+          multiEntityEnabled ? (
+            <MultiEntityPage
+              onBack={() => setCurrentPage('account-settings')}
+              onNavigate={handlePageNavigation}
+            />
+          ) : (
+            <MultiEntitySetupPage
+              subscription={subscription}
+              onBack={() => setCurrentPage('account-settings')}
+              onUpgrade={(planId) => openUpgradeModal(planId)}
+              onEnableMultiEntity={() => {
+                setMultiEntityEnabled(true);
+                setSubscription({ planId: 'scale', billingCycle: 'annual', cardLast4: subscription?.cardLast4 ?? '4242' });
+              }}
+            />
+          )
         ) : currentPage === 'account-settings' ? (
           <AccountSettingsPage
             onBack={navigateToHome}
@@ -636,6 +652,18 @@ function App() {
             <span className="text-gray-500">Nav folders</span>
             <Switch checked={navFoldersEnabled} onCheckedChange={setNavFoldersEnabled} />
           </div>
+          <div className="flex items-center justify-between border-t border-gray-100 pt-2 mt-2">
+            <span className="text-gray-500">Multi-entity</span>
+            <Switch
+              checked={multiEntityEnabled}
+              onCheckedChange={(v) => {
+                setMultiEntityEnabled(v);
+                if (v) {
+                  setSubscription({ planId: 'scale', billingCycle: 'annual', cardLast4: subscription?.cardLast4 ?? '4242' });
+                }
+              }}
+            />
+          </div>
           <div className="border-t border-gray-100 pt-2 mt-2">
             <button
               onClick={() => {
@@ -678,6 +706,7 @@ function App() {
                 initialStep={!upgradeTargetPlanId && subscription ? 'plans' : undefined}
                 hasAppStudioAccess={appStudioEnabled}
                 showDiscountedPrice={showDiscountedPrice}
+                multiEntityEnabled={multiEntityEnabled}
                 onBack={() => setUpgradeModalOpen(false)}
                 onSubscribed={(sub) => {
                   setSubscription(sub);
