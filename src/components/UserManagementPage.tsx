@@ -780,6 +780,25 @@ export function InviteModal({
 
         {/* Rows */}
         <div className="px-6 py-5 overflow-y-auto flex-1">
+          {/* Trial disclaimer — above the rows so it's seen before filling in */}
+          {isTrial && (
+            <div className="rounded-xl bg-blue-50 border border-blue-100 px-4 py-3 flex items-start gap-2.5 mb-4">
+              <Info className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" />
+              <p className="text-xs text-blue-700">
+                <span className="font-semibold">No user limits during your trial.</span>{' '}
+                Once your trial ends, seat limits depend on your plan.{' '}
+                <a
+                  href="/pricing"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-0.5 font-semibold underline underline-offset-2 hover:text-blue-900"
+                >
+                  View pricing details <ExternalLink className="w-3 h-3" />
+                </a>
+              </p>
+            </div>
+          )}
+
           {/* Column headers */}
           <div className="flex gap-2 mb-2 px-0.5">
             <span className="flex-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Email address</span>
@@ -804,7 +823,7 @@ export function InviteModal({
                         value={row.email}
                         onChange={(e) => handleEmailChange(row.id, e.target.value)}
                         placeholder={i === 0 ? 'colleague@company.com' : 'Add another...'}
-                        className={`w-full border border-gray-300 rounded-lg pl-8 pr-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors h-[44px] ${isEmptyRow ? 'bg-gray-50' : 'bg-white'}`}
+                        className="w-full border border-gray-300 rounded-lg pl-8 pr-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors h-[44px] bg-white"
                       />
                     </div>
 
@@ -899,25 +918,6 @@ export function InviteModal({
                   </button>
                 </div>
               </div>
-            </div>
-          )}
-
-          {/* Trial disclaimer */}
-          {isTrial && (
-            <div className="rounded-xl bg-blue-50 border border-blue-100 px-4 py-3 flex items-start gap-2.5">
-              <Info className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" />
-              <p className="text-xs text-blue-700">
-                <span className="font-semibold">No user limits during your trial.</span>{' '}
-                Once your trial ends, seat limits depend on your plan.{' '}
-                <a
-                  href="/pricing"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-0.5 font-semibold underline underline-offset-2 hover:text-blue-900"
-                >
-                  View pricing details <ExternalLink className="w-3 h-3" />
-                </a>
-              </p>
             </div>
           )}
 
