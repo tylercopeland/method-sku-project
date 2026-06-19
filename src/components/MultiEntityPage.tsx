@@ -182,10 +182,16 @@ function RoleBadge({ role }: { role: string }) {
 }
 
 function StatusDot({ status }: { status: 'Active' | 'Invited' }) {
+  if (status === 'Active') {
+    return (
+      <span className="inline-flex items-center gap-1.5 text-xs font-medium text-green-700">
+        <span className="w-2 h-2 rounded-full bg-green-500 flex-shrink-0" /> Active
+      </span>
+    );
+  }
   return (
-    <span className="inline-flex items-center gap-1.5 text-sm text-gray-700">
-      <span className={`w-2 h-2 rounded-full flex-shrink-0 ${status === 'Active' ? 'bg-green-500' : 'bg-amber-400'}`} />
-      {status}
+    <span className="inline-flex items-center gap-1.5 text-xs font-medium text-amber-600">
+      <span className="w-2 h-2 rounded-full bg-amber-400 flex-shrink-0" /> Invited
     </span>
   );
 }
@@ -850,26 +856,24 @@ export function MultiEntityPage({ onBack }: MultiEntityPageProps) {
           <h1 className="text-2xl font-semibold text-gray-900">Multi-entity management</h1>
         </div>
 
-        <hr className="border-gray-200 mb-0" />
-
         {/* Tab bar */}
-        <div className="flex items-center justify-between border-b border-gray-200 mb-5">
-          <div className="flex">
+        <div className="flex items-center justify-between mb-5">
+          <div className="inline-flex items-center border border-gray-200 rounded-lg bg-gray-100 p-0.5">
             {(['entities', 'users'] as const).map(tab => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
-                className={`px-4 py-3 text-sm font-medium capitalize border-b-2 -mb-px transition-colors ${
+                className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${
                   activeTab === tab
-                    ? 'border-gray-900 text-gray-900'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-500 hover:text-gray-700'
                 }`}
               >
                 {tab.charAt(0).toUpperCase() + tab.slice(1)}
               </button>
             ))}
           </div>
-          <div className="flex items-center gap-3 pb-1">
+          <div className="flex items-center gap-3">
             {activeTab === 'entities' && (
               <>
                 <button className="text-sm font-medium text-blue-600 hover:underline">
