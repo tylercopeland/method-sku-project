@@ -59,6 +59,7 @@ function App() {
   const [helpOpen, setHelpOpen] = useState(false);
   // Multi-entity: when enabled, account is locked to Scale plan permanently.
   const [multiEntityEnabled, setMultiEntityEnabled] = useState(false);
+  const [meFirstRun, setMeFirstRun] = useState(false);
 
   const startDemoDrag = (e: React.PointerEvent<HTMLElement>) => {
     const panel = e.currentTarget.closest('[data-demo-panel]') as HTMLElement | null;
@@ -418,6 +419,8 @@ function App() {
             <MultiEntityPage
               onBack={() => setCurrentPage('account-settings')}
               onNavigate={handlePageNavigation}
+              firstRun={meFirstRun}
+              onFirstRunDismissed={() => setMeFirstRun(false)}
             />
           ) : (
             <MultiEntitySetupPage
@@ -426,6 +429,7 @@ function App() {
               onUpgrade={(planId) => openUpgradeModal(planId)}
               onEnableMultiEntity={() => {
                 setMultiEntityEnabled(true);
+                setMeFirstRun(true);
                 setSubscription({ planId: 'scale', billingCycle: 'annual', cardLast4: subscription?.cardLast4 ?? '4242' });
               }}
             />

@@ -1020,14 +1020,148 @@ function UserDetailView({ user, onBack }: { user: MEUser; onBack: () => void }) 
   );
 }
 
+// ── Add Entity Modal ───────────────────────────────────────────────────────────
+
+function AddEntityModal({ onClose, onAdd, firstRun = false }: {
+  onClose: () => void;
+  onAdd: (entity: Entity) => void;
+  firstRun?: boolean;
+}) {
+  const [name, setName] = useState('');
+  const [tags, setTags] = useState<string[]>([]);
+  const [tagInput, setTagInput] = useState('');
+
+  const addTag = (value: string) => {
+    const trimmed = value.trim();
+    if (trimmed && !tags.includes(trimmed)) setTags(prev => [...prev, trimmed]);
+    setTagInput('');
+  };
+
+  const handleTagKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); addTag(tagInput); }
+    else if (e.key === 'Backspace' && !tagInput && tags.length > 0) setTags(prev => prev.slice(0, -1));
+  };
+
+  const canAdd = name.trim().length > 0;
+
+  const handleAdd = () => {
+    if (!canAdd) return;
+    onAdd({
+      id: `entity-${Date.now()}`,
+      name: name.trim(),
+      tags,
+      userCount: 0,
+      status: 'Synced',
+    });
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 pt-6 pb-4">
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900">Add entity</h2>
+            <p className="text-sm text-gray-500 mt-0.5">
+              {firstRun
+                ? 'Multi-entity is now active. Add your first entity to get started.'
+                : 'Add a new entity to your multi-entity organization.'}
+            </p>
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {firstRun && (
+          <div className="mx-6 mb-4 px-4 py-3 rounded-xl bg-blue-50 border border-blue-100 text-sm text-blue-800">
+            <span className="font-semibold">You're all set!</span> Each entity you add is billed at <span className="font-semibold">$40/month</span>, added to your Scale plan.
+          </div>
+        )}
+
+        <div className="px-6 pb-6 space-y-4">
+          {/* Entity name */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">
+              Entity name <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              value={name}
+              onChange={e => setName(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleAdd()}
+              placeholder="Entity name*"
+              autoFocus
+              className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+          </div>
+
+          {/* Entity tags */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Entity tags</label>
+            <div
+              className="min-h-[44px] w-full border border-gray-300 rounded-lg px-3 py-2 flex flex-wrap items-center gap-1.5 focus-within:ring-2 focus-within:ring-blue-500 cursor-text"
+              onClick={() => document.getElementById('add-entity-tag-input')?.focus()}
+            >
+              {tags.map(tag => (
+                <span key={tag} className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                  {tag}
+                  <button type="button" onClick={() => setTags(prev => prev.filter(t => t !== tag))} className="text-blue-500 hover:text-blue-700">
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              ))}
+              <input
+                id="add-entity-tag-input"
+                type="text"
+                value={tagInput}
+                onChange={e => setTagInput(e.target.value)}
+                onKeyDown={handleTagKeyDown}
+                onBlur={() => tagInput.trim() && addTag(tagInput)}
+                placeholder={tags.length === 0 ? 'Search or create tags (e.g., East Coast)' : ''}
+                className="flex-1 min-w-[120px] text-sm text-gray-900 placeholder-gray-400 focus:outline-none bg-transparent"
+              />
+              <ChevronDown className="w-4 h-4 text-gray-400 flex-shrink-0 ml-auto" />
+            </div>
+            <p className="text-xs text-gray-500 mt-1.5">Recommended for filtering by region, crew, division, type</p>
+          </div>
+
+          {/* Pricing note */}
+          <p className="text-xs text-gray-500">
+            <span className="font-semibold text-gray-700">Note:</span> Each entity added is billed at $40/month.{' '}
+            <button className="text-blue-600 hover:underline">Learn more about multi-entity pricing.</button>
+          </p>
+
+          {/* Actions */}
+          <div className="flex items-center justify-end gap-3 pt-1">
+            <button onClick={onClose} className="px-4 py-2 text-sm font-medium border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors">
+              Cancel
+            </button>
+            <button
+              disabled={!canAdd}
+              onClick={handleAdd}
+              className="px-4 py-2 text-sm font-semibold bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              Add entity
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Main component ─────────────────────────────────────────────────────────────
 
 interface MultiEntityPageProps {
   onBack: () => void;
   onNavigate: (page: string) => void;
+  firstRun?: boolean;
+  onFirstRunDismissed?: () => void;
 }
 
-export function MultiEntityPage({ onBack }: MultiEntityPageProps) {
+export function MultiEntityPage({ onBack, firstRun = false, onFirstRunDismissed }: MultiEntityPageProps) {
   const [activeTab, setActiveTab] = useState<Tab>('entities');
   const [entities, setEntities] = useState<Entity[]>(INITIAL_ENTITIES);
   const [users, setUsers] = useState<MEUser[]>(INITIAL_ME_USERS);
@@ -1038,6 +1172,7 @@ export function MultiEntityPage({ onBack }: MultiEntityPageProps) {
   const [toast, setToast] = useState<string | null>(null);
   const [bulkTagsOpen, setBulkTagsOpen] = useState(false);
   const [bulkAddUsersOpen, setBulkAddUsersOpen] = useState(false);
+  const [addEntityOpen, setAddEntityOpen] = useState(firstRun);
 
   const showToast = (msg: string) => {
     setToast(msg);
@@ -1142,7 +1277,10 @@ export function MultiEntityPage({ onBack }: MultiEntityPageProps) {
                     Bulk edit entities
                   </button>
                 )}
-                <button className="inline-flex items-center gap-1.5 px-4 py-1.5 text-sm font-semibold bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                <button
+                  onClick={() => setAddEntityOpen(true)}
+                  className="inline-flex items-center gap-1.5 px-4 py-1.5 text-sm font-semibold bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
                   <Plus className="w-4 h-4" /> Add new entity
                 </button>
               </>
@@ -1184,6 +1322,17 @@ export function MultiEntityPage({ onBack }: MultiEntityPageProps) {
         <MEInviteModal
           onClose={() => setInviteModalOpen(false)}
           onInvite={handleInvite}
+        />
+      )}
+
+      {addEntityOpen && (
+        <AddEntityModal
+          firstRun={firstRun && addEntityOpen}
+          onClose={() => { setAddEntityOpen(false); onFirstRunDismissed?.(); }}
+          onAdd={(entity) => {
+            setEntities(prev => [...prev, entity]);
+            onFirstRunDismissed?.();
+          }}
         />
       )}
 
