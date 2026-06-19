@@ -780,20 +780,19 @@ export function InviteModal({
 
         {/* Rows */}
         <div className="px-6 py-5 overflow-y-auto flex-1">
-          {/* Trial disclaimer — above the rows so it's seen before filling in */}
+          {/* Trial disclaimer */}
           {isTrial && (
-            <div className="rounded-xl bg-blue-50 border border-blue-100 px-4 py-3 flex items-start gap-2.5 mb-4">
-              <Info className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" />
-              <p className="text-xs text-blue-700">
-                <span className="font-semibold">No user limits during your trial.</span>{' '}
-                Once your trial ends, seat limits depend on your plan.{' '}
+            <div className="flex items-center gap-2 px-1 py-2 mb-3">
+              <Info className="w-3.5 h-3.5 text-blue-400 flex-shrink-0" />
+              <p className="text-xs text-gray-500 whitespace-nowrap overflow-hidden text-ellipsis">
+                No limits during trial. Seat limits apply once it ends —{' '}
                 <a
                   href="/pricing"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-0.5 font-semibold underline underline-offset-2 hover:text-blue-900"
+                  className="text-blue-600 underline underline-offset-2 hover:text-blue-800"
                 >
-                  View pricing details <ExternalLink className="w-3 h-3" />
+                  view details
                 </a>
               </p>
             </div>
@@ -921,31 +920,27 @@ export function InviteModal({
             </div>
           )}
 
-          {/* All apps note */}
-          <div className="flex items-center gap-2 py-1">
-            <Info className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+          {/* Divider separating the invite form from secondary options */}
+          <div className="border-t border-gray-100 pt-3 space-y-1">
+            {/* All apps note */}
             <p className="text-xs text-gray-500">
               Newly invited users will have access to all apps.{' '}
               <span
-                className="inline-flex items-center gap-0.5 text-gray-400 cursor-not-allowed select-none"
+                className="opacity-40 cursor-not-allowed select-none underline underline-offset-2 text-blue-600"
                 title="App-specific permissions coming soon"
               >
                 Specify which apps
-                <span className="text-[10px] ml-0.5 px-1 py-0.5 bg-gray-100 rounded text-gray-400 font-medium">Soon</span>
               </span>
             </p>
-          </div>
 
-          {/* Copy role from existing user */}
-          <div className="flex items-start gap-2">
-            <Info className="w-3.5 h-3.5 text-gray-400 flex-shrink-0 mt-[1px]" />
-            <div className="flex-1 min-w-0">
+            {/* Copy role from existing user */}
+            <div>
               <p className="text-xs text-gray-500">
                 Or{' '}
                 <button
                   type="button"
                   onClick={() => setCopyFromUserId(copyFromUserId === '__open__' ? '' : '__open__')}
-                  className="text-gray-500 underline underline-offset-2 hover:text-gray-700 transition-colors"
+                  className="text-blue-600 underline underline-offset-2 hover:text-blue-800 transition-colors"
                 >
                   copy role from an existing user
                 </button>
