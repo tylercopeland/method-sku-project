@@ -127,8 +127,9 @@ export function MultiEntitySetupPage({
                 className="mt-0.5 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50 flex-shrink-0"
               />
               <span className="text-sm text-gray-700">
-                I understand that enabling multi-entity management is permanent and includes
-                additional multi-entity pricing with a dedicated support &amp; customization plan (
+                I understand that enabling multi-entity management is permanent, locks this account
+                to the Scale plan, and includes additional multi-entity pricing with a dedicated
+                support &amp; customization plan (
                 <button
                   type="button"
                   className="text-blue-600 hover:underline font-medium"
@@ -199,16 +200,26 @@ export function MultiEntitySetupPage({
             </div>
 
             <h2 className="text-xl font-bold text-gray-900 text-center mb-3">Confirm action</h2>
-            <p className="text-sm text-gray-600 text-center mb-6 leading-relaxed">
-              This change is permanent and new pricing will be applied automatically (
-              <button className="text-blue-600 hover:underline font-medium">learn more</button>
-              ).{' '}
-              If you have any questions or concerns,{' '}
-              <button className="text-blue-600 hover:underline font-medium">
-                book a call with our team
-              </button>
-              .
-            </p>
+            <div className="text-sm text-gray-600 text-center mb-6 leading-relaxed space-y-2">
+              <p>
+                This change is permanent and new pricing will be applied automatically (
+                <button className="text-blue-600 hover:underline font-medium">learn more</button>
+                ).
+              </p>
+              <p>
+                A new <span className="font-semibold text-gray-800">Super Admin</span> role will be
+                introduced. You will become the sole Super Admin on this account, and this account
+                will be permanently locked to the{' '}
+                <span className="font-semibold text-gray-800">Scale plan</span>.
+              </p>
+              <p>
+                If you have any questions or concerns,{' '}
+                <button className="text-blue-600 hover:underline font-medium">
+                  book a call with our team
+                </button>
+                .
+              </p>
+            </div>
 
             <div className="flex items-center justify-center gap-3">
               <button
