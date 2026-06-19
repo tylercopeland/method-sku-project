@@ -1,5 +1,5 @@
 import {
-  LayoutGrid, Users, Wrench, Phone, BookOpen, AlertCircle, ArrowRight,
+  LayoutGrid, Users, Wrench, Phone, BookOpen, AlertCircle, ArrowRight, X,
 } from 'lucide-react';
 import { useState } from 'react';
 import type { ActiveSubscription } from '@/components/SubscriptionPage';
@@ -38,6 +38,7 @@ export function MultiEntitySetupPage({
   onUpgrade,
 }: MultiEntitySetupPageProps) {
   const [acknowledged, setAcknowledged] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   const isOnScale = subscription?.planId === 'scale';
   const canEnable = isOnScale;
@@ -126,10 +127,8 @@ export function MultiEntitySetupPage({
                 className="mt-0.5 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50 flex-shrink-0"
               />
               <span className="text-sm text-gray-700">
-                I understand that enabling multi-entity management is permanent, locks this account to
-                Scale, and introduces a Super Admin role. The user who enables multi-entity becomes
-                the account Super Admin — the only role required for admin access. Each sub-entity is
-                an additional $40/month (
+                I understand that enabling multi-entity management is permanent and includes
+                additional multi-entity pricing with a dedicated support &amp; customization plan (
                 <button
                   type="button"
                   className="text-blue-600 hover:underline font-medium"
@@ -144,7 +143,7 @@ export function MultiEntitySetupPage({
             {/* Enable button */}
             <button
               disabled={!acknowledged || !canEnable}
-              onClick={onEnableMultiEntity}
+              onClick={() => setConfirmOpen(true)}
               className="inline-flex items-center justify-center rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
               Enable multi-entity
@@ -172,6 +171,65 @@ export function MultiEntitySetupPage({
 
         </div>
       </div>
+
+      {/* Confirmation modal */}
+      {confirmOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8 relative">
+            <button
+              onClick={() => setConfirmOpen(false)}
+              className="absolute top-4 right-4 p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            {/* Icon */}
+            <div className="flex justify-center mb-4">
+              <div className="relative w-16 h-16">
+                {/* Chat bubble base */}
+                <svg viewBox="0 0 64 64" className="w-full h-full" fill="none">
+                  <circle cx="32" cy="28" r="26" fill="#EEF2FF" />
+                  <path d="M22 44 l4-8" stroke="#C7D2FE" strokeWidth="2" strokeLinecap="round" />
+                </svg>
+                {/* Warning triangle overlay */}
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <AlertCircle className="w-8 h-8 text-blue-700" />
+                </div>
+              </div>
+            </div>
+
+            <h2 className="text-xl font-bold text-gray-900 text-center mb-3">Confirm action</h2>
+            <p className="text-sm text-gray-600 text-center mb-6 leading-relaxed">
+              This change is permanent and new pricing will be applied automatically (
+              <button className="text-blue-600 hover:underline font-medium">learn more</button>
+              ).{' '}
+              If you have any questions or concerns,{' '}
+              <button className="text-blue-600 hover:underline font-medium">
+                book a call with our team
+              </button>
+              .
+            </p>
+
+            <div className="flex items-center justify-center gap-3">
+              <button
+                onClick={() => setConfirmOpen(false)}
+                className="px-5 py-2.5 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                Go back
+              </button>
+              <button
+                onClick={() => {
+                  setConfirmOpen(false);
+                  onEnableMultiEntity();
+                }}
+                className="px-5 py-2.5 rounded-lg bg-blue-600 text-sm font-semibold text-white hover:bg-blue-700 transition-colors shadow-sm"
+              >
+                Enable feature
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
