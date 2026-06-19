@@ -576,6 +576,7 @@ function SeatMeter({
   planName,
   basePrice,
   onUpgrade,
+  multiEntityEnabled = false,
 }: {
   subscription: ActiveSubscription | null;
   includedSeats: number;
@@ -584,6 +585,7 @@ function SeatMeter({
   planName: string;
   basePrice: number;
   onUpgrade: () => void;
+  multiEntityEnabled?: boolean;
 }) {
   if (!subscription) return null; // trial: no seat meter banner
 
@@ -637,16 +639,23 @@ function SeatMeter({
             )}
           </div>
         </div>
-        <div className="flex-shrink-0">
-          <button
-            onClick={onUpgrade}
-            className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors border border-blue-600 bg-transparent text-blue-600 hover:bg-blue-50"
-          >
-            {isOverLimit || isNearLimit || isApproaching ? (
-              <><TrendingUp className="w-3.5 h-3.5" /> Upgrade plan</>
-            ) : 'Manage plan'}
-          </button>
-        </div>
+        {!multiEntityEnabled && (
+          <div className="flex-shrink-0">
+            <button
+              onClick={onUpgrade}
+              className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors border border-blue-600 bg-transparent text-blue-600 hover:bg-blue-50"
+            >
+              {isOverLimit || isNearLimit || isApproaching ? (
+                <><TrendingUp className="w-3.5 h-3.5" /> Upgrade plan</>
+              ) : 'Manage plan'}
+            </button>
+          </div>
+        )}
+        {multiEntityEnabled && isOverLimit && (
+          <p className="text-xs text-gray-500 flex-shrink-0 max-w-[180px] text-right">
+            Additional seats are billed at ${EXTRA_FULL_SEAT_PRICE}/month each.
+          </p>
+        )}
       </div>
     </div>
   );
@@ -1923,6 +1932,7 @@ interface UserManagementPageProps {
   onBack: () => void;
   isTrial?: boolean;
   onUpgrade?: (planId: string) => void;
+  multiEntityEnabled?: boolean;
 }
 
 export function UserManagementPage({
@@ -1932,6 +1942,7 @@ export function UserManagementPage({
   onBack,
   isTrial = false,
   onUpgrade,
+  multiEntityEnabled = false,
 }: UserManagementPageProps) {
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState<'All' | 'Active' | 'Invited' | 'Deactivated'>('All');
@@ -2089,6 +2100,7 @@ export function UserManagementPage({
           planName={planName}
           basePrice={basePrice}
           onUpgrade={() => nextPlanId && onUpgrade ? onUpgrade(nextPlanId) : onNavigate('subscription-upgrade')}
+          multiEntityEnabled={multiEntityEnabled}
         />
 
         {/* Grid header: title dropdown + search */}

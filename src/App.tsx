@@ -413,6 +413,7 @@ function App() {
             onBack={() => setCurrentPage('account-settings')}
             isTrial={isInTrial && !subscription}
             onUpgrade={(planId) => openUpgradeModal(planId ?? undefined)}
+            multiEntityEnabled={multiEntityEnabled}
           />
         ) : currentPage === 'multi-entity' ? (
           multiEntityEnabled ? (
