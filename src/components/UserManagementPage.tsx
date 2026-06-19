@@ -631,7 +631,7 @@ function SeatMeter({
                   </span>
                 </>
               ) : isEssentials ? (
-                <>{totalSeatsUsed} of 1 regular seat used &middot; unlimited view-only seats included</>
+                <>Unlimited view-only seats &middot; {totalSeatsUsed} of 1 regular seat used</>
               ) : (
                 <>
                   {totalSeatsUsed} of {includedSeats} regular seats used on {planName}
