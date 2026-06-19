@@ -615,12 +615,26 @@ function SeatMeter({
           <div className="flex-1 min-w-0">
             <div className="flex flex-wrap items-center gap-2 mb-0.5">
               <p className={`text-sm font-semibold ${theme.label}`}>
-                {isOverLimit ? 'Over seat limit' : isNearLimit ? 'Seat limit reached' : isApproaching ? 'Approaching seat limit' : 'Seat usage'}
+                {multiEntityEnabled ? 'Seat usage' : isOverLimit ? 'Over seat limit' : isNearLimit ? 'Seat limit reached' : isApproaching ? 'Approaching seat limit' : 'Seat usage'}
               </p>
             </div>
-            <p className={`text-xs ${theme.text} mb-2`}>
-              {totalSeatsUsed} of {includedSeats} seats used on {planName}
-              {!isOverLimit && totalSeatsUsed < includedSeats ? ` — ${includedSeats - totalSeatsUsed} remaining` : ''}
+            <p className={`text-xs ${theme.text} mb-2 flex items-center gap-1`}>
+              {multiEntityEnabled ? (
+                <>
+                  Unlimited seats &middot; {totalSeatsUsed} of {includedSeats} included used
+                  <span className="relative group inline-flex items-center">
+                    <Info className="w-3 h-3 text-blue-400 cursor-default" />
+                    <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 w-56 rounded-lg bg-gray-900 px-3 py-2 text-xs text-white opacity-0 group-hover:opacity-100 transition-opacity z-10 leading-relaxed">
+                      Additional seats beyond your {includedSeats} included cost ${EXTRA_FULL_SEAT_PRICE}/month each.
+                    </span>
+                  </span>
+                </>
+              ) : (
+                <>
+                  {totalSeatsUsed} of {includedSeats} seats used on {planName}
+                  {!isOverLimit && totalSeatsUsed < includedSeats ? ` — ${includedSeats - totalSeatsUsed} remaining` : ''}
+                </>
+              )}
             </p>
             <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
               <div className={`h-full rounded-full transition-all ${theme.bar}`} style={{ width: `${pct}%` }} />
@@ -650,11 +664,6 @@ function SeatMeter({
               ) : 'Manage plan'}
             </button>
           </div>
-        )}
-        {multiEntityEnabled && (
-          <p className="text-xs text-gray-500 flex-shrink-0 max-w-[180px] text-right">
-            You can add more seats — each one over the limit costs ${EXTRA_FULL_SEAT_PRICE}/month extra.
-          </p>
         )}
       </div>
     </div>
