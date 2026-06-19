@@ -852,18 +852,23 @@ export function InviteModal({
                     </button>
                   </div>
 
-                  {/* Name field — revealed by chevron toggle, ↳ connector makes nesting clear */}
+                  {/* Name field — revealed by chevron toggle */}
                   {row.showName && (
-                    <div className="flex items-center gap-1.5 mt-1 pl-1">
-                      <CornerDownRight className="w-3.5 h-3.5 text-gray-300 flex-shrink-0 ml-1" />
-                      <input
-                        type="text"
-                        value={row.name}
-                        onChange={(e) => handleNameChange(row.id, e.target.value)}
-                        placeholder="User's name"
-                        disabled={isEmptyRow}
-                        className="flex-1 border border-gray-200 rounded-lg px-3 py-1.5 text-sm text-gray-900 placeholder-gray-400 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-40 disabled:cursor-not-allowed"
-                      />
+                    <div className="flex gap-1.5 mt-1.5 pl-1 pb-2">
+                      <CornerDownRight className="w-3.5 h-3.5 text-gray-300 flex-shrink-0 ml-1 mt-6" />
+                      <div className="flex-1 min-w-0">
+                        <label className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1">
+                          Display name
+                        </label>
+                        <input
+                          type="text"
+                          value={row.name}
+                          onChange={(e) => handleNameChange(row.id, e.target.value)}
+                          placeholder="User's full name"
+                          disabled={isEmptyRow}
+                          className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm text-gray-900 placeholder-gray-400 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-40 disabled:cursor-not-allowed"
+                        />
+                      </div>
                     </div>
                   )}
                 </div>
