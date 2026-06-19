@@ -937,14 +937,30 @@ export function InviteModal({
           </div>
 
           {/* Copy role from existing user */}
-          <div className="border-t border-gray-100 pt-3">
-            <p className="text-xs text-gray-400 mb-1.5">Or copy role from an existing user:</p>
-            <UserDropdownSelect
-              value={copyFromUserId}
-              onChange={handleCopyFromUser}
-              options={ALL_MOCK_USERS}
-              placeholder="Select a user to copy role from..."
-            />
+          <div className="flex items-start gap-2">
+            <Info className="w-3.5 h-3.5 text-gray-400 flex-shrink-0 mt-[1px]" />
+            <div className="flex-1 min-w-0">
+              <p className="text-xs text-gray-500">
+                Or{' '}
+                <button
+                  type="button"
+                  onClick={() => setCopyFromUserId(copyFromUserId === '__open__' ? '' : '__open__')}
+                  className="text-gray-500 underline underline-offset-2 hover:text-gray-700 transition-colors"
+                >
+                  copy role from an existing user
+                </button>
+              </p>
+              {copyFromUserId !== '' && (
+                <div className="mt-1.5">
+                  <UserDropdownSelect
+                    value={copyFromUserId === '__open__' ? '' : copyFromUserId}
+                    onChange={handleCopyFromUser}
+                    options={ALL_MOCK_USERS}
+                    placeholder="Select a user..."
+                  />
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Actions */}
