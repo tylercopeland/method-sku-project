@@ -117,9 +117,18 @@ export function AccountSettingsPage({ onBack, onNavigate, upgradeRequired = fals
               >
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 mb-3">
-                    <h2 className="text-lg sm:text-xl font-medium text-blue-700">
-                      {section.title}
-                    </h2>
+                    {locked ? (
+                      <h2 className="text-lg sm:text-xl font-medium text-blue-700">
+                        {section.title}
+                      </h2>
+                    ) : (
+                      <button
+                        onClick={() => section.page && onNavigate?.(section.page)}
+                        className="text-lg sm:text-xl font-medium text-blue-700 hover:underline text-left"
+                      >
+                        {section.title}
+                      </button>
+                    )}
                     {locked && (
                       <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-xs font-semibold text-gray-500">
                         <Lock className="w-3 h-3" />
