@@ -14,6 +14,7 @@ import { ApplicationsAccessPage } from '@/components/ApplicationsAccessPage';
 import { UserManagementPage, InviteModal } from '@/components/UserManagementPage';
 import { MultiEntityPage } from '@/components/MultiEntityPage';
 import { OnboardingModal } from '@/components/OnboardingModal';
+import { HelpDrawer } from '@/components/HelpDrawer';
 import { AIFieldsProvider, AddFieldChatPanel, FieldSurfaceRegistrar } from '@/lib/ai-fields';
 import { Switch } from '@/components/ui/switch';
 import { useState, useEffect } from 'react';
@@ -41,7 +42,7 @@ function App() {
   // Demo: enables the "Add field with AI" custom-fields experience on detail screens.
   const [aiFieldsEnabled, setAiFieldsEnabled] = useState(false);
   // Demo: emphasize the annual discount with the discounted monthly price on plan cards.
-  const [showDiscountedPrice, setShowDiscountedPrice] = useState(true);
+  const [showDiscountedPrice, setShowDiscountedPrice] = useState(false);
   // Applications Access deep-link: which user, scrolled to which app they came from.
   const [accessUser, setAccessUser] = useState<string | null>(null);
   const [accessScrollApp, setAccessScrollApp] = useState<string | undefined>(undefined);
@@ -53,6 +54,8 @@ function App() {
   const [upgradeTargetPlanId, setUpgradeTargetPlanId] = useState<string | null>(null);
   // Feature flag: folder-based sidebar navigation.
   const [navFoldersEnabled, setNavFoldersEnabled] = useState(false);
+  // Help Center (help drawer) — opened from the header or the AI chat panel.
+  const [helpOpen, setHelpOpen] = useState(false);
 
   const startDemoDrag = (e: React.PointerEvent<HTMLElement>) => {
     const panel = e.currentTarget.closest('[data-demo-panel]') as HTMLElement | null;
@@ -146,7 +149,7 @@ function App() {
     'purchase-orders': 'Purchase Orders',
     'bills': 'Bills',
     'proposals': 'Proposals',
-    'marketplace': 'App Launchpad',
+    'marketplace': 'App Marketplace',
     'applications-access': 'Account Settings',
     'subscription': 'Subscription',
     'account-settings': 'Account Settings',
@@ -277,7 +280,7 @@ function App() {
         />
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col min-w-0">
         {/* Top Header */}
         <TopHeader
           currentPageLabel={isLocked ? 'Subscription' : pageLabels[currentPage] || 'Home'}
@@ -285,11 +288,12 @@ function App() {
           onNavigate={handlePageNavigation}
           onMobileMenuToggle={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
           onInviteUser={() => setShowNavbarInvite(true)}
+          onOpenHelp={() => setHelpOpen(true)}
         />
 
         {/* Page + chat panel share a row below the top bar */}
         <div className="flex-1 flex overflow-hidden">
-        <div className="flex-1 overflow-hidden flex flex-col">
+        <div className="flex-1 min-w-0 overflow-hidden flex flex-col">
 
         {/* Render different pages based on current page. When the trial has expired
             with no subscription, the app is locked to the Subscribe screen. */}
@@ -363,6 +367,12 @@ function App() {
         ) : currentPage === 'marketplace' ? (
           <AppMarketplacePage
             onBack={navigateToHome}
+            lockedApps={lockedApps}
+            onOpenApp={(lockKey) => setCurrentPage(lockKey)}
+            onUpgrade={() => {
+              setOpenToChangePlan(true);
+              setCurrentPage('subscription');
+            }}
             onOpenUserAccess={(user, appName) => {
               setAccessUser(user);
               setAccessScrollApp(appName);
@@ -404,6 +414,11 @@ function App() {
           <AccountSettingsPage
             onBack={navigateToHome}
             onNavigate={handlePageNavigation}
+            upgradeRequired={premiumLocked}
+            onUpgrade={() => {
+              setOpenToChangePlan(true);
+              setCurrentPage('subscription');
+            }}
           />
         ) : shouldShowEmptyState && ['activities', 'vendors', 'invoices'].includes(currentPage) ? (
           // Inline mode with banner and sample data for activities, vendors, invoices
@@ -429,7 +444,15 @@ function App() {
           )}
 
         {/* Add-field chat panel — sits below the top bar, beside the page */}
-        <AddFieldChatPanel />
+        <AddFieldChatPanel
+          onOpenAppBuilder={() => setCurrentPage('app-studio')}
+          appBuilderLocked={premiumLocked}
+          onUpgrade={() => {
+            setOpenToChangePlan(true);
+            setCurrentPage('subscription');
+          }}
+          onOpenHelpCenter={() => setHelpOpen(true)}
+        />
         </div>
         </div>
       </div>
@@ -690,6 +713,9 @@ function App() {
 
       {/* First-run onboarding — modal over Home, blocks the app until completed */}
       {showOnboarding && <OnboardingModal onComplete={() => setShowOnboarding(false)} />}
+
+      {/* Help Center drawer — opened from the header or the AI chat panel */}
+      <HelpDrawer isOpen={helpOpen} onClose={() => setHelpOpen(false)} />
     </div>
     </AIFieldsProvider>
   );

@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Sparkles, X, Plus, Check, ArrowUp, ChevronDown, MessageSquare, Wand2, Info, AppWindow } from 'lucide-react';
+import { Sparkles, X, Plus, Check, ArrowUp, ArrowRight, ChevronDown, MessageSquare, Wand2, Info, AppWindow, Wrench, LifeBuoy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -28,14 +28,55 @@ interface AddFieldWithAIPanelProps {
   /** Commits a field; the panel stays open so the user can keep chatting. */
   onAddField: (field: CustomField) => void;
   context?: FieldContext;
+  /** Open the App Builder (App Studio) to edit the full screen/app. */
+  onOpenAppBuilder?: () => void;
+  /** App Builder isn't available on the current plan (e.g. Essentials). */
+  appBuilderLocked?: boolean;
+  /** Open the upgrade flow when App Builder is locked. */
+  onUpgrade?: () => void;
+  /** Open the Help Center for support questions. */
+  onOpenHelpCenter?: () => void;
 }
 
 type Message =
   | { id: number; role: 'ai' | 'user'; kind: 'text'; text: string }
-  | { id: number; role: 'ai'; kind: 'field'; field: CustomField; added: boolean };
+  | { id: number; role: 'ai'; kind: 'field'; field: CustomField; added: boolean }
+  | { id: number; role: 'ai'; kind: 'app-builder' }
+  | { id: number; role: 'ai'; kind: 'help-center' };
 
 let seq = 0;
 const nextId = () => ++seq;
+
+// Detect a support/help question (vs. a field request) — route those to the Help Center.
+function isSupportQuestion(prompt: string): boolean {
+  const p = prompt.toLowerCase().trim();
+  const fieldRequest =
+    /\b(field|column|dropdown|drop ?down|checkbox|date field|number field|text field|text box|select|picklist)\b/;
+  // Explicit help/support asks.
+  if (/\b(help|support|contact|customer service|talk to|speak to|agent|representative)\b/.test(p)) return true;
+  // Something is broken / not working.
+  if (/\b(not working|doesn'?t work|isn'?t working|broken|error|bug|issue|problem|trouble|stuck|can'?t|cannot|won'?t|unable to)\b/.test(p))
+    return true;
+  // Account/billing support topics.
+  if (/\b(refund|charged|billing|password|log ?in|sign ?in|reset|locked out)\b/.test(p)) return true;
+  // General "how/why/where" guidance questions that aren't field-building requests.
+  if (/^(how|why|where|what|when|who)\b/.test(p) && !fieldRequest.test(p)) return true;
+  return false;
+}
+
+// Detect a request to build/customize a full screen or app (vs. adding a field) —
+// that's an App Builder job, not something this runtime field-adder can do.
+function isScreenBuildRequest(prompt: string): boolean {
+  const p = prompt.toLowerCase();
+  const target = /\b(screen|page|app|application|layout|workflow|dashboard|view|module|report)\b/;
+  const buildVerb =
+    /\b(build|create|make|design|redesign|customi[sz]e|edit|rearrange|restructure|configure|modify|set up|revamp)\b/;
+  // A clear field request with no screen/app target is always allowed through.
+  const fieldRequest =
+    /\b(field|column|dropdown|drop ?down|checkbox|date field|number field|text field|text box|select|picklist)\b/;
+  if (fieldRequest.test(p) && !target.test(p)) return false;
+  return buildVerb.test(p) && target.test(p);
+}
 
 function singular(label: string): string {
   const s = label.trim().toLowerCase();
@@ -58,7 +99,7 @@ function resolveType(text: string): FieldType {
   return 'text';
 }
 
-export function AddFieldWithAIPanel({ isOpen, onClose, onAddField, context }: AddFieldWithAIPanelProps) {
+export function AddFieldWithAIPanel({ isOpen, onClose, onAddField, context, onOpenAppBuilder, appBuilderLocked = false, onUpgrade, onOpenHelpCenter }: AddFieldWithAIPanelProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
@@ -108,6 +149,10 @@ export function AddFieldWithAIPanel({ isOpen, onClose, onAddField, context }: Ad
     setMessages((m) => [...m, { id: nextId(), role: 'user', kind: 'text', text }]);
   const pushField = (field: CustomField) =>
     setMessages((m) => [...m, { id: nextId(), role: 'ai', kind: 'field', field, added: false }]);
+  const pushAppBuilderNotice = () =>
+    setMessages((m) => [...m, { id: nextId(), role: 'ai', kind: 'app-builder' }]);
+  const pushHelpCenterNotice = () =>
+    setMessages((m) => [...m, { id: nextId(), role: 'ai', kind: 'help-center' }]);
 
   const buildDraft = (typeOverride?: FieldType, optionsOverride?: string[]): CustomField => {
     const p = currentPrompt.toLowerCase();
@@ -145,6 +190,25 @@ export function AddFieldWithAIPanel({ isOpen, onClose, onAddField, context }: Ad
 
   // A brand-new field request from the prompt.
   const handleRequest = (prompt: string) => {
+    // A support/help question belongs in the Help Center, not the field builder.
+    if (isSupportQuestion(prompt)) {
+      setBusy(true);
+      setTimeout(() => {
+        setBusy(false);
+        pushHelpCenterNotice();
+      }, 650);
+      return;
+    }
+    // Building/customizing a full screen or app is an App Builder job, not something
+    // this runtime field-adder supports — reply inline and point to the App Builder.
+    if (isScreenBuildRequest(prompt)) {
+      setBusy(true);
+      setTimeout(() => {
+        setBusy(false);
+        pushAppBuilderNotice();
+      }, 650);
+      return;
+    }
     setCurrentPrompt(prompt);
     setBusy(true);
     setTimeout(() => {
@@ -229,7 +293,7 @@ export function AddFieldWithAIPanel({ isOpen, onClose, onAddField, context }: Ad
       <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3">
         <div className="flex items-center gap-1.5">
           <Sparkles className="w-4 h-4 text-purple-500" />
-          <span className="text-sm font-semibold text-purple-600">Powered by Method AI</span>
+          <span className="text-sm font-semibold text-purple-600">Method AI</span>
         </div>
         <button onClick={handleClose} className="text-gray-400 hover:text-gray-600" aria-label="Close">
           <X className="w-5 h-5" />
@@ -240,16 +304,62 @@ export function AddFieldWithAIPanel({ isOpen, onClose, onAddField, context }: Ad
       <div className="flex items-start gap-2 border-b border-purple-100 bg-purple-50 px-4 py-2.5">
         <Info className="w-4 h-4 mt-0.5 shrink-0 text-purple-500" />
         <p className="text-xs leading-relaxed text-purple-900">
-          <span className="font-semibold">Today you can add custom fields.</span> Method AI can
-          create new fields on this screen. Editing full screens or apps isn't available yet — it's
-          coming soon.
+          <span className="font-semibold">Today you can add custom fields.</span> Method AI adds a
+          custom field to this runtime screen.{' '}
+          {appBuilderLocked ? (
+            <>
+              Editing the full screen or app needs the App Builder, which isn't on your plan —{' '}
+              {onUpgrade ? (
+                <button
+                  onClick={onUpgrade}
+                  className="font-semibold text-purple-700 underline hover:text-purple-900"
+                >
+                  upgrade to Build
+                </button>
+              ) : (
+                'upgrade to Build'
+              )}{' '}
+              to unlock it.
+            </>
+          ) : (
+            <>
+              To edit the full screen or app, use the{' '}
+              {onOpenAppBuilder ? (
+                <button
+                  onClick={onOpenAppBuilder}
+                  className="font-semibold text-purple-700 underline hover:text-purple-900"
+                >
+                  App Builder
+                </button>
+              ) : (
+                'App Builder'
+              )}
+              .
+            </>
+          )}
         </p>
       </div>
 
       {/* Thread */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
-        {messages.map((msg) =>
-          msg.kind === 'text' ? (
+        {messages.map((msg) => {
+          if (msg.kind === 'app-builder') {
+            return (
+              <AppBuilderNotice
+                key={msg.id}
+                locked={appBuilderLocked}
+                onOpenAppBuilder={onOpenAppBuilder}
+                onUpgrade={onUpgrade}
+              />
+            );
+          }
+          if (msg.kind === 'help-center') {
+            return <HelpCenterNotice key={msg.id} onOpenHelpCenter={onOpenHelpCenter} />;
+          }
+          if (msg.kind === 'field') {
+            return <FieldCard key={msg.id} message={msg} onAdd={() => commit(msg.id, msg.field)} />;
+          }
+          return (
             <div
               key={msg.id}
               className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}
@@ -270,10 +380,8 @@ export function AddFieldWithAIPanel({ isOpen, onClose, onAddField, context }: Ad
                 {msg.text}
               </div>
             </div>
-          ) : (
-            <FieldCard key={msg.id} message={msg} onAdd={() => commit(msg.id, msg.field)} />
-          ),
-        )}
+          );
+        })}
 
         {/* Follow-up quick replies appear directly under the AI's question */}
         {!busy && pendingClarify && (
@@ -410,6 +518,94 @@ export function AddFieldWithAIPanel({ isOpen, onClose, onAddField, context }: Ad
             </div>
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// Inline reply when the user asks to build/customize a full screen or app —
+// that's not supported here; point them to the App Builder (or an upgrade).
+function AppBuilderNotice({
+  locked = false,
+  onOpenAppBuilder,
+  onUpgrade,
+}: {
+  locked?: boolean;
+  onOpenAppBuilder?: () => void;
+  onUpgrade?: () => void;
+}) {
+  return (
+    <div className="flex flex-col items-start">
+      <div className="flex items-baseline gap-2 mb-1 px-1">
+        <span className="text-sm font-semibold text-gray-900">Method AI</span>
+        <span className="text-xs text-gray-400">Just now</span>
+      </div>
+      <div className="max-w-[88%] rounded-2xl bg-gray-100 px-4 py-3 text-sm leading-relaxed text-gray-800">
+        <div className="flex items-center gap-1.5 font-semibold text-gray-900 mb-1">
+          <Wrench className="w-4 h-4 text-gray-500" />
+          That's an App Builder job
+        </div>
+        <p>
+          I can only add custom fields to this runtime screen — building or customizing the full
+          screen or app isn't something I can do here.{' '}
+          {locked
+            ? 'The App Builder, where you can do that, is available on Build.'
+            : 'Head to the App Builder to make those changes.'}
+        </p>
+        <div className="mt-3">
+          {locked
+            ? onUpgrade && (
+                <button
+                  onClick={onUpgrade}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700"
+                >
+                  Upgrade to Build
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+              )
+            : onOpenAppBuilder && (
+                <button
+                  onClick={onOpenAppBuilder}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700"
+                >
+                  Open the App Builder
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+              )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Inline reply when the user asks a support/help question — point them to the Help Center.
+function HelpCenterNotice({ onOpenHelpCenter }: { onOpenHelpCenter?: () => void }) {
+  return (
+    <div className="flex flex-col items-start">
+      <div className="flex items-baseline gap-2 mb-1 px-1">
+        <span className="text-sm font-semibold text-gray-900">Method AI</span>
+        <span className="text-xs text-gray-400">Just now</span>
+      </div>
+      <div className="max-w-[88%] rounded-2xl bg-gray-100 px-4 py-3 text-sm leading-relaxed text-gray-800">
+        <div className="flex items-center gap-1.5 font-semibold text-gray-900 mb-1">
+          <LifeBuoy className="w-4 h-4 text-gray-500" />
+          That sounds like a support question
+        </div>
+        <p>
+          I'm here to add custom fields to this screen, so I can't help with that one. The Help
+          Center has guides and a way to reach our support team.
+        </p>
+        {onOpenHelpCenter && (
+          <div className="mt-3">
+            <button
+              onClick={onOpenHelpCenter}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700"
+            >
+              Go to the Help Center
+              <ArrowRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

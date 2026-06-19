@@ -1,4 +1,4 @@
-import { useState, Fragment } from 'react';
+import { useState, useEffect, Fragment } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -50,7 +50,7 @@ const plans: Plan[] = [
       'Full Method for a single user. Perfect for independent operators who want power without complexity.',
     monthlyPrice: 50,
     seats: 1,
-    seatsNote: 'Additional seats available',
+    seatsNote: 'Upgrade to Build for more seats',
     includedLabel: "What's included",
     features: [
       'All stock apps — CRM, invoicing, proposals, cases',
@@ -358,6 +358,14 @@ export function SubscriptionPage({
     upgradeFromPlanId ? 'checkout' : (activeSubscription ? initialStep : 'plans')
   );
   const [processing, setProcessing] = useState(false);
+
+  // Keep the manage/billing views in sync with the active plan, so changing it
+  // externally (e.g. via the demo controls) updates the subscription card live.
+  useEffect(() => {
+    if (activeSubscription && (step === 'manage' || step === 'billing')) {
+      setSelectedPlanId(activeSubscription.planId);
+    }
+  }, [activeSubscription?.planId, step]);
 
   // Card form state (controlled inputs, matching the app's convention)
   const [card, setCard] = useState({
@@ -1289,6 +1297,10 @@ export function SubscriptionPage({
     : 0;
   const showEssentialsBuilderNote =
     !isChangingPlan && selectedPlan?.id === 'essentials' && isBuilderDowngradingToEssentials;
+  // Essentials is single-seat — extra users convert to view-only.
+  const showEssentialsSeatNote = selectedPlan?.id === 'essentials' && teamSize > 1;
+  const extraUsers = teamSize - 1;
+  const extraUsersWord = extraUsers === 1 ? 'user' : 'users';
 
   // Shared checkout content — rendered inline (full page) or inside a modal.
   const checkoutBody = selectedPlan ? (
@@ -1303,14 +1315,41 @@ export function SubscriptionPage({
             </button>
           )}
 
-          {/* Soft builder note — App Studio (and built apps) won't carry to Essentials */}
-          {showEssentialsBuilderNote && (
+          {/* Essentials caveats — merged into one banner when both apply */}
+          {showEssentialsBuilderNote && showEssentialsSeatNote ? (
+            <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 p-4 flex items-start gap-3">
+              <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-amber-900">
+                  A couple of things change on Essentials
+                </p>
+                <ul className="mt-1.5 space-y-1 text-sm text-amber-800 list-disc pl-4">
+                  <li>
+                    App Studio isn't included, so your {builtAppsPhrase} from the trial won't carry
+                    over.
+                  </li>
+                  <li>
+                    Only 1 seat is included — your other {extraUsers} {extraUsersWord} will become
+                    view-only (they can sign in and read, but can't edit).
+                  </li>
+                </ul>
+                <p className="mt-1.5 text-sm text-amber-800">
+                  Build keeps your apps and gives everyone a full seat.
+                </p>
+                <button
+                  onClick={() => setSelectedPlanId('build')}
+                  className="mt-2 inline-flex items-center gap-1.5 text-sm font-semibold text-amber-900 hover:underline"
+                >
+                  Upgrade to Build — ${buildMonthly}/mo
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          ) : showEssentialsBuilderNote ? (
             <div className="mb-6 rounded-xl border border-blue-100 bg-blue-50/70 p-4 flex items-start gap-3">
               <Sparkles className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" />
               <div className="flex-1">
-                <p className="text-sm font-semibold text-gray-900">
-                  App Studio lives on Build
-                </p>
+                <p className="text-sm font-semibold text-gray-900">App Studio lives on Build</p>
                 <p className="text-sm text-gray-600 mt-0.5">
                   You have {builtAppsPhrase} in App Studio from your trial. Essentials doesn't
                   include App Studio, so they won't carry over — switch to Build to keep everything
@@ -1325,7 +1364,28 @@ export function SubscriptionPage({
                 </button>
               </div>
             </div>
-          )}
+          ) : showEssentialsSeatNote ? (
+            <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 p-4 flex items-start gap-3">
+              <Users className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-amber-900">
+                  Only 1 seat — your other {extraUsers} {extraUsersWord} will become view-only
+                </p>
+                <p className="text-sm text-amber-800 mt-0.5">
+                  Essentials includes a single seat (yours). Your other {extraUsers} {extraUsersWord}{' '}
+                  will be switched to view-only access — they can still sign in and read data, but
+                  can't edit. Upgrade to Build to give everyone a full seat.
+                </p>
+                <button
+                  onClick={() => setSelectedPlanId('build')}
+                  className="mt-2 inline-flex items-center gap-1.5 text-sm font-semibold text-amber-900 hover:underline"
+                >
+                  Upgrade to Build — ${buildMonthly}/mo
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          ) : null}
 
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
             {/* Payment form */}
