@@ -202,7 +202,7 @@ export function MultiEntitySetupPage({
             <h2 className="text-xl font-bold text-gray-900 text-center mb-3">Confirm action</h2>
             <div className="text-sm text-gray-600 text-center mb-6 leading-relaxed space-y-2">
               <p>
-                This change is permanent and new pricing will be applied automatically (
+                This change is permanent and new pricing will be applied (
                 <button className="text-blue-600 hover:underline font-medium">learn more</button>
                 ).
               </p>
