@@ -952,7 +952,7 @@ export function InviteModal({
                     onClick={() => setCopyFromUserId(copyFromUserId === '__open__' ? '' : '__open__')}
                     className="text-blue-600 underline underline-offset-2 hover:text-blue-800 transition-colors"
                   >
-                    copy role from an existing user
+                    copy role and permissions from an existing user
                   </button>
                 </p>
               </div>
@@ -963,6 +963,7 @@ export function InviteModal({
                     onChange={handleCopyFromUser}
                     options={ALL_MOCK_USERS}
                     placeholder="Select a user..."
+                    onClear={() => setCopyFromUserId('')}
                   />
                 </div>
               )}
@@ -1105,15 +1106,17 @@ function UserDropdownSelect({
   onChange,
   options,
   placeholder,
+  onClear,
 }: {
   value: string;
   onChange: (id: string) => void;
   options: MockUser[];
   placeholder?: string;
+  onClear?: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const [style, setStyle] = useState<React.CSSProperties>({});
-  const triggerRef = useRef<HTMLButtonElement>(null);
+  const triggerRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -1131,17 +1134,25 @@ function UserDropdownSelect({
 
   return (
     <div>
-      <button
+      <div
         ref={triggerRef}
-        type="button"
+        role="button"
+        tabIndex={0}
         onClick={() => {
           if (triggerRef.current) setStyle(fixedDropdownStyle(triggerRef.current));
           setOpen((o) => !o);
         }}
-        className="w-full flex items-center justify-between gap-2 border border-gray-300 rounded-lg px-3 py-2.5 text-sm text-gray-900 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            if (triggerRef.current) setStyle(fixedDropdownStyle(triggerRef.current));
+            setOpen((o) => !o);
+          }
+        }}
+        className="w-full flex items-center justify-between gap-2 border border-gray-300 rounded-lg px-3 py-2.5 text-sm text-gray-900 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors cursor-pointer select-none"
       >
         {selected ? (
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2.5 min-w-0">
             <div className={`w-6 h-6 rounded-full ${selected.avatarColor} flex items-center justify-center text-white text-xs font-semibold flex-shrink-0`}>
               {initials(selected.name)}
             </div>
@@ -1151,8 +1162,19 @@ function UserDropdownSelect({
         ) : (
           <span className="text-gray-400">{placeholder ?? 'Select a user'}</span>
         )}
-        <ChevronDown className={`w-4 h-4 text-gray-400 flex-shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
-      </button>
+        <div className="flex items-center gap-1 flex-shrink-0">
+          {selected && onClear && (
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onClear(); }}
+              className="p-0.5 text-gray-400 hover:text-gray-600 rounded transition-colors"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
+          <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} />
+        </div>
+      </div>
       {open && (
         <div ref={panelRef} style={style} className="bg-white rounded-xl border border-gray-200 shadow-xl overflow-hidden">
           {options.map((u) => (
