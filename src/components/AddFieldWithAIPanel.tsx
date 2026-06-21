@@ -438,28 +438,13 @@ export function AddFieldWithAIPanel({ isOpen, onClose, onAddField, context, onOp
               )}
             </div>
           ) : appState === 'empty' ? (
-            /* Empty state: create-first CTA, then field chips as secondary */
-            <div className="space-y-3 w-full">
-              <button
-                className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-700 transition-colors"
-                onClick={onClose}
-              >
-                Create your first {context ? singular(context.entityLabel) : 'record'}
-                <ArrowRight className="w-4 h-4" />
-              </button>
-              <p className="text-xs text-gray-400 text-center">or customize this screen first:</p>
-              <div className="flex flex-wrap gap-2">
-                {EXAMPLES.slice(0, 3).map((ex) => (
-                  <button
-                    key={ex}
-                    onClick={() => send(ex, true)}
-                    className="text-sm rounded-full border border-gray-200 px-3 py-1.5 text-gray-600 hover:border-purple-300 hover:bg-purple-50 transition-colors"
-                  >
-                    {ex}
-                  </button>
-                ))}
-              </div>
-            </div>
+            <button
+              className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-700 transition-colors"
+              onClick={onClose}
+            >
+              Create your first {context ? singular(context.entityLabel) : 'record'}
+              <ArrowRight className="w-4 h-4" />
+            </button>
           ) : (
             /* Normal: field suggestion chips */
             <div className="flex flex-wrap gap-2 pl-1">

@@ -17,7 +17,7 @@ import { MultiEntitySetupPage } from '@/components/MultiEntitySetupPage';
 import { OnboardingModal } from '@/components/OnboardingModal';
 import { HelpDrawer } from '@/components/HelpDrawer';
 import { AIFieldsProvider, AddFieldChatPanel, FieldSurfaceRegistrar } from '@/lib/ai-fields';
-import { nextPlanId as getNextPlanId } from '@/lib/plans';
+import { PLAN_ORDER, nextPlanId as getNextPlanId } from '@/lib/plans';
 import { Switch } from '@/components/ui/switch';
 import { useState, useEffect } from 'react';
 import { X, GripVertical, ChevronDown } from 'lucide-react';
@@ -230,6 +230,17 @@ function App() {
     setUpgradeTargetPlanId(planId ?? null);
     setUpgradeModalOpen(true);
   };
+
+  // If demo controls advance the plan past the stored upgrade target, auto-advance
+  // the target so the modal always shows the next meaningful upgrade step.
+  const effectiveUpgradeTarget = (() => {
+    if (!upgradeTargetPlanId) return null;
+    if (!subscription) return upgradeTargetPlanId;
+    const currentIdx = PLAN_ORDER.indexOf(subscription.planId as typeof PLAN_ORDER[number]);
+    const targetIdx = PLAN_ORDER.indexOf(upgradeTargetPlanId as typeof PLAN_ORDER[number]);
+    if (targetIdx <= currentIdx) return getNextPlanId(subscription.planId);
+    return upgradeTargetPlanId;
+  })();
 
   return (
     <AIFieldsProvider enabled={aiFieldsEnabled}>
@@ -718,7 +729,7 @@ function App() {
           <div className="bg-gray-50 rounded-2xl overflow-hidden flex flex-col w-full max-w-4xl shadow-2xl" style={{ maxHeight: '90vh' }}>
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-white flex-shrink-0">
               <h2 className="text-sm font-semibold text-gray-700">
-                {upgradeTargetPlanId ? 'Upgrade your plan' : 'Change your plan'}
+                {effectiveUpgradeTarget ? 'Upgrade your plan' : 'Change your plan'}
               </h2>
               <button onClick={() => setUpgradeModalOpen(false)} className="text-gray-400 hover:text-gray-600 p-1">
                 <X className="w-5 h-5" />
@@ -726,14 +737,14 @@ function App() {
             </div>
             <div className="flex-1 overflow-y-auto flex flex-col min-h-0">
               <SubscriptionPage
-                key={`${subscription?.planId ?? 'trial'}-${upgradeTargetPlanId ?? 'none'}`}
+                key={`${subscription?.planId ?? 'trial'}-${effectiveUpgradeTarget ?? 'none'}`}
                 activeSubscription={subscription}
                 isInTrial={isInTrial}
                 trialEndLabel={trialEndLabel}
                 teamSize={teamSize}
                 checkoutMode="inline"
-                upgradeFromPlanId={upgradeTargetPlanId ?? undefined}
-                initialStep={!upgradeTargetPlanId && subscription ? 'plans' : undefined}
+                upgradeFromPlanId={effectiveUpgradeTarget ?? undefined}
+                initialStep={!effectiveUpgradeTarget && subscription ? 'plans' : undefined}
                 hasAppStudioAccess={appStudioEnabled}
                 showDiscountedPrice={showDiscountedPrice}
                 discountName={promoDiscount?.name}
