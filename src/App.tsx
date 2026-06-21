@@ -175,7 +175,7 @@ function App() {
 
   // System pages (not CRM app/object screens) — these don't get the app-title menu.
   const nonAppScreens = [
-    'home', 'subscription', 'account-settings', 'marketplace', 'applications-access', 'app-studio', 'multi-entity',
+    'home', 'subscription', 'account-settings', 'users', 'marketplace', 'applications-access', 'app-studio', 'multi-entity',
   ];
 
   const handlePageNavigation = (page: string) => {
@@ -614,6 +614,8 @@ function App() {
               ))}
             </div>
           </div>
+          {/* Checkout mode toggle hidden from demo — defaulting to modal.
+              To restore: uncomment this block and remove the useState default above.
           <div className="border-t border-gray-100 pt-2 mt-2">
             <p className="mb-1 text-gray-500">Checkout</p>
             <div className="flex gap-1">
@@ -632,6 +634,7 @@ function App() {
               ))}
             </div>
           </div>
+          */}
           <div className="flex items-center justify-between border-t border-gray-100 pt-2 mt-2">
             <span className="text-gray-500">App Studio access</span>
             <Switch

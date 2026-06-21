@@ -89,6 +89,7 @@ export function AccountSettingsPage({ onBack, onNavigate, upgradeRequired = fals
       description: 'Set up multi-entity management for your multiple franchises, locations, or QuickBooks accounts.',
       linkLabel: multiEntityEnabled ? 'Manage multi-entity' : 'Multi-entity settings',
       page: 'multi-entity' as const,
+      requiresUpgrade: false,
     };
     return multiEntityEnabled ? [meSection, ...base] : [...base, meSection];
   })();
