@@ -3,6 +3,7 @@ import { ChecklistPanel } from '@/components/ChecklistPanel';
 import { QuickLinksBar } from '@/components/QuickLinksBar';
 import { AppsGrid } from '@/components/AppsGrid';
 import { useState } from 'react';
+import { TrendingUp, BarChart2, PieChart } from 'lucide-react';
 
 interface AdminDashboardProps {
   userName: string;
@@ -51,6 +52,24 @@ export function AdminDashboard({ userName, onNavigateToEstimates, onNavigateToCu
 
         {activeTab === 'apps' ? (
           <AppsGrid lockedApps={lockedApps} onOpenApp={onOpenApp} onUpgrade={onUpgrade} appStudioEnabled={appStudioEnabled} />
+        ) : activeTab === 'insights' ? (
+          <div className="flex flex-col items-center justify-center py-24 px-4 text-center">
+            <div className="flex items-center justify-center gap-3 mb-6">
+              <div className="w-12 h-12 rounded-2xl bg-blue-50 flex items-center justify-center">
+                <BarChart2 className="w-6 h-6 text-blue-500" />
+              </div>
+              <div className="w-12 h-12 rounded-2xl bg-purple-50 flex items-center justify-center">
+                <TrendingUp className="w-6 h-6 text-purple-500" />
+              </div>
+              <div className="w-12 h-12 rounded-2xl bg-indigo-50 flex items-center justify-center">
+                <PieChart className="w-6 h-6 text-indigo-500" />
+              </div>
+            </div>
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">Insights coming soon</h2>
+            <p className="text-sm text-gray-500 max-w-sm">
+              Revenue trends, activity summaries, and pipeline analytics — all in one place. You're in the early access group.
+            </p>
+          </div>
         ) : (
           <>
             {/* Welcome Banner with Integrated Insights and Videos */}

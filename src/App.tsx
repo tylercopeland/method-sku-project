@@ -45,6 +45,24 @@ function App() {
   const [aiFieldsEnabled, setAiFieldsEnabled] = useState(false);
   // Demo: emphasize the annual discount with the discounted monthly price on plan cards.
   const [showDiscountedPrice, setShowDiscountedPrice] = useState(false);
+  const [promoDiscount, setPromoDiscount] = useState<{ name: string; pct: number } | null>(null);
+
+  const PROMO_DISCOUNTS = [
+    { name: 'WELCOME10', pct: 0.10 },
+    { name: 'SAVE15', pct: 0.15 },
+    { name: 'PARTNER20', pct: 0.20 },
+    { name: 'LAUNCH25', pct: 0.25 },
+  ];
+
+  const handleDiscountToggle = (on: boolean) => {
+    setShowDiscountedPrice(on);
+    if (on) {
+      const pick = PROMO_DISCOUNTS[Math.floor(Math.random() * PROMO_DISCOUNTS.length)];
+      setPromoDiscount(pick);
+    } else {
+      setPromoDiscount(null);
+    }
+  };
   // Applications Access deep-link: which user, scrolled to which app they came from.
   const [accessUser, setAccessUser] = useState<string | null>(null);
   const [accessScrollApp, setAccessScrollApp] = useState<string | undefined>(undefined);
@@ -321,6 +339,8 @@ function App() {
             checkoutMode={checkoutMode}
             hasAppStudioAccess={appStudioEnabled}
             showDiscountedPrice={showDiscountedPrice}
+            discountName={promoDiscount?.name}
+            discountPct={promoDiscount?.pct}
             multiEntityEnabled={multiEntityEnabled}
             onUpgrade={openUpgradeModal}
             onSubscribed={(sub) => {
@@ -652,7 +672,7 @@ function App() {
           </div>
           <div className="flex items-center justify-between border-t border-gray-100 pt-2 mt-2">
             <span className="text-gray-500">Discounted price</span>
-            <Switch checked={showDiscountedPrice} onCheckedChange={setShowDiscountedPrice} />
+            <Switch checked={showDiscountedPrice} onCheckedChange={handleDiscountToggle} />
           </div>
           <div className="flex items-center justify-between border-t border-gray-100 pt-2 mt-2">
             <span className="text-gray-500">Nav folders</span>
@@ -709,6 +729,8 @@ function App() {
                 initialStep={!upgradeTargetPlanId && subscription ? 'plans' : undefined}
                 hasAppStudioAccess={appStudioEnabled}
                 showDiscountedPrice={showDiscountedPrice}
+                discountName={promoDiscount?.name}
+                discountPct={promoDiscount?.pct}
                 multiEntityEnabled={multiEntityEnabled}
                 onBack={() => setUpgradeModalOpen(false)}
                 onSubscribed={(sub) => {

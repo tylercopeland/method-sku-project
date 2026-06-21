@@ -36,8 +36,8 @@ interface Plan {
   highlighted?: boolean;
 }
 
-// Annual billing = 15% off the monthly rate.
-const ANNUAL_DISCOUNT = 0.15;
+// Annual billing = 20% off the monthly rate.
+const ANNUAL_DISCOUNT = 0.20;
 const annualPerMonth = (monthly: number) => Math.round(monthly * (1 - ANNUAL_DISCOUNT));
 const annualYearly = (monthly: number) => Math.round(monthly * 12 * (1 - ANNUAL_DISCOUNT));
 
@@ -320,6 +320,9 @@ interface SubscriptionPageProps {
   /** Emphasize the annual discount: strike through the full price on annual and
    *  show the discounted monthly price as a savings nudge on monthly. */
   showDiscountedPrice?: boolean;
+  /** Promo discount applied to the monthly price only (e.g. from demo controls). */
+  discountName?: string;
+  discountPct?: number;
   /** Pre-select this plan and jump straight to checkout (used by the upgrade modal). */
   upgradeFromPlanId?: string;
   /** Called when the user clicks "Upgrade plan" in the manage view — lets the parent
@@ -345,6 +348,8 @@ export function SubscriptionPage({
   checkoutMode = 'inline',
   hasAppStudioAccess = false,
   showDiscountedPrice = true,
+  discountName,
+  discountPct,
   upgradeFromPlanId,
   onUpgrade,
   multiEntityEnabled = false,
@@ -1813,12 +1818,21 @@ export function SubscriptionPage({
                         ? `Billed annually · $${yearly.toLocaleString()}/yr`
                         : 'Billed monthly'}
                     </p>
-                    {/* On monthly, nudge the discounted monthly price available with annual billing */}
+                    {/* On monthly, nudge the discounted monthly price available with annual billing,
+                        or show a promo discount if one is active from demo controls. */}
                     {showDiscountedPrice && billingCycle === 'monthly' && (
-                      <p className="text-xs font-medium text-green-700 mb-1">
-                        ${annualPerMonth(plan.monthlyPrice)}/mo billed annually · save{' '}
-                        {Math.round(ANNUAL_DISCOUNT * 100)}%
-                      </p>
+                      discountName && discountPct ? (
+                        <p className="text-xs font-medium text-green-700 mb-1">
+                          <span className="bg-green-100 rounded px-1 py-0.5 mr-1">{discountName}</span>
+                          ${Math.round(plan.monthlyPrice * (1 - discountPct))}/mo · save{' '}
+                          {Math.round(discountPct * 100)}%
+                        </p>
+                      ) : (
+                        <p className="text-xs font-medium text-green-700 mb-1">
+                          ${annualPerMonth(plan.monthlyPrice)}/mo billed annually · save{' '}
+                          {Math.round(ANNUAL_DISCOUNT * 100)}%
+                        </p>
+                      )
                     )}
                     {showTeamTotal ? (
                       <p className="text-xs font-medium text-blue-700 mb-3">
