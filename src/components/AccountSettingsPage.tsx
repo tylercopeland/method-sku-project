@@ -70,20 +70,28 @@ const sections: SettingsSection[] = [
       'Set up multi-entity management for your multiple franchises, locations, or QuickBooks accounts.',
     linkLabel: 'Multi-entity settings',
     page: 'multi-entity',
-    requiresUpgrade: true,
   },
 ];
 
 interface AccountSettingsPageProps {
   onBack?: () => void;
   onNavigate?: (page: string) => void;
-  /** True when the current plan (Essentials) can't access higher-tier sections. */
   upgradeRequired?: boolean;
-  /** Open the upgrade screen for a locked section. */
   onUpgrade?: () => void;
+  multiEntityEnabled?: boolean;
 }
 
-export function AccountSettingsPage({ onBack, onNavigate, upgradeRequired = false, onUpgrade }: AccountSettingsPageProps) {
+export function AccountSettingsPage({ onBack, onNavigate, upgradeRequired = false, onUpgrade, multiEntityEnabled = false }: AccountSettingsPageProps) {
+  const visibleSections = (() => {
+    const base = sections.filter(s => s.page !== 'multi-entity');
+    const meSection = {
+      title: multiEntityEnabled ? 'Multi-entity management' : 'Multi-entity setup',
+      description: 'Set up multi-entity management for your multiple franchises, locations, or QuickBooks accounts.',
+      linkLabel: multiEntityEnabled ? 'Manage multi-entity' : 'Multi-entity settings',
+      page: 'multi-entity' as const,
+    };
+    return multiEntityEnabled ? [meSection, ...base] : [...base, meSection];
+  })();
   return (
     <div className="flex-1 overflow-y-auto p-4 sm:p-8">
       <div className="max-w-6xl mx-auto">
@@ -108,7 +116,7 @@ export function AccountSettingsPage({ onBack, onNavigate, upgradeRequired = fals
 
         {/* Sections */}
         <div className="divide-y divide-transparent">
-          {sections.map((section) => {
+          {visibleSections.map((section) => {
             const locked = Boolean(section.requiresUpgrade) && upgradeRequired;
             return (
               <div
@@ -117,9 +125,18 @@ export function AccountSettingsPage({ onBack, onNavigate, upgradeRequired = fals
               >
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 mb-3">
-                    <h2 className="text-lg sm:text-xl font-medium text-blue-700">
-                      {section.title}
-                    </h2>
+                    {locked ? (
+                      <h2 className="text-lg sm:text-xl font-medium text-blue-700">
+                        {section.title}
+                      </h2>
+                    ) : (
+                      <button
+                        onClick={() => section.page && onNavigate?.(section.page)}
+                        className="text-lg sm:text-xl font-medium text-blue-700 hover:underline text-left"
+                      >
+                        {section.title}
+                      </button>
+                    )}
                     {locked && (
                       <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-xs font-semibold text-gray-500">
                         <Lock className="w-3 h-3" />

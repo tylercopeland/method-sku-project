@@ -1,30 +1,22 @@
 import React, { useState } from 'react';
+import { InviteModal } from '@/components/UserManagementPage';
 import {
-  ChevronLeft, ChevronDown, Building2, Users, DollarSign, TrendingUp,
-  Plus, Search, Settings, LogIn, AlertTriangle, X, UserPlus, Tag,
-  ExternalLink, SlidersHorizontal, Package, Palette, FileText, List,
-  Shield,
+  ChevronLeft, Building2, Users, Search, Settings, LogIn, Plus,
+  ChevronDown, ChevronUp, MoreVertical, ArrowUpDown, LayoutList,
+  X, Mail, Pencil, Info,
 } from 'lucide-react';
-import { Switch } from '@/components/ui/switch';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
-type Tab = 'overview' | 'sub-entities' | 'users' | 'preferences';
-type EntityStatus = 'Synced' | 'Unsynced';
+type Tab = 'entities' | 'users';
 
 interface Entity {
   id: string;
   name: string;
   tags: string[];
   userCount: number;
-  status: EntityStatus;
-  revenue: string;
-  revenueNum: number;
+  status: 'Synced' | 'Unsynced';
   isMain?: boolean;
-  lifetimeValue: string;
-  activeOpps: number;
-  wonRate: string;
-  lastActivity: string;
 }
 
 interface MEUser {
@@ -34,803 +26,396 @@ interface MEUser {
   name: string;
   email: string;
   role: string;
-  companies: string[];
-  status: 'Active' | 'Invite pending';
+  entityNames: string[];
+  status: 'Active' | 'Invited';
 }
 
 interface EntityUser {
+  id: string;
   initials: string;
   color: string;
   name: string;
   email: string;
   role: string;
-  permissions: string[];
-}
-
-interface WizardUser {
-  id: string;
-  email: string;
-  name: string;
-  role: string;
+  status: 'Active' | 'Invited';
+  accessApps: string[];
 }
 
 // ── Mock data ──────────────────────────────────────────────────────────────────
 
 const INITIAL_ENTITIES: Entity[] = [
-  { id: 'main', name: 'Horizons Inc', tags: ['Main'], userCount: 150, status: 'Synced', revenue: '$2,500', revenueNum: 2500, isMain: true, lifetimeValue: '$874,000', activeOpps: 42, wonRate: '68%', lastActivity: 'Jun 17' },
-  { id: 'nyc', name: 'Horizons NYC', tags: ['New York', 'pop-up'], userCount: 35, status: 'Unsynced', revenue: '$650', revenueNum: 650, lifetimeValue: '$125,000', activeOpps: 8, wonRate: '75%', lastActivity: 'Jan 14' },
-  { id: 'bay', name: 'Horizons Bay Area', tags: ['San Francisco'], userCount: 28, status: 'Synced', revenue: '$550', revenueNum: 550, lifetimeValue: '$98,000', activeOpps: 12, wonRate: '61%', lastActivity: 'Jun 15' },
-  { id: 'texas', name: 'Horizons Texas', tags: ['Austin', 'franchise'], userCount: 22, status: 'Synced', revenue: '$450', revenueNum: 450, lifetimeValue: '$76,000', activeOpps: 9, wonRate: '58%', lastActivity: 'Jun 16' },
-  { id: 'la', name: 'Horizons LA', tags: ['Los Angeles'], userCount: 25, status: 'Synced', revenue: '$450', revenueNum: 450, lifetimeValue: '$81,000', activeOpps: 11, wonRate: '72%', lastActivity: 'Jun 14' },
-  { id: 'chicago', name: 'Horizons Chicago', tags: ['Chicago', 'seasonal'], userCount: 15, status: 'Synced', revenue: '$250', revenueNum: 250, lifetimeValue: '$43,000', activeOpps: 5, wonRate: '55%', lastActivity: 'Jun 10' },
-  { id: 'miami', name: 'Horizons Miami', tags: ['Miami'], userCount: 12, status: 'Synced', revenue: '$250', revenueNum: 250, lifetimeValue: '$45,000', activeOpps: 6, wonRate: '60%', lastActivity: 'Jun 12' },
+  { id: 'main', name: 'Horizons Inc', tags: ['Headquarters', 'USA'], userCount: 4, status: 'Synced', isMain: true },
+  { id: 'nyc', name: 'Horizons NYC', tags: ['USA'], userCount: 3, status: 'Synced' },
+  { id: 'bay', name: 'Horizons Bay Area', tags: ['USA'], userCount: 3, status: 'Synced' },
+  { id: 'texas', name: 'Horizons Texas', tags: ['USA'], userCount: 2, status: 'Synced' },
+  { id: 'la', name: 'Horizons LA', tags: ['USA'], userCount: 2, status: 'Synced' },
+  { id: 'chicago', name: 'Horizons Chicago', tags: ['USA'], userCount: 1, status: 'Synced' },
+  { id: 'miami', name: 'Horizons Miami', tags: ['USA'], userCount: 2, status: 'Synced' },
 ];
 
-const ME_USERS: MEUser[] = [
-  { id: 'sw', initials: 'SW', color: 'bg-purple-500', name: 'Sarah Wilson', email: 'sarah.wilson@horizonsnyc.com', role: 'Super Admin', companies: ['Horizons NYC', 'Horizons Bay Area', 'Horizons Inc'], status: 'Invite pending' },
-  { id: 'mc', initials: 'MC', color: 'bg-blue-500', name: 'Michael Chen', email: 'm.chen@horizonsbayarea.com', role: 'Admin', companies: ['Horizons Bay Area'], status: 'Active' },
-  { id: 'ed', initials: 'ED', color: 'bg-green-500', name: 'Emma Davis', email: 'emma.d@horizonstexas.com', role: 'Customizer', companies: ['Horizons Texas', 'Horizons Miami'], status: 'Active' },
-  { id: 'jm', initials: 'JM', color: 'bg-amber-500', name: 'James Miller', email: 'j.miller@horizonsla.com', role: 'Regular', companies: ['Horizons LA'], status: 'Active' },
+const ALL_APPS = [
+  'Accounts', 'Activities', 'Bills', 'Cases', 'Classes',
+  'Customers & Leads', 'Donations', 'Estimates', 'Invoices', 'Items',
+  'Opportunities', 'Payments', 'Sales Receipts', 'Terms', 'Vendors',
+  'Send Email', 'Web to Lead',
 ];
 
-const ENTITY_USERS: Record<string, EntityUser[]> = {
+const INITIAL_ME_USERS: MEUser[] = [
+  {
+    id: 'paul',
+    initials: 'PM',
+    color: 'bg-blue-600',
+    name: 'Paul McLane',
+    email: 'paul@horizonsinc.com',
+    role: 'Super Admin',
+    entityNames: INITIAL_ENTITIES.map(e => e.name),
+    status: 'Active',
+  },
+  {
+    id: 'sw',
+    initials: 'SW',
+    color: 'bg-purple-500',
+    name: 'Sarah Wilson',
+    email: 'sarah.wilson@horizonsinc.com',
+    role: 'Super Admin',
+    entityNames: ['Horizons Inc', 'Horizons NYC', 'Horizons Bay Area', 'Horizons Texas'],
+    status: 'Invited',
+  },
+  {
+    id: 'mc',
+    initials: 'MC',
+    color: 'bg-teal-500',
+    name: 'Michael Chen',
+    email: 'm.chen@horizonsbayarea.com',
+    role: 'Regular',
+    entityNames: ['Horizons Bay Area'],
+    status: 'Active',
+  },
+  {
+    id: 'ed',
+    initials: 'ED',
+    color: 'bg-green-500',
+    name: 'Emma Davis',
+    email: 'emma.d@horizonstexas.com',
+    role: 'Regular',
+    entityNames: ['Horizons Texas', 'Horizons Miami'],
+    status: 'Active',
+  },
+  {
+    id: 'jm',
+    initials: 'JM',
+    color: 'bg-amber-500',
+    name: 'James Miller',
+    email: 'j.miller@horizonsla.com',
+    role: 'Regular',
+    entityNames: ['Horizons LA'],
+    status: 'Invited',
+  },
+];
+
+const ENTITY_USERS_MAP: Record<string, EntityUser[]> = {
   main: [
-    { initials: 'TC', color: 'bg-blue-600', name: 'Tyler Copeland', email: 'tyler@horizonsinc.com', role: 'Admin', permissions: ['Customers - Full access', 'Activities - Full access', 'Invoices - Full access'] },
-    { initials: 'PM', color: 'bg-indigo-500', name: 'Paul McLane', email: 'paul@horizonsinc.com', role: 'Admin', permissions: ['Customers - Full access', 'Activities - Full access', 'Invoices - Full access'] },
+    { id: 'paul', initials: 'PM', color: 'bg-blue-600', name: 'Paul McLane', email: 'paul@horizonsinc.com', role: 'Super Admin', status: 'Active', accessApps: ALL_APPS },
+    { id: 'sw', initials: 'SW', color: 'bg-purple-500', name: 'Sarah Wilson', email: 'sarah.wilson@horizonsinc.com', role: 'Super Admin', status: 'Invited', accessApps: ALL_APPS },
   ],
   nyc: [
-    { initials: 'SW', color: 'bg-purple-500', name: 'Sarah Wilson', email: 'sarah.wilson@horizonsnyc.com', role: 'Admin', permissions: ['Customers - Full access', 'Activities - Full access', 'Invoices - Full access'] },
-    { initials: 'MC', color: 'bg-blue-500', name: 'Michael Chen', email: 'm.chen@horizonsnyc.com', role: 'Supervisor', permissions: ['Customers - Full access', 'Activities - Full access', 'Invoices - Read & write'] },
-    { initials: 'ED', color: 'bg-green-500', name: 'Emma Davis', email: 'emma.d@horizonsnyc.com', role: 'Regular', permissions: ['Customers - Read only', 'Activities - Read only', 'Invoices - Read only'] },
+    { id: 'paul', initials: 'PM', color: 'bg-blue-600', name: 'Paul McLane', email: 'paul@horizonsinc.com', role: 'Super Admin', status: 'Active', accessApps: ALL_APPS },
+    { id: 'sw', initials: 'SW', color: 'bg-purple-500', name: 'Sarah Wilson', email: 'sarah.wilson@horizonsinc.com', role: 'Super Admin', status: 'Invited', accessApps: ALL_APPS.slice(0, 10) },
+    { id: 'mc', initials: 'MC', color: 'bg-teal-500', name: 'Michael Chen', email: 'm.chen@horizonsbayarea.com', role: 'Regular', status: 'Active', accessApps: ALL_APPS.slice(0, 8) },
   ],
   bay: [
-    { initials: 'MC', color: 'bg-blue-500', name: 'Michael Chen', email: 'm.chen@horizonsbayarea.com', role: 'Admin', permissions: ['Customers - Full access', 'Activities - Full access', 'Invoices - Full access'] },
-    { initials: 'SW', color: 'bg-purple-500', name: 'Sarah Wilson', email: 'sarah.wilson@horizonsbayarea.com', role: 'Supervisor', permissions: ['Customers - Full access', 'Invoices - Read & write'] },
+    { id: 'paul', initials: 'PM', color: 'bg-blue-600', name: 'Paul McLane', email: 'paul@horizonsinc.com', role: 'Super Admin', status: 'Active', accessApps: ALL_APPS },
+    { id: 'sw', initials: 'SW', color: 'bg-purple-500', name: 'Sarah Wilson', email: 'sarah.wilson@horizonsinc.com', role: 'Super Admin', status: 'Invited', accessApps: ALL_APPS.slice(0, 9) },
+    { id: 'mc', initials: 'MC', color: 'bg-teal-500', name: 'Michael Chen', email: 'm.chen@horizonsbayarea.com', role: 'Regular', status: 'Active', accessApps: ALL_APPS.slice(0, 8) },
   ],
-  texas: [{ initials: 'ED', color: 'bg-green-500', name: 'Emma Davis', email: 'emma.d@horizonstexas.com', role: 'Admin', permissions: ['Customers - Full access', 'Activities - Full access'] }],
-  la: [{ initials: 'JM', color: 'bg-amber-500', name: 'James Miller', email: 'j.miller@horizonsla.com', role: 'Regular', permissions: ['Customers - Read only', 'Activities - Read only'] }],
-  chicago: [{ initials: 'TC', color: 'bg-blue-600', name: 'Tyler Copeland', email: 'tyler@horizonschicago.com', role: 'Admin', permissions: ['Customers - Full access', 'Activities - Full access'] }],
-  miami: [{ initials: 'ED', color: 'bg-green-500', name: 'Emma Davis', email: 'emma.d@horizonsmiami.com', role: 'Customizer', permissions: ['Customers - Full access', 'Activities - Full access'] }],
+  texas: [
+    { id: 'paul', initials: 'PM', color: 'bg-blue-600', name: 'Paul McLane', email: 'paul@horizonsinc.com', role: 'Super Admin', status: 'Active', accessApps: ALL_APPS },
+    { id: 'ed', initials: 'ED', color: 'bg-green-500', name: 'Emma Davis', email: 'emma.d@horizonstexas.com', role: 'Regular', status: 'Active', accessApps: ALL_APPS.slice(0, 7) },
+  ],
+  la: [
+    { id: 'paul', initials: 'PM', color: 'bg-blue-600', name: 'Paul McLane', email: 'paul@horizonsinc.com', role: 'Super Admin', status: 'Active', accessApps: ALL_APPS },
+    { id: 'jm', initials: 'JM', color: 'bg-amber-500', name: 'James Miller', email: 'j.miller@horizonsla.com', role: 'Regular', status: 'Invited', accessApps: ALL_APPS.slice(0, 6) },
+  ],
+  chicago: [
+    { id: 'paul', initials: 'PM', color: 'bg-blue-600', name: 'Paul McLane', email: 'paul@horizonsinc.com', role: 'Super Admin', status: 'Active', accessApps: ALL_APPS },
+  ],
+  miami: [
+    { id: 'paul', initials: 'PM', color: 'bg-blue-600', name: 'Paul McLane', email: 'paul@horizonsinc.com', role: 'Super Admin', status: 'Active', accessApps: ALL_APPS },
+    { id: 'ed', initials: 'ED', color: 'bg-green-500', name: 'Emma Davis', email: 'emma.d@horizonstexas.com', role: 'Regular', status: 'Active', accessApps: ALL_APPS.slice(0, 5) },
+  ],
 };
 
-// ── Small helpers ─────────────────────────────────────────────────────────────
+const USER_ENTITY_ACCESS: Record<string, { entityId: string; entityName: string; isMain?: boolean; apps: string[] }[]> = {
+  paul: INITIAL_ENTITIES.map(e => ({ entityId: e.id, entityName: e.name, isMain: e.isMain, apps: ALL_APPS })),
+  sw: [
+    { entityId: 'main', entityName: 'Horizons Inc', isMain: true, apps: ALL_APPS },
+    { entityId: 'nyc', entityName: 'Horizons NYC', apps: ALL_APPS.slice(0, 10) },
+    { entityId: 'bay', entityName: 'Horizons Bay Area', apps: ALL_APPS.slice(0, 9) },
+    { entityId: 'texas', entityName: 'Horizons Texas', apps: ALL_APPS.slice(0, 11) },
+  ],
+  mc: [{ entityId: 'bay', entityName: 'Horizons Bay Area', apps: ALL_APPS.slice(0, 8) }],
+  ed: [
+    { entityId: 'texas', entityName: 'Horizons Texas', apps: ALL_APPS.slice(0, 7) },
+    { entityId: 'miami', entityName: 'Horizons Miami', apps: ALL_APPS.slice(0, 5) },
+  ],
+  jm: [{ entityId: 'la', entityName: 'Horizons LA', apps: ALL_APPS.slice(0, 6) }],
+};
 
-function SyncBadge({ status }: { status: EntityStatus }) {
-  if (status === 'Synced') {
-    return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-700 border border-green-200">Synced</span>;
-  }
-  return (
-    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">
-      <AlertTriangle className="w-3 h-3" /> Unsynced
-    </span>
-  );
-}
+// ── Shared UI ──────────────────────────────────────────────────────────────────
 
-function EntityTag({ label }: { label: string }) {
-  const isMain = label === 'Main';
+function EntityIcon({ isMain, lg }: { isMain?: boolean; lg?: boolean }) {
+  const box = lg ? 'w-10 h-10 rounded-xl' : 'w-8 h-8 rounded-lg';
+  const icon = lg ? 'w-5 h-5' : 'w-4 h-4';
   return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${isMain ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'}`}>
-      {label}
-    </span>
+    <div className={`${box} flex items-center justify-center flex-shrink-0 ${isMain ? 'bg-blue-600' : 'bg-indigo-100'}`}>
+      <Building2 className={`${icon} ${isMain ? 'text-white' : 'text-indigo-500'}`} />
+    </div>
   );
 }
 
 function RoleBadge({ role }: { role: string }) {
-  const styles: Record<string, string> = {
-    'Super Admin': 'bg-purple-100 text-purple-700',
-    'Admin': 'bg-blue-100 text-blue-700',
-    'Customizer': 'bg-teal-100 text-teal-700',
-    'Regular': 'bg-gray-100 text-gray-600',
-  };
-  return <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${styles[role] ?? 'bg-gray-100 text-gray-600'}`}>{role}</span>;
-}
-
-function StatCard({ label, value, icon: Icon, color }: { label: string; value: string | number; icon: React.ComponentType<{ className?: string }>; color: string }) {
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-5 flex items-center gap-4">
-      <div className={`w-10 h-10 rounded-full ${color} flex items-center justify-center flex-shrink-0`}>
-        <Icon className="w-5 h-5 text-white" />
-      </div>
-      <div>
-        <p className="text-sm text-gray-500">{label}</p>
-        <p className="text-xl font-semibold text-gray-900">{value}</p>
-      </div>
-    </div>
+    <span className="inline-flex items-center gap-1.5 text-sm text-gray-700">
+      <Users className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+      {role}
+    </span>
   );
 }
 
-function BarChart({ data, title }: { data: { name: string; value: number }[]; title: string }) {
-  const max = Math.max(...data.map(d => d.value), 1);
+function StatusDot({ status }: { status: 'Active' | 'Invited' }) {
+  if (status === 'Active') {
+    return (
+      <span className="inline-flex items-center gap-1.5 text-xs font-medium text-green-700">
+        <span className="w-2 h-2 rounded-full bg-green-500 flex-shrink-0" /> Active
+      </span>
+    );
+  }
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-5">
-      <h3 className="text-sm font-semibold text-gray-700 mb-4">{title}</h3>
-      <div className="flex items-end gap-1.5" style={{ height: 100 }}>
-        {data.map((d, i) => (
-          <div key={i} className="flex-1 flex flex-col items-center gap-1" style={{ height: 100 }}>
-            <div className="w-full flex items-end" style={{ height: 80 }}>
-              <div
-                className="w-full bg-blue-500 rounded-t transition-all"
-                style={{ height: Math.max(3, (d.value / max) * 80) }}
-              />
-            </div>
-            <span className="text-[9px] text-gray-400 truncate w-full text-center leading-none">
-              {d.name.split(' ').pop()}
-            </span>
-          </div>
-        ))}
-      </div>
-    </div>
+    <span className="inline-flex items-center gap-1.5 text-xs font-medium text-amber-600">
+      <span className="w-2 h-2 rounded-full bg-amber-400 flex-shrink-0" /> Invited
+    </span>
   );
 }
 
-// ── Overview Tab ──────────────────────────────────────────────────────────────
-
-function OverviewTab({ entities }: { entities: Entity[] }) {
-  const unsynced = entities.filter(e => e.status === 'Unsynced');
-  const totalRevenue = entities.reduce((s, e) => s + e.revenueNum, 0);
-  const totalUsers = entities.reduce((s, e) => s + e.userCount, 0);
-  const totalOpps = entities.reduce((s, e) => s + e.activeOpps, 0);
-
+function SyncedBadge({ status }: { status: 'Synced' | 'Unsynced' }) {
+  if (status === 'Synced') {
+    return (
+      <span className="inline-flex items-center gap-1.5 text-xs font-medium text-green-700">
+        <span className="w-2 h-2 rounded-full bg-green-500 flex-shrink-0" /> Synced
+      </span>
+    );
+  }
   return (
-    <div className="space-y-5">
-      {unsynced.length > 0 && (
-        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center gap-3">
-          <AlertTriangle className="w-5 h-5 text-amber-500 flex-shrink-0" />
-          <div className="flex-1 min-w-0 text-sm">
-            <span className="font-medium text-amber-800">{unsynced.length} {unsynced.length === 1 ? 'entity requires' : 'entities require'} attention: </span>
-            <span className="text-amber-700">{unsynced.map(e => e.name).join(', ')} need QuickBooks sync.</span>
-          </div>
-          <button className="text-xs font-medium text-amber-700 border border-amber-300 rounded-lg px-3 py-1.5 hover:bg-amber-100 transition-colors whitespace-nowrap flex-shrink-0">
-            Complete sync setup
-          </button>
-        </div>
-      )}
-
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard label="Total sub-entities" value={entities.length} icon={Building2} color="bg-blue-600" />
-        <StatCard label="Total users" value={totalUsers.toLocaleString()} icon={Users} color="bg-indigo-500" />
-        <StatCard label="Monthly revenue" value={`$${(totalRevenue / 1000).toFixed(1)}k`} icon={DollarSign} color="bg-green-500" />
-        <StatCard label="Open opportunities" value={totalOpps} icon={TrendingUp} color="bg-purple-500" />
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <BarChart title="Revenue by entity ($/mo)" data={entities.map(e => ({ name: e.name, value: e.revenueNum }))} />
-        <BarChart title="Users per entity" data={entities.map(e => ({ name: e.name, value: e.userCount }))} />
-      </div>
-
-      <div className="bg-white rounded-xl border border-gray-200 p-5">
-        <h3 className="text-sm font-semibold text-gray-700 mb-3">Entity health summary</h3>
-        <div className="divide-y divide-gray-100">
-          {entities.map(e => (
-            <div key={e.id} className="flex items-center gap-4 py-3">
-              <div className="w-6 h-6 rounded bg-gray-100 flex items-center justify-center flex-shrink-0">
-                <Building2 className="w-3.5 h-3.5 text-gray-500" />
-              </div>
-              <span className="text-sm font-medium text-gray-800 flex-1">{e.name}</span>
-              <span className="text-sm text-gray-500">{e.activeOpps} open opps</span>
-              <span className="text-sm text-gray-500 w-16 text-right">{e.wonRate} won</span>
-              <SyncBadge status={e.status} />
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
+    <span className="inline-flex items-center gap-1.5 text-xs font-medium text-amber-600">
+      <span className="w-2 h-2 rounded-full bg-amber-400 flex-shrink-0" /> Unsynced
+    </span>
   );
 }
 
-// ── Entity Detail ─────────────────────────────────────────────────────────────
-
-function EntityDetailView({ entity, onBack }: { entity: Entity; onBack: () => void }) {
-  const users = ENTITY_USERS[entity.id] ?? [];
-  const [search, setSearch] = useState('');
-  const filtered = users.filter(u => !search || u.name.toLowerCase().includes(search.toLowerCase()) || u.email.toLowerCase().includes(search.toLowerCase()));
-
+function AppBadges({ apps, maxShow = 3 }: { apps: string[]; maxShow?: number }) {
+  const shown = apps.slice(0, maxShow);
+  const rest = apps.length - maxShow;
   return (
-    <div className="space-y-5">
-      <button onClick={onBack} className="inline-flex items-center gap-1 text-sm text-blue-600 hover:underline">
-        <ChevronLeft className="w-4 h-4" /> Back to Sub-entities
-      </button>
-
-      {entity.status === 'Unsynced' && (
-        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <AlertTriangle className="w-5 h-5 text-amber-500 flex-shrink-0" />
-            <div>
-              <p className="text-sm font-medium text-amber-800">QuickBooks Sync Required</p>
-              <p className="text-xs text-amber-700 mt-0.5">This sub-entity needs to be synced with QuickBooks to activate full functionality.</p>
-            </div>
-          </div>
-          <button className="text-xs font-medium text-amber-700 border border-amber-300 rounded-lg px-3 py-1.5 hover:bg-amber-100 transition-colors whitespace-nowrap flex-shrink-0">
-            Complete sync setup →
-          </button>
-        </div>
-      )}
-
-      <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0">
-          <Building2 className="w-5 h-5 text-gray-500" />
-        </div>
-        <div>
-          <div className="flex items-center gap-2">
-            <h2 className="text-2xl font-semibold text-gray-900">{entity.name}</h2>
-            <button className="text-sm text-blue-600 hover:underline">Edit</button>
-          </div>
-          <div className="flex items-center gap-1.5 mt-1">
-            {entity.status === 'Unsynced' && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">
-                <AlertTriangle className="w-3 h-3" /> unsynced
-              </span>
-            )}
-            {entity.tags.map(t => <EntityTag key={t} label={t} />)}
-          </div>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {[
-          { label: 'Lifetime Value', value: entity.lifetimeValue },
-          { label: 'Active Opportunities', value: entity.activeOpps },
-          { label: 'Won Opportunities', value: entity.wonRate },
-          { label: 'Last Activity', value: entity.lastActivity },
-        ].map(s => (
-          <div key={s.label} className="bg-white rounded-xl border border-gray-200 p-5">
-            <p className="text-xs text-gray-500 mb-1">{s.label}</p>
-            <p className="text-lg font-semibold text-gray-900">{s.value}</p>
-          </div>
-        ))}
-      </div>
-
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-100">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search users..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-          <button className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors whitespace-nowrap">
-            <UserPlus className="w-4 h-4" /> Add Users
-          </button>
-        </div>
-
-        <div className="px-5 py-3 flex items-center justify-between border-b border-gray-100">
-          <h3 className="text-sm font-semibold text-gray-700">Users ({filtered.length})</h3>
-          <div className="flex items-center gap-4">
-            <button className="text-xs font-medium text-blue-600 hover:underline flex items-center gap-1">
-              <Settings className="w-3.5 h-3.5" /> Edit Access
-            </button>
-            <button className="text-xs font-medium text-red-500 hover:underline flex items-center gap-1">
-              <X className="w-3.5 h-3.5" /> Remove Access
-            </button>
-          </div>
-        </div>
-
-        {filtered.length === 0 ? (
-          <div className="py-10 text-center">
-            <Users className="w-7 h-7 text-gray-300 mx-auto mb-2" />
-            <p className="text-sm text-gray-400">No users found</p>
-          </div>
-        ) : (
-          <div>
-            <div className="grid grid-cols-[40px_2fr_1fr_3fr_100px] bg-gray-50 px-4 py-2.5 border-b border-gray-100">
-              <div><input type="checkbox" className="rounded border-gray-300" /></div>
-              <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">User</span>
-              <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Role</span>
-              <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">App permissions</span>
-              <span />
-            </div>
-            <div className="divide-y divide-gray-100">
-              {filtered.map((u, i) => (
-                <div key={i} className="grid grid-cols-[40px_2fr_1fr_3fr_100px] items-center px-4 py-3.5 hover:bg-gray-50">
-                  <div><input type="checkbox" className="rounded border-gray-300" /></div>
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className={`w-8 h-8 rounded-full ${u.color} flex items-center justify-center text-white text-xs font-semibold flex-shrink-0`}>
-                      {u.initials}
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium text-gray-900 truncate">{u.name}</p>
-                      <p className="text-xs text-gray-500 truncate">{u.email}</p>
-                    </div>
-                  </div>
-                  <div><span className="text-sm text-gray-600 lowercase">{u.role}</span></div>
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    {u.permissions.slice(0, 2).map((p, j) => (
-                      <span key={j} className="px-2 py-0.5 bg-gray-100 text-gray-600 text-xs rounded-md">{p}</span>
-                    ))}
-                    {u.permissions.length > 2 && (
-                      <button className="text-xs text-gray-400 hover:text-blue-600">Show {u.permissions.length - 2} more</button>
-                    )}
-                  </div>
-                  <div className="text-right">
-                    <button className="text-xs font-medium text-blue-600 hover:underline">Edit Access</button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ── Sub-entities Tab ──────────────────────────────────────────────────────────
-
-function SubEntitiesTab({ entities, onSelectEntity, onAddEntity }: {
-  entities: Entity[];
-  onSelectEntity: (e: Entity) => void;
-  onAddEntity: () => void;
-}) {
-  const [search, setSearch] = useState('');
-  const [selected, setSelected] = useState<string[]>([]);
-  const filtered = entities.filter(e => !search || e.name.toLowerCase().includes(search.toLowerCase()));
-
-  const toggleAll = () => setSelected(prev => prev.length === filtered.length ? [] : filtered.map(e => e.id));
-  const toggleRow = (id: string) => setSelected(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
-
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center gap-3">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-          <input type="text" placeholder="Search sub-entities..." value={search} onChange={e => setSearch(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
-        </div>
-        <div className="flex-1" />
-        <button className="inline-flex items-center gap-1.5 px-3 py-2 text-sm border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors">
-          <SlidersHorizontal className="w-4 h-4" /> Filter
-        </button>
-        <button onClick={onAddEntity} className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-          <Plus className="w-4 h-4" /> Add new sub-entity
-        </button>
-      </div>
-
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <div className="px-5 py-3.5 border-b border-gray-100 flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-gray-700">All Sub-entities <span className="text-gray-400 font-normal">({filtered.length})</span></h3>
-          <div className="flex items-center gap-4">
-            <button className="text-xs font-medium text-blue-600 hover:underline flex items-center gap-1">
-              <UserPlus className="w-3.5 h-3.5" /> Add users to sub-entities
-            </button>
-            <button className="text-xs font-medium text-blue-600 hover:underline flex items-center gap-1">
-              <Tag className="w-3.5 h-3.5" /> Add tags to sub-entities
-            </button>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-[40px_2.5fr_1.5fr_1fr_1fr_1.2fr_1.5fr] bg-gray-50 px-4 py-2.5 border-b border-gray-100 gap-3">
-          <div><input type="checkbox" checked={selected.length === filtered.length && filtered.length > 0} onChange={toggleAll} className="rounded border-gray-300" /></div>
-          {['Name', 'Tags', 'Users', 'Status', 'Monthly Revenue', 'Actions'].map(h => (
-            <span key={h} className="text-xs font-semibold text-gray-400 uppercase tracking-wide">{h}</span>
-          ))}
-        </div>
-
-        <div className="divide-y divide-gray-100">
-          {filtered.map(entity => (
-            <div
-              key={entity.id}
-              className="grid grid-cols-[40px_2.5fr_1.5fr_1fr_1fr_1.2fr_1.5fr] items-center px-4 py-3.5 hover:bg-gray-50 cursor-pointer gap-3"
-              onClick={() => onSelectEntity(entity)}
-            >
-              <div onClick={e => e.stopPropagation()}>
-                <input type="checkbox" checked={selected.includes(entity.id)} onChange={() => toggleRow(entity.id)} className="rounded border-gray-300" />
-              </div>
-              <div className="flex items-center gap-2.5 min-w-0">
-                <div className="w-7 h-7 rounded bg-gray-100 flex items-center justify-center flex-shrink-0">
-                  <Building2 className="w-4 h-4 text-gray-500" />
-                </div>
-                <span className="text-sm font-medium text-gray-900 truncate">{entity.name}</span>
-                {entity.isMain && <span className="text-xs text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded flex-shrink-0">Main</span>}
-              </div>
-              <div className="flex items-center gap-1 flex-wrap">
-                {entity.tags.filter(t => t !== 'Main').map(t => <EntityTag key={t} label={t} />)}
-              </div>
-              <div className="flex items-center gap-1.5 text-sm text-gray-600">
-                <Users className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
-                {entity.userCount}
-              </div>
-              <div><SyncBadge status={entity.status} /></div>
-              <div className="text-sm font-medium text-gray-900">{entity.revenue}</div>
-              <div onClick={e => e.stopPropagation()}>
-                {entity.status === 'Unsynced' ? (
-                  <button className="text-xs font-medium text-amber-700 border border-amber-300 rounded-lg px-3 py-1.5 hover:bg-amber-50 transition-colors whitespace-nowrap">
-                    Complete sync setup →
-                  </button>
-                ) : (
-                  <div className="flex items-center gap-2">
-                    <button className="inline-flex items-center gap-1 text-xs font-medium text-blue-600 hover:underline">
-                      <LogIn className="w-3.5 h-3.5" /> Log in <ExternalLink className="w-3 h-3" />
-                    </button>
-                    <button className="text-gray-400 hover:text-gray-600 p-1 rounded hover:bg-gray-100">
-                      <Settings className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ── ME Users Tab ──────────────────────────────────────────────────────────────
-
-function UsersTab() {
-  const [search, setSearch] = useState('');
-  const [selected, setSelected] = useState<string[]>([]);
-  const filtered = ME_USERS.filter(u => !search || u.name.toLowerCase().includes(search.toLowerCase()) || u.email.toLowerCase().includes(search.toLowerCase()));
-
-  const toggleRow = (id: string) => setSelected(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
-
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center gap-3">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-          <input type="text" placeholder="Search users..." value={search} onChange={e => setSearch(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
-        </div>
-        <div className="flex-1" />
-        <button className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-          <UserPlus className="w-4 h-4" /> Add new users
-        </button>
-      </div>
-
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <div className="px-5 py-3.5 border-b border-gray-100 flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-gray-700">All Users <span className="text-gray-400 font-normal">({filtered.length})</span></h3>
-          <div className="flex items-center gap-4">
-            <button className="text-xs font-medium text-blue-600 hover:underline flex items-center gap-1">
-              <Building2 className="w-3.5 h-3.5" /> Add users to a sub-entity
-            </button>
-            <button className="text-xs font-medium text-red-500 hover:underline flex items-center gap-1">
-              <X className="w-3.5 h-3.5" /> Remove users
-            </button>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-[40px_2fr_1fr_2fr_1fr_1fr] bg-gray-50 px-4 py-2.5 border-b border-gray-100 gap-3">
-          <div><input type="checkbox" className="rounded border-gray-300" /></div>
-          {['Name', 'Role', 'Companies', 'Status', 'Actions'].map(h => (
-            <span key={h} className="text-xs font-semibold text-gray-400 uppercase tracking-wide">{h}</span>
-          ))}
-        </div>
-
-        <div className="divide-y divide-gray-100">
-          {filtered.map(user => (
-            <div key={user.id} className="grid grid-cols-[40px_2fr_1fr_2fr_1fr_1fr] items-center px-4 py-3.5 hover:bg-gray-50 gap-3">
-              <div>
-                <input type="checkbox" checked={selected.includes(user.id)} onChange={() => toggleRow(user.id)} className="rounded border-gray-300" />
-              </div>
-              <div className="flex items-center gap-3 min-w-0">
-                <div className={`w-8 h-8 rounded-full ${user.color} flex items-center justify-center text-white text-xs font-semibold flex-shrink-0`}>
-                  {user.initials}
-                </div>
-                <div className="min-w-0">
-                  <p className="text-sm font-medium text-gray-900 truncate">{user.name}</p>
-                  <p className="text-xs text-gray-500 truncate">{user.email}</p>
-                </div>
-              </div>
-              <div><RoleBadge role={user.role} /></div>
-              <div className="flex items-center gap-1 flex-wrap">
-                {user.companies.slice(0, 2).map((c, i) => (
-                  <span key={i} className="px-2 py-0.5 bg-gray-100 text-gray-600 text-xs rounded-md">{c}</span>
-                ))}
-                {user.companies.length > 2 && <span className="text-xs text-gray-500">+{user.companies.length - 2}</span>}
-              </div>
-              <div>
-                {user.status === 'Active'
-                  ? <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-700 border border-green-200">Active</span>
-                  : <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200"><AlertTriangle className="w-3 h-3" /> Invite pending</span>}
-              </div>
-              <div>
-                {user.status === 'Invite pending'
-                  ? <button className="text-xs font-medium text-amber-700 border border-amber-300 rounded-lg px-3 py-1.5 hover:bg-amber-50 transition-colors">Resend invite →</button>
-                  : <button className="text-gray-400 hover:text-gray-600 p-1 rounded hover:bg-gray-100"><Settings className="w-4 h-4" /></button>}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ── Preferences Tab ───────────────────────────────────────────────────────────
-
-function PreferencesTab() {
-  const items = [
-    { Icon: Palette, title: 'Branding', desc: 'Manage logos and brand colors for sub-entities.' },
-    { Icon: FileText, title: 'Email & report templates', desc: 'Configure templates for emails and reports used across sub-entities.' },
-    { Icon: List, title: 'Custom fields', desc: 'Define and manage Method-specific custom fields for your sub-entities.' },
-    { Icon: ChevronDown, title: 'Dropdowns', desc: 'Manage dropdown options available in forms and records in Method.' },
-  ];
-  return (
-    <div className="space-y-3">
-      {items.map(({ Icon, title, desc }) => (
-        <div key={title} className="bg-white rounded-xl border border-gray-200 p-5 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center flex-shrink-0">
-              <Icon className="w-5 h-5 text-blue-600" />
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-gray-800">{title}</p>
-              <p className="text-xs text-gray-500 mt-0.5">{desc}</p>
-            </div>
-          </div>
-          <button className="inline-flex items-center gap-1 text-sm font-medium text-gray-600 border border-gray-200 rounded-lg px-3 py-1.5 hover:bg-gray-50 transition-colors whitespace-nowrap">
-            <Settings className="w-3.5 h-3.5" /> Configure
-          </button>
-        </div>
+    <div className="flex items-center gap-1 flex-wrap">
+      {shown.map(app => (
+        <span key={app} className="px-2 py-0.5 text-xs text-gray-600 border border-gray-200 rounded bg-gray-50 whitespace-nowrap">{app}</span>
       ))}
+      {rest > 0 && <span className="px-2 py-0.5 text-xs text-gray-500 border border-gray-200 rounded bg-gray-50">+{rest}</span>}
     </div>
   );
 }
 
-// ── Add Sub-entity Wizard ─────────────────────────────────────────────────────
+function PaginationFooter({ count }: { count: number }) {
+  return (
+    <div className="flex items-center justify-end gap-2 px-5 py-3 border-t border-gray-100">
+      <span className="text-sm text-gray-500">Per Page</span>
+      <button className="inline-flex items-center gap-1 text-sm font-medium text-gray-700 border border-gray-200 rounded px-2 py-0.5">
+        10 <ChevronDown className="w-3.5 h-3.5" />
+      </button>
+      <span className="text-sm text-gray-500">{count} results</span>
+    </div>
+  );
+}
 
-const APP_PACKS = [
-  { name: 'Contact Management', price: '$28/user monthly', desc: 'Manage contacts, leads, and customers', enabled: true },
-  { name: 'Accounting Lists', price: 'Free', desc: 'Track accounts, categories, and financial records', enabled: true },
-  { name: 'Sales Transactions', price: '$28/user monthly', desc: 'Process and track sales transactions with detailed reporting', enabled: true },
-];
+function SearchSortBar({ search, setSearch }: { search: string; setSearch: (v: string) => void }) {
+  return (
+    <div className="flex items-center gap-2">
+      <div className="relative">
+        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+        <input
+          type="text"
+          placeholder="Search"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          className="pl-8 pr-3 py-1.5 text-sm border border-gray-200 rounded-lg w-44 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+      </div>
+      <button className="p-1.5 border border-gray-200 rounded-lg hover:bg-gray-50 text-gray-500">
+        <ArrowUpDown className="w-4 h-4" />
+      </button>
+      <button className="p-1.5 border border-gray-200 rounded-lg hover:bg-gray-50 text-gray-500">
+        <LayoutList className="w-4 h-4" />
+      </button>
+    </div>
+  );
+}
 
-function AddSubEntityWizard({ onClose, onComplete }: { onClose: () => void; onComplete: (e: Entity) => void }) {
-  const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
-  const [name, setName] = useState('');
-  const [tagInput, setTagInput] = useState('');
-  const [tags, setTags] = useState<string[]>([]);
-  const [nameError, setNameError] = useState(false);
-  const [packs, setPacks] = useState(APP_PACKS.map(p => ({ ...p })));
-  const [wizardUsers, setWizardUsers] = useState<WizardUser[]>([
-    { id: '1', email: 'john.doe@example.com', name: 'John Doe (You)', role: 'Super-admin' },
-    { id: '2', email: '', name: '', role: 'Regular' },
-  ]);
+function HelpArticles() {
+  return (
+    <div className="mt-6">
+      <h3 className="text-base font-semibold text-gray-900 mb-2">Help articles</h3>
+      <ul className="space-y-1">
+        <li><button className="text-sm text-blue-600 hover:underline">What is Multi-entity?</button></li>
+        <li><button className="text-sm text-blue-600 hover:underline">Multi-entity pricing</button></li>
+      </ul>
+    </div>
+  );
+}
 
-  const progress = [25, 50, 75, 100][step - 1];
+// ── Invite Modal ───────────────────────────────────────────────────────────────
 
-  function next() {
-    if (step === 1 && !name.trim()) { setNameError(true); return; }
-    setNameError(false);
-    setStep(s => Math.min(4, s + 1) as 1 | 2 | 3 | 4);
-  }
+interface MEInviteRow { id: string; email: string; username: string; usernameEdited: boolean }
 
-  function back() { setStep(s => Math.max(1, s - 1) as 1 | 2 | 3 | 4); }
+function newMERow(): MEInviteRow {
+  return { id: Math.random().toString(36).slice(2), email: '', username: '', usernameEdited: false };
+}
 
-  function addTag(e: React.KeyboardEvent) {
-    if (e.key === 'Enter' && tagInput.trim()) {
-      setTags(prev => [...prev, tagInput.trim()]);
-      setTagInput('');
-    }
-  }
+function MEInviteModal({
+  onClose,
+  onInvite,
+}: {
+  onClose: () => void;
+  onInvite: (emails: string[]) => void;
+}) {
+  const [rows, setRows] = useState<MEInviteRow[]>([newMERow()]);
+  const [sent, setSent] = useState(false);
 
-  function complete() {
-    onComplete({
-      id: name.toLowerCase().replace(/\s+/g, '-') + '-' + Date.now(),
-      name, tags,
-      userCount: wizardUsers.filter(u => u.email).length,
-      status: 'Unsynced',
-      revenue: '$0', revenueNum: 0,
-      lifetimeValue: '$0', activeOpps: 0, wonRate: '0%', lastActivity: 'Never',
+  const handleEmailChange = (id: string, value: string) => {
+    setRows(prev => {
+      const next = prev.map(r => {
+        if (r.id !== id) return r;
+        const prefix = value.split('@')[0];
+        return {
+          ...r,
+          email: value,
+          username: r.usernameEdited ? r.username : prefix,
+        };
+      });
+      const filled = next.filter(r => r.email.trim());
+      const empty = next.filter(r => !r.email.trim());
+      const changed = next.find(r => r.id === id);
+      if (changed?.email.trim() && next.indexOf(changed) === next.length - 1) {
+        return [...filled, ...empty.slice(0, 1), newMERow()];
+      }
+      return [...filled, ...(empty.length > 0 ? [empty[0]] : [newMERow()])];
     });
-    onClose();
-  }
+  };
+
+  const handleUsernameChange = (id: string, value: string) =>
+    setRows(prev => prev.map(r => r.id === id ? { ...r, username: value, usernameEdited: true } : r));
+
+  const removeRow = (id: string) =>
+    setRows(prev => {
+      const next = prev.filter(r => r.id !== id);
+      const last = next[next.length - 1];
+      if (!last || last.email.trim()) return [...next, newMERow()];
+      return next;
+    });
+
+  const filledRows = rows.filter(r => r.email.trim());
+  const canSend = filledRows.length > 0;
+
+  const handleSend = () => {
+    if (!canSend) return;
+    setSent(true);
+    onInvite(filledRows.map(r => r.email));
+    setTimeout(onClose, 1400);
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-[560px]">
-        <div className="flex items-start justify-between px-7 pt-7 pb-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-[600px] flex flex-col max-h-[90vh]">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100 flex-shrink-0">
           <div>
-            <h2 className="text-lg font-semibold text-gray-900">Add Sub-entity</h2>
-            <p className="text-sm text-gray-500 mt-0.5">Add a new sub-entity to your organization</p>
+            <h2 className="text-lg font-semibold text-gray-900">Invite to your team</h2>
+            <p className="text-sm text-gray-500 mt-0.5">Invited users will receive an email with login instructions.</p>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 mt-0.5">
+          <button onClick={onClose} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors">
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        <div className="px-7 pb-3">
-          <div className="flex items-center gap-3">
-            <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-              <div className="h-full bg-blue-600 rounded-full transition-all duration-300" style={{ width: `${progress}%` }} />
-            </div>
-            <span className="text-sm text-gray-500 whitespace-nowrap">Step {step} of 4</span>
+        {/* Rows */}
+        <div className="px-6 py-5 overflow-y-auto flex-1">
+          {/* Column headers */}
+          <div className="flex gap-2 mb-2 px-0.5">
+            <span className="flex-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Email</span>
+            <span className="flex-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Username</span>
+            <div className="w-7 flex-shrink-0" />
+          </div>
+
+          <div className="space-y-1.5">
+            {rows.map((row, i) => (
+              <div key={row.id} className="flex gap-2 items-center">
+                <div className="flex-1 relative">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+                  <input
+                    type="email"
+                    value={row.email}
+                    onChange={e => handleEmailChange(row.id, e.target.value)}
+                    placeholder={i === 0 ? 'colleague@company.com' : 'Add another...'}
+                    className="w-full border border-gray-300 rounded-lg pl-8 pr-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors h-[44px] bg-white"
+                  />
+                </div>
+                <div className="flex-1">
+                  <input
+                    type="text"
+                    value={row.username}
+                    onChange={e => handleUsernameChange(row.id, e.target.value)}
+                    placeholder={row.email.trim() ? row.email.split('@')[0] : 'Auto-calculated from email'}
+                    disabled={!row.email.trim()}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors h-[44px] bg-white disabled:opacity-40 disabled:cursor-not-allowed"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => removeRow(row.id)}
+                  className="flex-shrink-0 flex items-center justify-center w-7 h-7 rounded-md text-gray-300 hover:text-gray-500 hover:bg-gray-100 transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            ))}
           </div>
         </div>
 
-        <div className="px-7 py-4 max-h-[60vh] overflow-y-auto">
-          {/* Step 1 */}
-          {step === 1 && (
-            <div className="space-y-5">
-              <h3 className="text-base font-semibold text-gray-800">Sub-entity details</h3>
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium text-gray-700">Sub-entity name</label>
-                <input
-                  autoFocus
-                  type="text"
-                  value={name}
-                  onChange={e => { setName(e.target.value); setNameError(false); }}
-                  placeholder="Enter sub-entity name"
-                  className={`w-full border rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 ${nameError ? 'border-red-400 focus:ring-red-400' : 'border-gray-300 focus:ring-blue-500'}`}
-                />
-                {nameError && <p className="text-xs text-red-500">Sub-entity name is required</p>}
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium text-gray-700">Tags</label>
-                <div className="border border-gray-300 rounded-lg px-3 py-2 min-h-[44px] flex flex-wrap gap-1.5 items-center focus-within:ring-2 focus-within:ring-blue-500">
-                  {tags.map(t => (
-                    <span key={t} className="inline-flex items-center gap-1 px-2 py-0.5 bg-gray-100 text-gray-700 text-xs rounded-full">
-                      {t}
-                      <button onClick={() => setTags(prev => prev.filter(x => x !== t))} className="text-gray-400 hover:text-gray-600"><X className="w-3 h-3" /></button>
-                    </span>
-                  ))}
-                  <input
-                    type="text"
-                    value={tagInput}
-                    onChange={e => setTagInput(e.target.value)}
-                    onKeyDown={addTag}
-                    placeholder={tags.length === 0 ? 'Type and press Enter' : ''}
-                    className="flex-1 min-w-[120px] text-sm outline-none bg-transparent"
-                  />
-                </div>
-                <p className="text-xs text-gray-400">Recommended for easy filtering by eg. location or type (NYC, Kiosk, Pop-up)</p>
-              </div>
+        {/* Footer */}
+        <div className="px-6 pb-5 flex-shrink-0 space-y-3">
+          <div className="border-t border-gray-100 pt-3">
+            <div className="flex items-center gap-2">
+              <Info className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+              <p className="text-xs text-gray-500">
+                Super Admins get access to all entities and all apps automatically.
+              </p>
             </div>
-          )}
-
-          {/* Step 2 */}
-          {step === 2 && (
-            <div className="space-y-4">
-              <h3 className="text-base font-semibold text-gray-800">Users</h3>
-              <div className="border border-gray-200 rounded-xl overflow-hidden">
-                <table className="w-full text-sm">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      {['#', 'Email', 'Full name', 'Role', ''].map(h => (
-                        <th key={h} className="px-4 py-2.5 text-left text-xs font-semibold text-blue-600">{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {wizardUsers.map((u, i) => (
-                      <tr key={u.id}>
-                        <td className="px-4 py-2.5 text-gray-400 text-xs">{i + 1}</td>
-                        <td className="px-4 py-2.5">
-                          <input type="email" value={u.email} disabled={i === 0} placeholder="user@example.com"
-                            onChange={e => setWizardUsers(prev => prev.map(r => r.id === u.id ? { ...r, email: e.target.value } : r))}
-                            className="w-full text-sm text-gray-700 outline-none bg-transparent disabled:text-gray-500 placeholder-gray-300" />
-                        </td>
-                        <td className="px-4 py-2.5">
-                          <input type="text" value={u.name} disabled={i === 0} placeholder="Full Name"
-                            onChange={e => setWizardUsers(prev => prev.map(r => r.id === u.id ? { ...r, name: e.target.value } : r))}
-                            className="w-full text-sm text-gray-700 outline-none bg-transparent disabled:text-gray-500 placeholder-gray-300" />
-                        </td>
-                        <td className="px-4 py-2.5">
-                          <select value={u.role} onChange={e => setWizardUsers(prev => prev.map(r => r.id === u.id ? { ...r, role: e.target.value } : r))}
-                            className="text-sm text-gray-700 outline-none bg-transparent">
-                            {['Super-admin', 'Admin', 'Customizer', 'Regular', 'View-only'].map(r => <option key={r}>{r}</option>)}
-                          </select>
-                        </td>
-                        <td className="px-2 w-8">
-                          {i > 0 && (
-                            <button onClick={() => setWizardUsers(prev => prev.filter(r => r.id !== u.id))} className="text-gray-300 hover:text-gray-500">
-                              <X className="w-4 h-4" />
-                            </button>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              <button onClick={() => setWizardUsers(prev => [...prev, { id: Date.now().toString(), email: '', name: '', role: 'Regular' }])}
-                className="text-sm text-blue-600 hover:underline">
-                + Add another user
-              </button>
-            </div>
-          )}
-
-          {/* Step 3 */}
-          {step === 3 && (
-            <div className="space-y-4">
-              <h3 className="text-base font-semibold text-gray-800">App packs</h3>
-              <p className="text-sm text-gray-500">Last used app packs</p>
-              <div className="space-y-3">
-                {packs.map((pack, i) => (
-                  <div key={pack.name} className="border border-gray-200 rounded-xl p-4 flex items-center gap-4">
-                    <div className="w-9 h-9 rounded-full bg-blue-50 flex items-center justify-center flex-shrink-0">
-                      <Package className="w-4 h-4 text-blue-600" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium text-gray-800">{pack.name}</span>
-                        <span className="text-xs text-gray-400">{pack.price}</span>
-                      </div>
-                      <p className="text-xs text-gray-500 mt-0.5">{pack.desc}</p>
-                    </div>
-                    <div className="flex items-center gap-3 flex-shrink-0">
-                      <button className="text-xs text-gray-500 flex items-center gap-0.5 hover:text-gray-700">
-                        Access <ChevronDown className="w-3 h-3" />
-                      </button>
-                      <Switch checked={pack.enabled} onCheckedChange={v => setPacks(prev => prev.map((p, j) => j === i ? { ...p, enabled: v } : p))} />
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <button className="w-full py-2.5 border border-dashed border-gray-300 rounded-xl text-sm text-gray-500 hover:border-blue-400 hover:text-blue-600 transition-colors">
-                Add more app packs
-              </button>
-            </div>
-          )}
-
-          {/* Step 4 */}
-          {step === 4 && (
-            <div className="space-y-4">
-              <div className="flex items-center gap-2">
-                <h3 className="text-base font-semibold text-gray-800">Summary</h3>
-                <span className="text-sm text-gray-400">($68 / mo)</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <Switch checked={true} onCheckedChange={() => {}} />
-                <span className="text-sm text-gray-700">Maintain previous access settings for existing users</span>
-              </div>
-              <div className="border border-gray-200 rounded-xl p-4 space-y-3">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
-                      <Users className="w-4 h-4 text-blue-600" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-gray-800">John Doe (You)</p>
-                      <p className="text-xs text-gray-400">john.doe@example.com</p>
-                    </div>
-                  </div>
-                  <button className="text-xs font-medium text-gray-600 border border-gray-200 rounded-lg px-3 py-1.5 hover:bg-gray-50 flex items-center gap-1">
-                    <Settings className="w-3.5 h-3.5" /> Change permissions
-                  </button>
-                </div>
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  <span className="text-xs text-gray-400">Access:</span>
-                  <span className="px-2 py-0.5 bg-gray-100 text-gray-600 text-xs rounded-md">Customers - Full access</span>
-                  <span className="px-2 py-0.5 bg-gray-100 text-gray-600 text-xs rounded-md">Activities - Full access</span>
-                  <button className="text-xs text-blue-600 hover:underline">Show 11 more</button>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div className="bg-gray-50 border-t border-gray-100 px-7 py-4 flex items-center justify-between gap-3 rounded-b-2xl">
-          <button onClick={back} disabled={step === 1}
-            className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
-            Back
-          </button>
-          <div className="flex items-center gap-3">
-            {step === 1 && (
-              <button onClick={complete} className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors">
-                Create without users
-              </button>
-            )}
-            {step < 4 ? (
-              <button onClick={next} className="px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-                {step === 1 ? 'Create & Add users' : 'Next'}
-              </button>
-            ) : (
-              <div className="flex items-center gap-2">
-                <button onClick={complete} className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors">
-                  Add & new
-                </button>
-                <button onClick={complete} className="px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-                  Add users
-                </button>
-              </div>
-            )}
+          </div>
+          <div className="flex items-center justify-end gap-3">
+            <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors">
+              Cancel
+            </button>
+            <button
+              onClick={handleSend}
+              disabled={!canSend || sent}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {sent ? 'Invites sent!' : (
+                <>
+                  <Mail className="w-4 h-4" />
+                  Send {filledRows.length > 1 ? `${filledRows.length} invites` : 'invite'}
+                </>
+              )}
+            </button>
           </div>
         </div>
       </div>
@@ -838,87 +423,1056 @@ function AddSubEntityWizard({ onClose, onComplete }: { onClose: () => void; onCo
   );
 }
 
-// ── Main export ───────────────────────────────────────────────────────────────
+// ── Bulk Tags Modal ────────────────────────────────────────────────────────────
 
-interface MultiEntityPageProps {
-  onBack?: () => void;
-  onNavigate?: (page: string) => void;
-}
+function BulkTagsModal({ count, onClose, onAdd }: {
+  count: number;
+  onClose: () => void;
+  onAdd: (tags: string[]) => void;
+}) {
+  const [tags, setTags] = useState<string[]>([]);
+  const [input, setInput] = useState('');
 
-export function MultiEntityPage({ onBack }: MultiEntityPageProps) {
-  const [activeTab, setActiveTab] = useState<Tab>('overview');
-  const [selectedEntity, setSelectedEntity] = useState<Entity | null>(null);
-  const [entities, setEntities] = useState<Entity[]>(INITIAL_ENTITIES);
-  const [showWizard, setShowWizard] = useState(false);
+  const addTag = (value: string) => {
+    const trimmed = value.trim();
+    if (trimmed && !tags.includes(trimmed)) setTags(prev => [...prev, trimmed]);
+    setInput('');
+  };
 
-  const tabs: { id: Tab; label: string }[] = [
-    { id: 'overview', label: 'Overview' },
-    { id: 'sub-entities', label: 'Sub-entities' },
-    { id: 'users', label: 'Users' },
-    { id: 'preferences', label: 'Preferences' },
-  ];
-
-  function handleTabChange(tab: Tab) {
-    setActiveTab(tab);
-    setSelectedEntity(null);
-  }
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); addTag(input); }
+    else if (e.key === 'Backspace' && !input && tags.length > 0) setTags(prev => prev.slice(0, -1));
+  };
 
   return (
-    <div className="flex-1 overflow-y-auto bg-gray-50 p-4 sm:p-8">
-      <div className="max-w-6xl mx-auto">
-        <button onClick={onBack} className="inline-flex items-center gap-1 text-sm text-blue-600 hover:underline mb-5">
-          <ChevronLeft className="w-4 h-4" /> Account Settings
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg">
+        <div className="flex items-center justify-between px-6 pt-6 pb-1">
+          <h2 className="text-lg font-semibold text-gray-900">Add tags to {count} {count === 1 ? 'entity' : 'entities'}</h2>
+          <button onClick={onClose} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+        <div className="px-6 pb-6 space-y-4">
+          <p className="text-sm text-gray-500">Add tags to your entities. If a tag already exists in any of the entities, it will not be duplicated.</p>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Entity tags</label>
+            <div
+              className="min-h-[44px] w-full border border-gray-300 rounded-lg px-3 py-2 flex flex-wrap items-center gap-1.5 focus-within:ring-2 focus-within:ring-blue-500 cursor-text"
+              onClick={() => document.getElementById('bulk-tag-input')?.focus()}
+            >
+              {tags.map(tag => (
+                <span key={tag} className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                  {tag}
+                  <button type="button" onClick={() => setTags(prev => prev.filter(t => t !== tag))} className="text-blue-500 hover:text-blue-700">
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              ))}
+              <input
+                id="bulk-tag-input"
+                type="text"
+                value={input}
+                onChange={e => setInput(e.target.value)}
+                onKeyDown={handleKeyDown}
+                onBlur={() => input.trim() && addTag(input)}
+                placeholder={tags.length === 0 ? 'Search or create tags (e.g., East Coast)' : ''}
+                className="flex-1 min-w-[120px] text-sm text-gray-900 placeholder-gray-400 focus:outline-none bg-transparent"
+              />
+              <ChevronDown className="w-4 h-4 text-gray-400 flex-shrink-0 ml-auto" />
+            </div>
+            <p className="text-xs text-gray-500 mt-1.5">Recommended for filtering by region, crew, division, type</p>
+          </div>
+
+          <div className="flex items-center justify-end gap-3 pt-1">
+            <button onClick={onClose} className="px-4 py-2 text-sm font-medium border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors">Cancel</button>
+            <button
+              disabled={tags.length === 0}
+              onClick={() => { onAdd(tags); onClose(); }}
+              className="px-4 py-2 text-sm font-semibold bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              Add tags
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Entities Tab ───────────────────────────────────────────────────────────────
+
+function EntitiesTab({ entities, onSelectEntity, selected, onSelectionChange }: {
+  entities: Entity[];
+  onSelectEntity: (e: Entity) => void;
+  selected: string[];
+  onSelectionChange: (ids: string[]) => void;
+}) {
+  const [search, setSearch] = useState('');
+
+  const filtered = entities.filter(e => !search || e.name.toLowerCase().includes(search.toLowerCase()));
+  const allChecked = filtered.length > 0 && filtered.every(e => selected.includes(e.id));
+  const someChecked = filtered.some(e => selected.includes(e.id)) && !allChecked;
+  const toggleAll = () => onSelectionChange(allChecked ? [] : filtered.map(e => e.id));
+  const toggleOne = (id: string) => onSelectionChange(selected.includes(id) ? selected.filter(x => x !== id) : [...selected, id]);
+
+  return (
+    <>
+      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        {/* Toolbar */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+          <h3 className="text-base font-semibold text-gray-900">All Entities</h3>
+          <SearchSortBar search={search} setSearch={setSearch} />
+        </div>
+
+        {/* Table header */}
+        <div className="grid grid-cols-[40px_2fr_2fr_1fr_1fr_180px] items-center px-4 py-2.5 bg-gray-50 border-b border-gray-100 gap-3">
+          <input
+            type="checkbox"
+            checked={allChecked}
+            ref={el => { if (el) el.indeterminate = someChecked; }}
+            onChange={toggleAll}
+            className="rounded border-gray-300"
+          />
+          <span className="text-xs font-semibold text-gray-500">Name</span>
+          <span className="text-xs font-semibold text-gray-500">Tags</span>
+          <span className="text-xs font-semibold text-gray-500">Users</span>
+          <span className="text-xs font-semibold text-gray-500 flex items-center gap-1">
+            Status <ChevronDown className="w-3 h-3" />
+          </span>
+          <span className="text-xs font-semibold text-gray-500">Actions</span>
+        </div>
+
+        {/* Rows */}
+        <div className="divide-y divide-gray-100">
+          {filtered.map(entity => (
+            <div key={entity.id} className="grid grid-cols-[40px_2fr_2fr_1fr_1fr_180px] items-center px-4 py-3.5 hover:bg-gray-50 gap-3">
+              <input type="checkbox" checked={selected.includes(entity.id)} onChange={() => toggleOne(entity.id)} className="rounded border-gray-300 accent-blue-600" />
+              <button className="flex items-center gap-2.5 min-w-0 text-left" onClick={() => onSelectEntity(entity)}>
+                <EntityIcon isMain={entity.isMain} />
+                <span className="text-sm font-semibold text-gray-900 hover:text-blue-600 truncate">{entity.name}</span>
+              </button>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {entity.tags.map(tag => (
+                  <span key={tag} className="px-2.5 py-0.5 text-xs border border-gray-300 rounded-full text-gray-600">{tag}</span>
+                ))}
+              </div>
+              <div className="flex items-center gap-1.5 text-sm text-gray-600">
+                <Users className="w-4 h-4 text-gray-400" />
+                {entity.userCount} users
+              </div>
+              <div><SyncedBadge status={entity.status} /></div>
+              <div className="flex items-center gap-3">
+                <button className="inline-flex items-center gap-1 text-sm text-blue-600 hover:underline font-medium">
+                  <LogIn className="w-3.5 h-3.5" /> Log in
+                </button>
+                <button className="p-1 text-gray-400 hover:text-gray-600 rounded hover:bg-gray-100">
+                  <Settings className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <PaginationFooter count={filtered.length} />
+      </div>
+
+      <HelpArticles />
+    </>
+  );
+}
+
+// ── Users Tab ──────────────────────────────────────────────────────────────────
+
+function UsersTab({ users, entities, onSelectUser }: { users: MEUser[]; entities: Entity[]; onSelectUser: (u: MEUser) => void }) {
+  const [search, setSearch] = useState('');
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<'all' | 'Active' | 'Invited'>('all');
+
+  const filtered = users.filter(u => {
+    const matchesSearch = !search || u.name.toLowerCase().includes(search.toLowerCase()) || u.email.toLowerCase().includes(search.toLowerCase());
+    const matchesFilter = statusFilter === 'all' || u.status === statusFilter;
+    return matchesSearch && matchesFilter;
+  });
+
+  const filterLabel = statusFilter === 'all' ? 'All Users' : `${statusFilter} Users`;
+
+  return (
+    <>
+      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        {/* Toolbar */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+          <div className="relative">
+            <button onClick={() => setFilterOpen(o => !o)}
+              className="inline-flex items-center gap-1.5 text-base font-semibold text-gray-900 hover:text-blue-600">
+              {filterLabel}
+              <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${filterOpen ? 'rotate-180' : ''}`} />
+            </button>
+            {filterOpen && (
+              <div className="absolute left-0 top-full mt-1 z-10 bg-white border border-gray-200 rounded-xl shadow-lg py-1 w-40">
+                {(['all', 'Active', 'Invited'] as const).map(f => (
+                  <button key={f} onClick={() => { setStatusFilter(f); setFilterOpen(false); }}
+                    className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 ${statusFilter === f ? 'text-blue-600 font-medium' : 'text-gray-700'}`}>
+                    {f === 'all' ? 'All Users' : `${f} Users`}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          <SearchSortBar search={search} setSearch={setSearch} />
+        </div>
+
+        {/* Table header */}
+        <div className="grid grid-cols-[2fr_1fr_2fr_1fr_1fr] items-center px-4 py-2.5 bg-gray-50 border-b border-gray-100 gap-3">
+          <span className="text-xs font-semibold text-gray-500 flex items-center gap-1">Name <ChevronUp className="w-3 h-3" /></span>
+          <span className="text-xs font-semibold text-gray-500">Role</span>
+          <span className="text-xs font-semibold text-gray-500">Entities</span>
+          <span className="text-xs font-semibold text-gray-500">Status</span>
+          <span className="text-xs font-semibold text-gray-500">Actions</span>
+        </div>
+
+        {/* Rows */}
+        <div className="divide-y divide-gray-100">
+          {filtered.map(user => {
+            const shown = user.entityNames.slice(0, 2);
+            const extra = user.entityNames.length - 2;
+            return (
+              <div key={user.id} className="grid grid-cols-[2fr_1fr_2fr_1fr_1fr] items-center px-4 py-3.5 hover:bg-gray-50 gap-3">
+                <button className="flex items-center gap-3 min-w-0 text-left" onClick={() => onSelectUser(user)}>
+                  <div className={`w-9 h-9 rounded-full ${user.color} flex items-center justify-center text-white text-sm font-semibold flex-shrink-0`}>
+                    {user.initials}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-gray-900 hover:text-blue-600 truncate">{user.name}</p>
+                    <p className="text-xs text-gray-500 truncate">{user.email}</p>
+                  </div>
+                </button>
+                <div><RoleBadge role={user.role} /></div>
+                <div className="flex items-center gap-1 flex-wrap">
+                  {shown.map(e => (
+                    <span key={e} className="px-2.5 py-0.5 text-xs border border-gray-300 rounded-full text-gray-600 whitespace-nowrap">{e}</span>
+                  ))}
+                  {extra > 0 && <span className="px-2.5 py-0.5 text-xs border border-gray-300 rounded-full text-gray-500">+{extra}</span>}
+                </div>
+                <div><StatusDot status={user.status} /></div>
+                <div>
+                  {user.status === 'Invited' ? (
+                    <button className="px-3 py-1.5 text-xs font-semibold bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                      Resend Invite
+                    </button>
+                  ) : (
+                    <button className="p-1 text-gray-400 hover:text-gray-600 rounded hover:bg-gray-100">
+                      <Settings className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        <PaginationFooter count={filtered.length} />
+      </div>
+
+      <HelpArticles />
+    </>
+  );
+}
+
+// ── Edit Entity Modal ──────────────────────────────────────────────────────────
+
+function EditEntityModal({ entity, onClose, onSave }: {
+  entity: Entity;
+  onClose: () => void;
+  onSave: (name: string, tags: string[]) => void;
+}) {
+  const [name, setName] = useState(entity.name);
+  const [tags, setTags] = useState<string[]>(entity.tags);
+  const [tagInput, setTagInput] = useState('');
+
+  const addTag = (value: string) => {
+    const trimmed = value.trim();
+    if (trimmed && !tags.includes(trimmed)) setTags(prev => [...prev, trimmed]);
+    setTagInput('');
+  };
+
+  const removeTag = (tag: string) => setTags(prev => prev.filter(t => t !== tag));
+
+  const handleTagKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault();
+      addTag(tagInput);
+    } else if (e.key === 'Backspace' && !tagInput && tags.length > 0) {
+      setTags(prev => prev.slice(0, -1));
+    }
+  };
+
+  const canSave = name.trim().length > 0;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 pt-6 pb-4">
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900">Edit entity</h2>
+            <p className="text-sm text-gray-500 mt-0.5">Update entity details.</p>
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="px-6 pb-6 space-y-5">
+          {/* Entity name */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">
+              Entity name <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              value={name}
+              onChange={e => setName(e.target.value)}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+          </div>
+
+          {/* Entity tags */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Entity tags</label>
+            <div
+              className="min-h-[44px] w-full border border-gray-300 rounded-lg px-3 py-2 flex flex-wrap items-center gap-1.5 focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-transparent cursor-text"
+              onClick={() => document.getElementById('tag-input')?.focus()}
+            >
+              {tags.map(tag => (
+                <span key={tag} className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                  {tag}
+                  <button type="button" onClick={() => removeTag(tag)} className="text-blue-500 hover:text-blue-700 flex-shrink-0">
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              ))}
+              <input
+                id="tag-input"
+                type="text"
+                value={tagInput}
+                onChange={e => setTagInput(e.target.value)}
+                onKeyDown={handleTagKeyDown}
+                onBlur={() => tagInput.trim() && addTag(tagInput)}
+                placeholder={tags.length === 0 ? 'Add tags...' : ''}
+                className="flex-1 min-w-[80px] text-sm text-gray-900 placeholder-gray-400 focus:outline-none bg-transparent"
+              />
+              <ChevronDown className="w-4 h-4 text-gray-400 flex-shrink-0 ml-auto" />
+            </div>
+            <p className="text-xs text-gray-500 mt-1.5">Recommended for filtering by region, crew, division, type</p>
+          </div>
+
+          {/* Actions */}
+          <div className="flex items-center justify-end gap-3 pt-1">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 text-sm font-medium border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              disabled={!canSave}
+              onClick={() => { onSave(name.trim(), tags); onClose(); }}
+              className="px-4 py-2 text-sm font-semibold bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              Save changes
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Entity Detail View ─────────────────────────────────────────────────────────
+
+function EntityDetailView({ entity, onBack, onBackToRoot, onUpdateEntity }: {
+  entity: Entity;
+  onBack: () => void;
+  onBackToRoot: () => void;
+  onUpdateEntity: (updated: Entity) => void;
+}) {
+  const [search, setSearch] = useState('');
+  const [addUsersOpen, setAddUsersOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [localEntity, setLocalEntity] = useState<Entity>(entity);
+  const entityUsers = ENTITY_USERS_MAP[entity.id] ?? [];
+  const filtered = entityUsers.filter(u => !search || u.name.toLowerCase().includes(search.toLowerCase()) || u.email.toLowerCase().includes(search.toLowerCase()));
+
+  return (
+    <div className="flex-1 overflow-y-auto bg-gray-50">
+      <div className="px-6 py-8">
+        {/* Breadcrumb */}
+        <nav className="flex items-center gap-1.5 text-sm mb-5">
+          <button onClick={onBackToRoot} className="text-blue-600 hover:underline font-medium">Account Settings</button>
+          <span className="text-gray-400">/</span>
+          <button onClick={onBack} className="text-blue-600 hover:underline font-medium">Multi-entity management</button>
+          <span className="text-gray-400">/</span>
+          <span className="text-gray-600">{localEntity.name}</span>
+        </nav>
+
+        {/* Title row */}
+        <div className="flex items-start justify-between mb-2">
+          <div className="flex items-center gap-3">
+            <EntityIcon isMain={localEntity.isMain} lg />
+            <h1 className="text-2xl font-semibold text-gray-900">{localEntity.name}</h1>
+            <button onClick={() => setEditOpen(true)} className="inline-flex items-center gap-1 text-sm text-blue-600 hover:underline">
+              <Pencil className="w-3.5 h-3.5" /> Edit
+            </button>
+          </div>
+          <button className="inline-flex items-center gap-1.5 text-sm font-medium text-blue-600 hover:underline flex-shrink-0">
+            <LogIn className="w-4 h-4" /> Log in to entity
+          </button>
+        </div>
+
+        {/* Status + tags */}
+        <div className="flex items-center gap-2 mb-5">
+          <SyncedBadge status={localEntity.status} />
+          {localEntity.tags.map(tag => (
+            <span key={tag} className="px-3 py-0.5 text-xs border border-gray-300 rounded-full text-gray-600">{tag}</span>
+          ))}
+        </div>
+
+        <hr className="border-gray-200 mb-5" />
+
+        {/* Add users */}
+        <div className="flex justify-end mb-4">
+          <button
+            onClick={() => setAddUsersOpen(true)}
+            className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-semibold bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            <Plus className="w-4 h-4" /> Add users to entity
+          </button>
+        </div>
+
+        {/* Users table */}
+        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+            <h3 className="text-base font-semibold text-gray-900">All Users in Entity</h3>
+            <div className="flex items-center gap-2">
+              <div className="relative">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+                <input type="text" placeholder="Search" value={search} onChange={e => setSearch(e.target.value)}
+                  className="pl-8 pr-3 py-1.5 text-sm border border-gray-200 rounded-lg w-44 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              </div>
+              <button className="p-1.5 border border-gray-200 rounded-lg hover:bg-gray-50 text-gray-500">
+                <ArrowUpDown className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-[2fr_1fr_1fr_3fr_48px] items-center px-4 py-2.5 bg-gray-50 border-b border-gray-100 gap-3">
+            <span className="text-xs font-semibold text-gray-500 flex items-center gap-1">Name <ChevronUp className="w-3 h-3" /></span>
+            <span className="text-xs font-semibold text-gray-500">Role</span>
+            <span className="text-xs font-semibold text-gray-500">Status</span>
+            <span className="text-xs font-semibold text-gray-500">Access</span>
+            <span className="text-xs font-semibold text-gray-500">Actions</span>
+          </div>
+
+          <div className="divide-y divide-gray-100">
+            {filtered.map(user => (
+              <div key={user.id} className="grid grid-cols-[2fr_1fr_1fr_3fr_48px] items-center px-4 py-3.5 hover:bg-gray-50 gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className={`w-8 h-8 rounded-full ${user.color} flex items-center justify-center text-white text-xs font-semibold flex-shrink-0`}>
+                    {user.initials}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-gray-900 truncate">{user.name}</p>
+                    <p className="text-xs text-blue-600 truncate">{user.email}</p>
+                  </div>
+                </div>
+                <div><RoleBadge role={user.role} /></div>
+                <div><StatusDot status={user.status} /></div>
+                <div><AppBadges apps={user.accessApps} maxShow={3} /></div>
+                <div>
+                  <button className="p-1 text-gray-400 hover:text-gray-600 rounded hover:bg-gray-100">
+                    <MoreVertical className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <PaginationFooter count={filtered.length} />
+        </div>
+
+        <HelpArticles />
+      </div>
+
+      {editOpen && (
+        <EditEntityModal
+          entity={localEntity}
+          onClose={() => setEditOpen(false)}
+          onSave={(newName, newTags) => {
+            const updated = { ...localEntity, name: newName, tags: newTags };
+            setLocalEntity(updated);
+            onUpdateEntity(updated);
+          }}
+        />
+      )}
+
+      {addUsersOpen && (
+        <InviteModal
+          onClose={() => setAddUsersOpen(false)}
+          seatsAvailable={99}
+          subscription={{ planId: 'scale', billingCycle: 'annual', cardLast4: '4242' }}
+          isTrial={false}
+          onNavigate={() => {}}
+        />
+      )}
+    </div>
+  );
+}
+
+// ── User Detail View ───────────────────────────────────────────────────────────
+
+function AddToEntitiesModal({
+  user,
+  entities,
+  currentEntityIds,
+  onClose,
+  onAdd,
+}: {
+  user: MEUser;
+  entities: Entity[];
+  currentEntityIds: string[];
+  onClose: () => void;
+  onAdd: (entityIds: string[]) => void;
+}) {
+  const available = entities.filter(e => !currentEntityIds.includes(e.id));
+  const [selected, setSelected] = useState<string[]>([]);
+  const allSelected = selected.length === available.length && available.length > 0;
+  const someSelected = selected.length > 0 && !allSelected;
+
+  const toggle = (id: string) =>
+    setSelected(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+
+  const toggleAll = () =>
+    setSelected(allSelected ? [] : available.map(e => e.id));
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md relative">
+        <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-gray-100">
+          <div>
+            <h2 className="text-base font-semibold text-gray-900">Add to entities</h2>
+            <p className="text-sm text-gray-500 mt-0.5">Select which entities to give {user.name.split(' ')[0]} access to.</p>
+          </div>
+          <button onClick={onClose} className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {available.length === 0 ? (
+          <p className="px-6 py-8 text-sm text-gray-500 text-center">This user already has access to all entities.</p>
+        ) : (
+          <div className="px-6 py-4 space-y-1 max-h-72 overflow-y-auto">
+            {/* Select all row */}
+            <label className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-50 cursor-pointer border border-gray-200 mb-3">
+              <input
+                type="checkbox"
+                checked={allSelected}
+                ref={el => { if (el) el.indeterminate = someSelected; }}
+                onChange={toggleAll}
+                className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              />
+              <span className="text-sm font-medium text-gray-900">Add to all entities</span>
+              <span className="ml-auto text-xs text-gray-400">{available.length} available</span>
+            </label>
+
+            {available.map(entity => (
+              <label key={entity.id} className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-50 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={selected.includes(entity.id)}
+                  onChange={() => toggle(entity.id)}
+                  className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <EntityIcon isMain={entity.isMain} />
+                <div className="flex-1 min-w-0">
+                  <span className="text-sm text-gray-900">{entity.name}</span>
+                  {entity.isMain && <span className="ml-2 text-xs text-blue-600 font-medium">Main</span>}
+                </div>
+                {entity.tags.length > 0 && (
+                  <span className="text-xs text-gray-400">{entity.tags[0]}</span>
+                )}
+              </label>
+            ))}
+          </div>
+        )}
+
+        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-100">
+          <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50">
+            Cancel
+          </button>
+          <button
+            disabled={selected.length === 0}
+            onClick={() => { onAdd(selected); onClose(); }}
+            className="px-4 py-2 text-sm font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            Add to {selected.length > 0 ? `${selected.length} ${selected.length === 1 ? 'entity' : 'entities'}` : 'entities'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function UserDetailView({ user, entities, onBack }: { user: MEUser; entities: Entity[]; onBack: () => void }) {
+  const [search, setSearch] = useState('');
+  const [entityAccess, setEntityAccess] = useState(() => USER_ENTITY_ACCESS[user.id] ?? []);
+  const [addToEntitiesOpen, setAddToEntitiesOpen] = useState(false);
+  const currentEntityIds = entityAccess.map(a => a.entityId);
+  const filtered = entityAccess.filter(a => !search || a.entityName.toLowerCase().includes(search.toLowerCase()));
+
+  return (
+    <div className="flex-1 overflow-y-auto bg-gray-50">
+      <div className="px-6 py-8">
+        {/* Back */}
+        <button onClick={onBack} className="inline-flex items-center gap-1 text-sm text-blue-600 hover:underline mb-4">
+          <ChevronLeft className="w-4 h-4" /> Back
         </button>
 
-        <div className="flex items-center gap-3 mb-1">
+        {/* Invite pending banner */}
+        {user.status === 'Invited' && (
+          <div className="px-4 py-3 rounded-lg border border-amber-200 bg-amber-50 mb-4 text-sm text-amber-900">
+            <span className="font-semibold">Invite pending:</span> This user has not yet accepted their invite to join your account.{' '}
+            <button className="text-blue-600 hover:underline font-medium">Resend invite.</button>
+          </div>
+        )}
+
+        {/* User profile */}
+        <div className="flex items-center gap-4 mb-4">
+          <div className={`w-12 h-12 rounded-full ${user.color} flex items-center justify-center text-white text-lg font-semibold flex-shrink-0`}>
+            {user.initials}
+          </div>
+          <div>
+            <h1 className="text-xl font-semibold text-gray-900">{user.name}</h1>
+            <div className="flex items-center gap-4 mt-1">
+              <span className="inline-flex items-center gap-1.5 text-sm text-gray-600">
+                <Mail className="w-3.5 h-3.5 text-gray-400" />
+                {user.email}
+              </span>
+              <RoleBadge role={user.role} />
+            </div>
+          </div>
+        </div>
+
+        <hr className="border-gray-200 mb-5" />
+
+        {/* Entity access table */}
+        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+            <h3 className="text-base font-semibold text-gray-900">User's Entity Access</h3>
+            <div className="flex items-center gap-2">
+              <div className="relative">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+                <input type="text" placeholder="Search" value={search} onChange={e => setSearch(e.target.value)}
+                  className="pl-8 pr-3 py-1.5 text-sm border border-gray-200 rounded-lg w-44 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              </div>
+              <button className="p-1.5 border border-gray-200 rounded-lg hover:bg-gray-50 text-gray-500">
+                <ArrowUpDown className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setAddToEntitiesOpen(true)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
+                <Plus className="w-3.5 h-3.5" /> Add to entities
+              </button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-[2fr_5fr_48px] items-center px-4 py-2.5 bg-gray-50 border-b border-gray-100 gap-3">
+            <span className="text-xs font-semibold text-gray-500 flex items-center gap-1">Entity <ChevronUp className="w-3 h-3" /></span>
+            <span className="text-xs font-semibold text-gray-500">App permissions</span>
+            <span className="text-xs font-semibold text-gray-500">Actions</span>
+          </div>
+
+          <div className="divide-y divide-gray-100">
+            {filtered.map(access => (
+              <div key={access.entityId} className="grid grid-cols-[2fr_5fr_48px] items-center px-4 py-3.5 hover:bg-gray-50 gap-3">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <EntityIcon isMain={access.isMain} />
+                  <span className="text-sm font-medium text-gray-900 truncate">{access.entityName}</span>
+                </div>
+                <div><AppBadges apps={access.apps} maxShow={6} /></div>
+                <div>
+                  <button className="p-1 text-gray-400 hover:text-gray-600 rounded hover:bg-gray-100">
+                    <MoreVertical className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <PaginationFooter count={filtered.length} />
+        </div>
+
+        <HelpArticles />
+      </div>
+
+      {addToEntitiesOpen && (
+        <AddToEntitiesModal
+          user={user}
+          entities={entities}
+          currentEntityIds={currentEntityIds}
+          onClose={() => setAddToEntitiesOpen(false)}
+          onAdd={(ids) => {
+            const newAccess = ids.map(id => {
+              const entity = entities.find(e => e.id === id)!;
+              return { entityId: id, entityName: entity.name, isMain: entity.isMain, apps: ALL_APPS.slice(0, 8) };
+            });
+            setEntityAccess(prev => [...prev, ...newAccess]);
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+// ── Add Entity Modal ───────────────────────────────────────────────────────────
+
+function AddEntityModal({ onClose, onAdd, firstRun = false }: {
+  onClose: () => void;
+  onAdd: (entity: Entity) => void;
+  firstRun?: boolean;
+}) {
+  const [name, setName] = useState('');
+  const [tags, setTags] = useState<string[]>([]);
+  const [tagInput, setTagInput] = useState('');
+
+  const addTag = (value: string) => {
+    const trimmed = value.trim();
+    if (trimmed && !tags.includes(trimmed)) setTags(prev => [...prev, trimmed]);
+    setTagInput('');
+  };
+
+  const handleTagKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); addTag(tagInput); }
+    else if (e.key === 'Backspace' && !tagInput && tags.length > 0) setTags(prev => prev.slice(0, -1));
+  };
+
+  const canAdd = name.trim().length > 0;
+
+  const handleAdd = () => {
+    if (!canAdd) return;
+    onAdd({
+      id: `entity-${Date.now()}`,
+      name: name.trim(),
+      tags,
+      userCount: 0,
+      status: 'Synced',
+    });
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 pt-6 pb-4">
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900">Add entity</h2>
+            <p className="text-sm text-gray-500 mt-0.5">
+              {firstRun
+                ? 'Multi-entity is now active. Add your first entity to get started.'
+                : 'Add a new entity to your multi-entity organization.'}
+            </p>
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {firstRun && (
+          <div className="mx-6 mb-4 px-4 py-3 rounded-xl bg-blue-50 border border-blue-100 text-sm text-blue-800">
+            <span className="font-semibold">You're all set!</span> Each entity you add is billed at <span className="font-semibold">$40/month</span>, added to your Scale plan.
+          </div>
+        )}
+
+        <div className="px-6 pb-6 space-y-4">
+          {/* Entity name */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">
+              Entity name <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              value={name}
+              onChange={e => setName(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleAdd()}
+              placeholder="Entity name*"
+              autoFocus
+              className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+          </div>
+
+          {/* Entity tags */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Entity tags</label>
+            <div
+              className="min-h-[44px] w-full border border-gray-300 rounded-lg px-3 py-2 flex flex-wrap items-center gap-1.5 focus-within:ring-2 focus-within:ring-blue-500 cursor-text"
+              onClick={() => document.getElementById('add-entity-tag-input')?.focus()}
+            >
+              {tags.map(tag => (
+                <span key={tag} className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                  {tag}
+                  <button type="button" onClick={() => setTags(prev => prev.filter(t => t !== tag))} className="text-blue-500 hover:text-blue-700">
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              ))}
+              <input
+                id="add-entity-tag-input"
+                type="text"
+                value={tagInput}
+                onChange={e => setTagInput(e.target.value)}
+                onKeyDown={handleTagKeyDown}
+                onBlur={() => tagInput.trim() && addTag(tagInput)}
+                placeholder={tags.length === 0 ? 'Search or create tags (e.g., East Coast)' : ''}
+                className="flex-1 min-w-[120px] text-sm text-gray-900 placeholder-gray-400 focus:outline-none bg-transparent"
+              />
+              <ChevronDown className="w-4 h-4 text-gray-400 flex-shrink-0 ml-auto" />
+            </div>
+            <p className="text-xs text-gray-500 mt-1.5">Recommended for filtering by region, crew, division, type</p>
+          </div>
+
+          {/* Pricing note */}
+          <p className="text-xs text-gray-500">
+            <span className="font-semibold text-gray-700">Note:</span> Each entity added is billed at $40/month.{' '}
+            <button className="text-blue-600 hover:underline">Learn more about multi-entity pricing.</button>
+          </p>
+
+          {/* Actions */}
+          <div className="flex items-center justify-end gap-3 pt-1">
+            <button onClick={onClose} className="px-4 py-2 text-sm font-medium border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors">
+              Cancel
+            </button>
+            <button
+              disabled={!canAdd}
+              onClick={handleAdd}
+              className="px-4 py-2 text-sm font-semibold bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              Add entity
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Main component ─────────────────────────────────────────────────────────────
+
+interface MultiEntityPageProps {
+  onBack: () => void;
+  onNavigate: (page: string) => void;
+  firstRun?: boolean;
+  onFirstRunDismissed?: () => void;
+}
+
+export function MultiEntityPage({ onBack, firstRun = false, onFirstRunDismissed }: MultiEntityPageProps) {
+  const [activeTab, setActiveTab] = useState<Tab>('entities');
+  const [entities, setEntities] = useState<Entity[]>(INITIAL_ENTITIES);
+  const [users, setUsers] = useState<MEUser[]>(INITIAL_ME_USERS);
+  const [selectedEntity, setSelectedEntity] = useState<Entity | null>(null);
+  const [selectedUser, setSelectedUser] = useState<MEUser | null>(null);
+  const [inviteModalOpen, setInviteModalOpen] = useState(false);
+  const [selectedEntityIds, setSelectedEntityIds] = useState<string[]>([]);
+  const [toast, setToast] = useState<string | null>(null);
+  const [bulkTagsOpen, setBulkTagsOpen] = useState(false);
+  const [bulkAddUsersOpen, setBulkAddUsersOpen] = useState(false);
+  const [addEntityOpen, setAddEntityOpen] = useState(firstRun);
+
+  const showToast = (msg: string) => {
+    setToast(msg);
+    setTimeout(() => setToast(null), 3000);
+  };
+
+  const handleInvite = (emails: string[]) => {
+    const newUsers: MEUser[] = emails.map((email, idx) => ({
+      id: `new-${Date.now()}-${idx}`,
+      initials: email.slice(0, 2).toUpperCase(),
+      color: 'bg-gray-500',
+      name: email.split('@')[0],
+      email,
+      role: 'Super Admin',
+      entityNames: INITIAL_ENTITIES.map(e => e.name),
+      status: 'Invited' as const,
+    }));
+    setUsers(prev => [...prev, ...newUsers]);
+  };
+
+  if (selectedEntity) {
+    return (
+      <EntityDetailView
+        entity={selectedEntity}
+        onBack={() => setSelectedEntity(null)}
+        onBackToRoot={onBack}
+        onUpdateEntity={(updated) => {
+          setEntities(prev => prev.map(e => e.id === updated.id ? updated : e));
+          setSelectedEntity(updated);
+        }}
+      />
+    );
+  }
+
+  if (selectedUser) {
+    return <UserDetailView user={selectedUser} entities={entities} onBack={() => setSelectedUser(null)} />;
+  }
+
+  const hasSelection = selectedEntityIds.length > 0;
+
+  return (
+    <div className="flex-1 overflow-y-auto bg-gray-50">
+      <div className="px-6 py-8">
+        {/* Breadcrumb */}
+        <nav className="flex items-center gap-1.5 text-sm mb-5">
+          <button onClick={onBack} className="text-blue-600 hover:underline font-medium">Account Settings</button>
+          <span className="text-gray-400">/</span>
+          <span className="text-gray-600">Multi-entity management</span>
+        </nav>
+
+        {/* Page title */}
+        <div className="flex items-center gap-3 mb-5">
           <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center flex-shrink-0">
             <Building2 className="w-5 h-5 text-white" />
           </div>
-          <div>
-            <h1 className="text-2xl font-semibold text-gray-900">Multi-entity Management</h1>
-            <p className="text-sm text-gray-500">Manage and monitor all your sub-entities</p>
+          <h1 className="text-2xl font-semibold text-gray-900">Multi-entity management</h1>
+        </div>
+
+        {/* Tab bar */}
+        <div className="flex items-center justify-between mb-5">
+          <div className="inline-flex items-center border border-gray-200 rounded-lg bg-gray-100 p-0.5">
+            {(['entities', 'users'] as const).map(tab => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                  activeTab === tab
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                {tab.charAt(0).toUpperCase() + tab.slice(1)}
+              </button>
+            ))}
+          </div>
+          <div className="flex items-center gap-3">
+            {activeTab === 'entities' && (
+              <>
+                {hasSelection ? (
+                  <>
+                    <span className="text-sm font-medium text-gray-600">
+                      {selectedEntityIds.length} {selectedEntityIds.length === 1 ? 'entity' : 'entities'} selected
+                    </span>
+                    <button
+                      onClick={() => setBulkTagsOpen(true)}
+                      className="inline-flex items-center gap-1.5 text-sm font-medium text-blue-600 hover:underline"
+                    >
+                      <LayoutList className="w-4 h-4" /> Add tags
+                    </button>
+                    <button
+                      onClick={() => setBulkAddUsersOpen(true)}
+                      className="inline-flex items-center gap-1.5 text-sm font-medium text-blue-600 hover:underline"
+                    >
+                      <Users className="w-4 h-4" /> Add users
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    onClick={() => showToast('Select one or more entities to use bulk edit.')}
+                    className="text-sm font-medium text-blue-600 hover:underline"
+                  >
+                    Bulk edit entities
+                  </button>
+                )}
+                <button
+                  onClick={() => setAddEntityOpen(true)}
+                  className="inline-flex items-center gap-1.5 px-4 py-1.5 text-sm font-semibold bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  <Plus className="w-4 h-4" /> Add new entity
+                </button>
+              </>
+            )}
+            {activeTab === 'users' && (
+              <button
+                onClick={() => setInviteModalOpen(true)}
+                className="inline-flex items-center gap-1.5 px-4 py-1.5 text-sm font-semibold bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                <Plus className="w-4 h-4" /> Invite Super Admins
+              </button>
+            )}
           </div>
         </div>
 
-        <div className="border-b border-gray-200 mt-5 mb-6">
-          <nav className="-mb-px flex">
-            {tabs.map(tab => (
-              <button
-                key={tab.id}
-                onClick={() => handleTabChange(tab.id)}
-                className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
-                  activeTab === tab.id
-                    ? 'border-blue-600 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </nav>
-        </div>
-
-        {activeTab === 'overview' && <OverviewTab entities={entities} />}
-
-        {activeTab === 'sub-entities' && !selectedEntity && (
-          <SubEntitiesTab
+        {/* Tab content */}
+        {activeTab === 'entities' && (
+          <EntitiesTab
             entities={entities}
             onSelectEntity={setSelectedEntity}
-            onAddEntity={() => setShowWizard(true)}
+            selected={selectedEntityIds}
+            onSelectionChange={setSelectedEntityIds}
           />
         )}
-        {activeTab === 'sub-entities' && selectedEntity && (
-          <EntityDetailView entity={selectedEntity} onBack={() => setSelectedEntity(null)} />
+        {activeTab === 'users' && (
+          <UsersTab users={users} entities={entities} onSelectUser={setSelectedUser} />
         )}
-
-        {activeTab === 'users' && <UsersTab />}
-        {activeTab === 'preferences' && <PreferencesTab />}
       </div>
 
-      {showWizard && (
-        <AddSubEntityWizard
-          onClose={() => setShowWizard(false)}
-          onComplete={entity => setEntities(prev => [...prev, entity])}
+      {/* Toast */}
+      {toast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2.5 bg-gray-900 text-white text-sm font-medium px-4 py-3 rounded-xl shadow-lg">
+          <Info className="w-4 h-4 text-blue-400 flex-shrink-0" />
+          {toast}
+        </div>
+      )}
+
+      {inviteModalOpen && (
+        <MEInviteModal
+          onClose={() => setInviteModalOpen(false)}
+          onInvite={handleInvite}
+        />
+      )}
+
+      {addEntityOpen && (
+        <AddEntityModal
+          firstRun={firstRun && addEntityOpen}
+          onClose={() => { setAddEntityOpen(false); onFirstRunDismissed?.(); }}
+          onAdd={(entity) => {
+            setEntities(prev => [...prev, entity]);
+            onFirstRunDismissed?.();
+          }}
+        />
+      )}
+
+      {bulkTagsOpen && (
+        <BulkTagsModal
+          count={selectedEntityIds.length}
+          onClose={() => setBulkTagsOpen(false)}
+          onAdd={(tags) => {
+            setEntities(prev => prev.map(e =>
+              selectedEntityIds.includes(e.id)
+                ? { ...e, tags: [...e.tags, ...tags.filter(t => !e.tags.includes(t))] }
+                : e
+            ));
+          }}
+        />
+      )}
+
+      {bulkAddUsersOpen && (
+        <InviteModal
+          onClose={() => setBulkAddUsersOpen(false)}
+          seatsAvailable={99}
+          subscription={{ planId: 'scale', billingCycle: 'annual', cardLast4: '4242' }}
+          isTrial={false}
+          onNavigate={() => {}}
         />
       )}
     </div>

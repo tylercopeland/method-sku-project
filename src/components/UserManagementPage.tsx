@@ -29,6 +29,7 @@ import {
 } from 'lucide-react';
 import { ApplicationsAccessPage } from './ApplicationsAccessPage';
 import type { ActiveSubscription } from './SubscriptionPage';
+import { PLAN_ORDER, nextPlanId as getNextPlanId } from '@/lib/plans';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -574,6 +575,7 @@ function SeatMeter({
   planName,
   basePrice,
   onUpgrade,
+  multiEntityEnabled = false,
 }: {
   subscription: ActiveSubscription | null;
   includedSeats: number;
@@ -582,6 +584,7 @@ function SeatMeter({
   planName: string;
   basePrice: number;
   onUpgrade: () => void;
+  multiEntityEnabled?: boolean;
 }) {
   if (!subscription) return null; // trial: no seat meter banner
 
@@ -599,6 +602,7 @@ function SeatMeter({
   const extraFieldCrewCost = extraFieldCrew * EXTRA_FIELD_CREW_PRICE;
   const totalCost = basePrice + extraFullCost + extraFieldCrewCost;
 
+  const isEssentials = subscription?.planId === 'essentials';
   const theme = { bar: 'bg-blue-500', bg: 'bg-blue-50', border: 'border-blue-100', text: 'text-blue-700', label: 'text-gray-900', tag: 'bg-white text-blue-700' };
 
   return (
@@ -611,16 +615,35 @@ function SeatMeter({
           <div className="flex-1 min-w-0">
             <div className="flex flex-wrap items-center gap-2 mb-0.5">
               <p className={`text-sm font-semibold ${theme.label}`}>
-                {isOverLimit ? 'Over seat limit' : isNearLimit ? 'Seat limit reached' : isApproaching ? 'Approaching seat limit' : 'Seat usage'}
+                {multiEntityEnabled ? 'Seat usage' : isOverLimit ? 'Over seat limit' : isNearLimit ? 'Seat limit reached' : isApproaching ? 'Approaching seat limit' : 'Seat usage'}
               </p>
             </div>
-            <p className={`text-xs ${theme.text} mb-2`}>
-              {totalSeatsUsed} of {includedSeats} seats used on {planName}
-              {!isOverLimit && totalSeatsUsed < includedSeats ? ` — ${includedSeats - totalSeatsUsed} remaining` : ''}
+            <p className={`text-xs ${theme.text} mb-2 flex items-center gap-1 flex-wrap`}>
+              {multiEntityEnabled ? (
+                <>
+                  Unlimited regular seats &middot; {totalSeatsUsed} of {includedSeats} included used
+                  <span className="relative group inline-flex items-center">
+                    <Info className="w-3 h-3 text-blue-400 cursor-default" />
+                    <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 w-60 rounded-lg bg-gray-900 px-3 py-2 text-xs text-white opacity-0 group-hover:opacity-100 transition-opacity z-10 leading-relaxed">
+                      Your Scale plan includes {includedSeats} regular seats. Each additional seat costs ${EXTRA_FULL_SEAT_PRICE}/month. View-only seats are always free and never count toward this limit.
+                    </span>
+                  </span>
+                </>
+              ) : isEssentials ? (
+                <>Unlimited view-only seats &middot; {totalSeatsUsed} of 1 regular seat used</>
+              ) : (
+                <>
+                  {totalSeatsUsed} of {includedSeats} regular seats used on {planName}
+                  {!isOverLimit && totalSeatsUsed < includedSeats ? ` — ${includedSeats - totalSeatsUsed} remaining` : ''}
+                </>
+              )}
             </p>
             <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
               <div className={`h-full rounded-full transition-all ${theme.bar}`} style={{ width: `${pct}%` }} />
             </div>
+            {!multiEntityEnabled && !isEssentials && (
+              <p className="text-xs text-blue-400 mt-1.5">View-only seats are free and don't count toward this limit.</p>
+            )}
             {isOverLimit && (
               <div className="mt-2 flex items-center justify-between gap-4">
                 <span className="text-xs text-gray-500">
@@ -635,16 +658,18 @@ function SeatMeter({
             )}
           </div>
         </div>
-        <div className="flex-shrink-0">
-          <button
-            onClick={onUpgrade}
-            className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors border border-blue-600 bg-transparent text-blue-600 hover:bg-blue-50"
-          >
-            {isOverLimit || isNearLimit || isApproaching ? (
-              <><TrendingUp className="w-3.5 h-3.5" /> Upgrade plan</>
-            ) : 'Manage plan'}
-          </button>
-        </div>
+        {!multiEntityEnabled && (
+          <div className="flex-shrink-0">
+            <button
+              onClick={onUpgrade}
+              className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors border border-blue-600 bg-transparent text-blue-600 hover:bg-blue-50"
+            >
+              {isOverLimit || isNearLimit || isApproaching ? (
+                <><TrendingUp className="w-3.5 h-3.5" /> Upgrade plan</>
+              ) : 'Manage plan'}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -671,6 +696,7 @@ export function InviteModal({
   const [rows, setRows] = useState<InviteRow[]>(() => [newInviteRow(defaultRole)]);
   const [sent, setSent] = useState(false);
   const [copyFromUserId, setCopyFromUserId] = useState<string>('');
+  const [copyRoleOpen, setCopyRoleOpen] = useState(false);
 
   const handleEmailChange = (id: string, value: string) => {
     setRows((prev) => {
@@ -780,6 +806,24 @@ export function InviteModal({
 
         {/* Rows */}
         <div className="px-6 py-5 overflow-y-auto flex-1">
+          {/* Trial disclaimer */}
+          {isTrial && (
+            <div className="rounded-xl bg-blue-50 border border-blue-100 px-4 py-3 flex items-center gap-2.5 mb-4">
+              <Info className="w-4 h-4 text-blue-500 flex-shrink-0" />
+              <p className="text-xs text-blue-700">
+                No limits during trial. Seat limits apply once it ends —{' '}
+                <a
+                  href="/pricing"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-0.5 font-semibold underline underline-offset-2 hover:text-blue-900"
+                >
+                  view details <ExternalLink className="w-3 h-3" />
+                </a>
+              </p>
+            </div>
+          )}
+
           {/* Column headers */}
           <div className="flex gap-2 mb-2 px-0.5">
             <span className="flex-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Email address</span>
@@ -804,7 +848,7 @@ export function InviteModal({
                         value={row.email}
                         onChange={(e) => handleEmailChange(row.id, e.target.value)}
                         placeholder={i === 0 ? 'colleague@company.com' : 'Add another...'}
-                        className={`w-full border border-gray-300 rounded-lg pl-8 pr-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors h-[44px] ${isEmptyRow ? 'bg-gray-50' : 'bg-white'}`}
+                        className="w-full border border-gray-300 rounded-lg pl-8 pr-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors h-[44px] bg-white"
                       />
                     </div>
 
@@ -834,18 +878,23 @@ export function InviteModal({
                     </button>
                   </div>
 
-                  {/* Name field — revealed by chevron toggle, ↳ connector makes nesting clear */}
+                  {/* Name field — revealed by chevron toggle */}
                   {row.showName && (
-                    <div className="flex items-center gap-1.5 mt-1 pl-1">
-                      <CornerDownRight className="w-3.5 h-3.5 text-gray-300 flex-shrink-0 ml-1" />
-                      <input
-                        type="text"
-                        value={row.name}
-                        onChange={(e) => handleNameChange(row.id, e.target.value)}
-                        placeholder="User's name"
-                        disabled={isEmptyRow}
-                        className="flex-1 border border-gray-200 rounded-lg px-3 py-1.5 text-sm text-gray-900 placeholder-gray-400 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-40 disabled:cursor-not-allowed"
-                      />
+                    <div className="flex gap-1.5 mt-1.5 pl-1 pb-2">
+                      <CornerDownRight className="w-3.5 h-3.5 text-gray-300 flex-shrink-0 ml-1 mt-6" />
+                      <div className="flex-1 min-w-0 pr-9">
+                        <label className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1">
+                          Full name
+                        </label>
+                        <input
+                          type="text"
+                          value={row.name}
+                          onChange={(e) => handleNameChange(row.id, e.target.value)}
+                          placeholder="User's full name"
+                          disabled={isEmptyRow}
+                          className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm text-gray-900 placeholder-gray-400 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-40 disabled:cursor-not-allowed"
+                        />
+                      </div>
                     </div>
                   )}
                 </div>
@@ -902,49 +951,49 @@ export function InviteModal({
             </div>
           )}
 
-          {/* Trial disclaimer */}
-          {isTrial && (
-            <div className="rounded-xl bg-blue-50 border border-blue-100 px-4 py-3 flex items-start gap-2.5">
-              <Info className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" />
-              <p className="text-xs text-blue-700">
-                <span className="font-semibold">No user limits during your trial.</span>{' '}
-                Once your trial ends, seat limits depend on your plan.{' '}
-                <a
-                  href="/pricing"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-0.5 font-semibold underline underline-offset-2 hover:text-blue-900"
+          {/* Divider separating the invite form from secondary options */}
+          <div className="border-t border-gray-100 pt-3 space-y-1">
+            {/* All apps note */}
+            <div className="flex items-center gap-2">
+              <Info className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+              <p className="text-xs text-gray-500">
+                Newly invited users will have access to all apps.{' '}
+                <span
+                  className="opacity-40 cursor-not-allowed select-none underline underline-offset-2 text-blue-600"
+                  title="App-specific permissions coming soon"
                 >
-                  View pricing details <ExternalLink className="w-3 h-3" />
-                </a>
+                  Specify which apps
+                </span>
               </p>
             </div>
-          )}
 
-          {/* All apps note */}
-          <div className="flex items-center gap-2 py-1">
-            <Info className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
-            <p className="text-xs text-gray-500">
-              Newly invited users will have access to all apps.{' '}
-              <span
-                className="inline-flex items-center gap-0.5 text-gray-400 cursor-not-allowed select-none"
-                title="App-specific permissions coming soon"
-              >
-                Specify which apps
-                <span className="text-[10px] ml-0.5 px-1 py-0.5 bg-gray-100 rounded text-gray-400 font-medium">Soon</span>
-              </span>
-            </p>
-          </div>
-
-          {/* Copy role from existing user */}
-          <div className="border-t border-gray-100 pt-3">
-            <p className="text-xs text-gray-400 mb-1.5">Or copy role from an existing user:</p>
-            <UserDropdownSelect
-              value={copyFromUserId}
-              onChange={handleCopyFromUser}
-              options={ALL_MOCK_USERS}
-              placeholder="Select a user to copy role from..."
-            />
+            {/* Copy role from existing user */}
+            <div>
+              <div className="flex items-center gap-2">
+                <Info className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+                <p className="text-xs text-gray-500">
+                  Or{' '}
+                  <button
+                    type="button"
+                    onClick={() => setCopyRoleOpen((o) => !o)}
+                    className="text-blue-600 underline underline-offset-2 hover:text-blue-800 transition-colors"
+                  >
+                    copy role and permissions from an existing user
+                  </button>
+                </p>
+              </div>
+              {copyRoleOpen && (
+                <div className="mt-2.5">
+                  <UserDropdownSelect
+                    value={copyFromUserId}
+                    onChange={handleCopyFromUser}
+                    options={ALL_MOCK_USERS}
+                    placeholder="Select a user..."
+                    onClear={() => { setCopyFromUserId(''); setCopyRoleOpen(false); }}
+                  />
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Actions */}
@@ -1083,15 +1132,17 @@ function UserDropdownSelect({
   onChange,
   options,
   placeholder,
+  onClear,
 }: {
   value: string;
   onChange: (id: string) => void;
   options: MockUser[];
   placeholder?: string;
+  onClear?: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const [style, setStyle] = useState<React.CSSProperties>({});
-  const triggerRef = useRef<HTMLButtonElement>(null);
+  const triggerRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -1109,17 +1160,25 @@ function UserDropdownSelect({
 
   return (
     <div>
-      <button
+      <div
         ref={triggerRef}
-        type="button"
+        role="button"
+        tabIndex={0}
         onClick={() => {
           if (triggerRef.current) setStyle(fixedDropdownStyle(triggerRef.current));
           setOpen((o) => !o);
         }}
-        className="w-full flex items-center justify-between gap-2 border border-gray-300 rounded-lg px-3 py-2.5 text-sm text-gray-900 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            if (triggerRef.current) setStyle(fixedDropdownStyle(triggerRef.current));
+            setOpen((o) => !o);
+          }
+        }}
+        className="w-full flex items-center justify-between gap-2 border border-gray-300 rounded-lg px-3 py-2.5 text-sm text-gray-900 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors cursor-pointer select-none"
       >
         {selected ? (
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2.5 min-w-0">
             <div className={`w-6 h-6 rounded-full ${selected.avatarColor} flex items-center justify-center text-white text-xs font-semibold flex-shrink-0`}>
               {initials(selected.name)}
             </div>
@@ -1129,8 +1188,19 @@ function UserDropdownSelect({
         ) : (
           <span className="text-gray-400">{placeholder ?? 'Select a user'}</span>
         )}
-        <ChevronDown className={`w-4 h-4 text-gray-400 flex-shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
-      </button>
+        <div className="flex items-center gap-1 flex-shrink-0">
+          {selected && onClear && (
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onClear(); }}
+              className="p-0.5 text-gray-400 hover:text-gray-600 rounded transition-colors"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
+          <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} />
+        </div>
+      </div>
       {open && (
         <div ref={panelRef} style={style} className="bg-white rounded-xl border border-gray-200 shadow-xl overflow-hidden">
           {options.map((u) => (
@@ -1876,6 +1946,8 @@ interface UserManagementPageProps {
   onNavigate: (page: string) => void;
   onBack: () => void;
   isTrial?: boolean;
+  onUpgrade?: (planId: string) => void;
+  multiEntityEnabled?: boolean;
 }
 
 export function UserManagementPage({
@@ -1884,6 +1956,8 @@ export function UserManagementPage({
   onNavigate,
   onBack,
   isTrial = false,
+  onUpgrade,
+  multiEntityEnabled = false,
 }: UserManagementPageProps) {
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState<'All' | 'Active' | 'Invited' | 'Deactivated'>('All');
@@ -1918,6 +1992,8 @@ export function UserManagementPage({
   const totalSeatsUsed = fullSeatsUsed + fieldCrewCount;
   const seatsAvailable = isTrial ? 999 : Math.max(0, includedSeats - totalSeatsUsed);
   const planName = subscription ? PLAN_NAMES[subscription.planId] : 'Trial';
+
+  const nextPlanId = subscription ? getNextPlanId(subscription.planId) : null;
 
   // Per-user cost: full seats fill pool first, field crew fill remaining slots
   const userCosts: Record<string, string> = (() => {
@@ -2035,7 +2111,8 @@ export function UserManagementPage({
           fieldCrewCount={fieldCrewCount}
           planName={planName}
           basePrice={basePrice}
-          onUpgrade={() => onNavigate('subscription-upgrade')}
+          onUpgrade={() => nextPlanId && onUpgrade ? onUpgrade(nextPlanId) : onNavigate('subscription-upgrade')}
+          multiEntityEnabled={multiEntityEnabled}
         />
 
         {/* Grid header: title dropdown + search */}

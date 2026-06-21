@@ -325,6 +325,8 @@ interface SubscriptionPageProps {
   /** Called when the user clicks "Upgrade plan" in the manage view — lets the parent
    *  open an upgrade modal instead of navigating within this component. */
   onUpgrade?: (planId: string) => void;
+  /** When true, multi-entity is enabled and the plan is locked to Scale permanently. */
+  multiEntityEnabled?: boolean;
 }
 
 export function SubscriptionPage({
@@ -345,6 +347,7 @@ export function SubscriptionPage({
   showDiscountedPrice = true,
   upgradeFromPlanId,
   onUpgrade,
+  multiEntityEnabled = false,
 }: SubscriptionPageProps) {
   const [billingCycle, setBillingCycle] = useState<BillingCycle>(
     activeSubscription?.billingCycle ?? 'annual'
@@ -877,27 +880,43 @@ export function SubscriptionPage({
             </div>
           </div>
 
+          {/* Multi-entity lock banner */}
+          {multiEntityEnabled && (
+            <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 mt-6">
+              <svg className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+              <div>
+                <p className="text-sm font-semibold text-amber-900">Plan locked — multi-entity enabled</p>
+                <p className="text-sm text-amber-800 mt-0.5">
+                  Multi-entity management is active on this account. Your plan is permanently locked to Scale. To discuss plan changes, contact{' '}
+                  <a href="mailto:support@method.me" className="underline font-medium">support@method.me</a>.
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* Actions */}
-          <div className="flex flex-col sm:flex-row sm:items-center gap-3 mt-6">
-            <button
-              onClick={() => setStep('plans')}
-              className="inline-flex items-center justify-center rounded-lg border border-blue-600 bg-transparent text-blue-600 hover:bg-blue-50 px-4 py-2 text-sm font-medium transition-colors"
-            >
-              Change plan
-            </button>
-            {!isCanceling && (
+          {!multiEntityEnabled && (
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3 mt-6">
               <button
-                onClick={() => {
-                  setCancelReason('');
-                  setCancelDetail('');
-                  setStep('cancel');
-                }}
-                className="text-sm text-gray-400 hover:text-red-600 sm:ml-auto transition-colors"
+                onClick={() => setStep('plans')}
+                className="inline-flex items-center justify-center rounded-lg border border-blue-600 bg-transparent text-blue-600 hover:bg-blue-50 px-4 py-2 text-sm font-medium transition-colors"
               >
-                Cancel subscription
+                Change plan
               </button>
-            )}
-          </div>
+              {!isCanceling && (
+                <button
+                  onClick={() => {
+                    setCancelReason('');
+                    setCancelDetail('');
+                    setStep('cancel');
+                  }}
+                  className="text-sm text-gray-400 hover:text-red-600 sm:ml-auto transition-colors"
+                >
+                  Cancel subscription
+                </button>
+              )}
+            </div>
+          )}
         </div>
       </div>
     );
@@ -1097,11 +1116,11 @@ export function SubscriptionPage({
               <PhoneCall className="w-8 h-8 text-blue-600" />
             </div>
             <h1 className="text-2xl font-semibold text-gray-900 mb-2">
-              We've got your request
+              Downgrade request received
             </h1>
             <p className="text-gray-600 mb-5">
-              A Method specialist will reach out within one business day to help you move from{' '}
-              {currentPlan?.name} to {selectedPlan.name} without losing your apps or data.
+              We'll process your downgrade from {currentPlan?.name} to {selectedPlan.name}. Someone from
+              our team may reach out via email if we need anything from you — no call required unless you want one.
             </p>
             {/* When the downgraded plan takes effect */}
             <div className="rounded-xl bg-blue-50 border border-blue-100 p-4 mb-6 text-left">
@@ -1151,12 +1170,11 @@ export function SubscriptionPage({
                 </div>
               </div>
               <h1 className="text-2xl font-semibold text-gray-900 mb-2">
-                Let's talk before you downgrade
+                Request a downgrade to {selectedPlan.name}
               </h1>
               <p className="text-gray-600">
-                Moving from {currentPlan?.name} to {selectedPlan.name} means turning off features
-                your team may rely on. A Method specialist will help you migrate safely — so nothing
-                important is lost — and won't change your plan until you're ready.
+                Submit your request and we'll take it from there. Someone from our team may reach out to
+                confirm a few details or help with the transition — but there's no call required.
               </p>
             </div>
 
@@ -1219,7 +1237,7 @@ export function SubscriptionPage({
             {/* Contact form */}
             <div className="p-6 sm:p-8">
               <p className="text-sm font-semibold text-gray-900 mb-4">
-                How can our team reach you?
+                Where should we follow up?
               </p>
               <div className="space-y-4">
                 <div className="space-y-1.5">
@@ -1278,8 +1296,7 @@ export function SubscriptionPage({
                   disabled={!downgradeContact.email.trim()}
                   className="bg-blue-600 hover:bg-blue-700 text-white sm:ml-auto disabled:opacity-50"
                 >
-                  <PhoneCall className="w-4 h-4 mr-1.5" />
-                  Request a call from sales
+                  Request downgrade
                 </Button>
               </div>
             </div>

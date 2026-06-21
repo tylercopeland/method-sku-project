@@ -13,9 +13,11 @@ import { AppMarketplacePage } from '@/components/AppMarketplacePage';
 import { ApplicationsAccessPage } from '@/components/ApplicationsAccessPage';
 import { UserManagementPage, InviteModal } from '@/components/UserManagementPage';
 import { MultiEntityPage } from '@/components/MultiEntityPage';
+import { MultiEntitySetupPage } from '@/components/MultiEntitySetupPage';
 import { OnboardingModal } from '@/components/OnboardingModal';
 import { HelpDrawer } from '@/components/HelpDrawer';
 import { AIFieldsProvider, AddFieldChatPanel, FieldSurfaceRegistrar } from '@/lib/ai-fields';
+import { nextPlanId as getNextPlanId } from '@/lib/plans';
 import { Switch } from '@/components/ui/switch';
 import { useState, useEffect } from 'react';
 import { X, GripVertical, ChevronDown } from 'lucide-react';
@@ -56,6 +58,9 @@ function App() {
   const [navFoldersEnabled, setNavFoldersEnabled] = useState(false);
   // Help Center (help drawer) — opened from the header or the AI chat panel.
   const [helpOpen, setHelpOpen] = useState(false);
+  // Multi-entity: when enabled, account is locked to Scale plan permanently.
+  const [multiEntityEnabled, setMultiEntityEnabled] = useState(false);
+  const [meFirstRun, setMeFirstRun] = useState(false);
 
   const startDemoDrag = (e: React.PointerEvent<HTMLElement>) => {
     const panel = e.currentTarget.closest('[data-demo-panel]') as HTMLElement | null;
@@ -109,6 +114,8 @@ function App() {
   const premiumApps = ['work-orders', 'time-tracking', 'field-crew', 'jobs', 'schedules', 'inventory'];
   const premiumLocked = subscription?.planId === 'essentials';
   const lockedApps = premiumLocked ? premiumApps : [];
+
+  const nextPlanId = subscription ? getNextPlanId(subscription.planId) : null;
 
   // Close mobile sidebar when navigating
   useEffect(() => {
@@ -314,6 +321,7 @@ function App() {
             checkoutMode={checkoutMode}
             hasAppStudioAccess={appStudioEnabled}
             showDiscountedPrice={showDiscountedPrice}
+            multiEntityEnabled={multiEntityEnabled}
             onUpgrade={openUpgradeModal}
             onSubscribed={(sub) => {
               setSubscription(sub);
@@ -349,13 +357,13 @@ function App() {
         ) : premiumLocked && premiumApps.includes(currentPage) ? (
           <UpgradeRequiredPage
             page={currentPage}
-            onUpgrade={openUpgradeModal}
+            onUpgrade={() => openUpgradeModal(nextPlanId ?? undefined)}
           />
         ) : currentPage === 'app-studio' && appStudioEnabled ? (
           <AppStudioPage
             userName={adminUserName}
             locked={premiumLocked}
-            onUpgrade={openUpgradeModal}
+            onUpgrade={() => openUpgradeModal(nextPlanId ?? undefined)}
           />
         ) : currentPage === 'applications-access' && accessUser ? (
           <ApplicationsAccessPage
@@ -369,10 +377,7 @@ function App() {
             onBack={navigateToHome}
             lockedApps={lockedApps}
             onOpenApp={(lockKey) => setCurrentPage(lockKey)}
-            onUpgrade={() => {
-              setOpenToChangePlan(true);
-              setCurrentPage('subscription');
-            }}
+            onUpgrade={() => openUpgradeModal(nextPlanId ?? undefined)}
             onOpenUserAccess={(user, appName) => {
               setAccessUser(user);
               setAccessScrollApp(appName);
@@ -404,17 +409,35 @@ function App() {
             onNavigate={handlePageNavigation}
             onBack={() => setCurrentPage('account-settings')}
             isTrial={isInTrial && !subscription}
+            onUpgrade={(planId) => openUpgradeModal(planId ?? undefined)}
+            multiEntityEnabled={multiEntityEnabled}
           />
         ) : currentPage === 'multi-entity' ? (
-          <MultiEntityPage
-            onBack={() => setCurrentPage('account-settings')}
-            onNavigate={handlePageNavigation}
-          />
+          multiEntityEnabled ? (
+            <MultiEntityPage
+              onBack={() => setCurrentPage('account-settings')}
+              onNavigate={handlePageNavigation}
+              firstRun={meFirstRun}
+              onFirstRunDismissed={() => setMeFirstRun(false)}
+            />
+          ) : (
+            <MultiEntitySetupPage
+              subscription={subscription}
+              onBack={() => setCurrentPage('account-settings')}
+              onUpgrade={(planId) => openUpgradeModal(planId)}
+              onEnableMultiEntity={() => {
+                setMultiEntityEnabled(true);
+                setMeFirstRun(true);
+                setSubscription({ planId: 'scale', billingCycle: 'annual', cardLast4: subscription?.cardLast4 ?? '4242' });
+              }}
+            />
+          )
         ) : currentPage === 'account-settings' ? (
           <AccountSettingsPage
             onBack={navigateToHome}
             onNavigate={handlePageNavigation}
             upgradeRequired={premiumLocked}
+            multiEntityEnabled={multiEntityEnabled}
             onUpgrade={() => {
               setOpenToChangePlan(true);
               setCurrentPage('subscription');
@@ -518,7 +541,7 @@ function App() {
           <div className="border-t border-gray-100 pt-2">
             <div className="flex items-center justify-between">
               <span className="text-gray-500">
-                {subscription ? `Subscribed: ${subscription.planId}` : 'Not subscribed'}
+                {subscription ? 'Trial ended' : 'Not subscribed'}
               </span>
               {subscription && (
                 <button
@@ -528,7 +551,7 @@ function App() {
                   }}
                   className="font-medium text-blue-600 hover:underline"
                 >
-                  Reset
+                  Back to trial
                 </button>
               )}
             </div>
@@ -632,15 +655,24 @@ function App() {
             <span className="text-gray-500">Nav folders</span>
             <Switch checked={navFoldersEnabled} onCheckedChange={setNavFoldersEnabled} />
           </div>
+          <div className="flex items-center justify-between border-t border-gray-100 pt-2 mt-2">
+            <span className="text-gray-500">Multi-entity</span>
+            <Switch
+              checked={multiEntityEnabled}
+              onCheckedChange={(v) => {
+                setMultiEntityEnabled(v);
+                if (v) {
+                  setSubscription({ planId: 'scale', billingCycle: 'annual', cardLast4: subscription?.cardLast4 ?? '4242' });
+                }
+              }}
+            />
+          </div>
           <div className="border-t border-gray-100 pt-2 mt-2">
             <button
-              onClick={() => {
-                navigateToHome();
-                setShowOnboarding(true);
-              }}
+              onClick={() => window.location.reload()}
               className="font-medium text-blue-600 hover:underline"
             >
-              Replay onboarding
+              Reset prototype
             </button>
           </div>
             </>
@@ -674,6 +706,7 @@ function App() {
                 initialStep={!upgradeTargetPlanId && subscription ? 'plans' : undefined}
                 hasAppStudioAccess={appStudioEnabled}
                 showDiscountedPrice={showDiscountedPrice}
+                multiEntityEnabled={multiEntityEnabled}
                 onBack={() => setUpgradeModalOpen(false)}
                 onSubscribed={(sub) => {
                   setSubscription(sub);
