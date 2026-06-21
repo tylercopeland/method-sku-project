@@ -726,6 +726,7 @@ function App() {
             </div>
             <div className="flex-1 overflow-y-auto flex flex-col min-h-0">
               <SubscriptionPage
+                key={`${subscription?.planId ?? 'trial'}-${upgradeTargetPlanId ?? 'none'}`}
                 activeSubscription={subscription}
                 isInTrial={isInTrial}
                 trialEndLabel={trialEndLabel}
