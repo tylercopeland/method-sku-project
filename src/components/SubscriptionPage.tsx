@@ -355,7 +355,7 @@ export function SubscriptionPage({
   multiEntityEnabled = false,
 }: SubscriptionPageProps) {
   const [billingCycle, setBillingCycle] = useState<BillingCycle>(
-    activeSubscription?.billingCycle ?? 'annual'
+    activeSubscription?.billingCycle ?? 'monthly'
   );
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(
     upgradeFromPlanId ?? activeSubscription?.planId ?? null
@@ -1569,6 +1569,25 @@ export function SubscriptionPage({
                 <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">
                   Order summary
                 </h3>
+
+                {/* Billing cycle toggle — visible in checkout so users aren't locked in */}
+                {!isChangingPlan && (
+                  <div className="flex items-center gap-1 rounded-lg border border-gray-200 p-0.5 mb-4 w-fit">
+                    {(['monthly', 'annual'] as const).map((cycle) => (
+                      <button
+                        key={cycle}
+                        onClick={() => setBillingCycle(cycle)}
+                        className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors capitalize ${
+                          billingCycle === cycle
+                            ? 'bg-blue-600 text-white shadow-sm'
+                            : 'text-gray-500 hover:text-gray-700'
+                        }`}
+                      >
+                        {cycle === 'annual' ? `Annual · save ${Math.round(ANNUAL_DISCOUNT * 100)}%` : 'Monthly'}
+                      </button>
+                    ))}
+                  </div>
+                )}
 
                 <div className="flex justify-between items-start mb-3">
                   <div>
