@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Sparkles, X, Plus, Check, ArrowUp, ArrowRight, ChevronDown, MessageSquare, Wand2, Info, AppWindow, Wrench, LifeBuoy } from 'lucide-react';
+import { Sparkles, X, Plus, Check, ArrowUp, ArrowRight, ChevronDown, MessageSquare, Wand2, Info, AppWindow, Wrench, LifeBuoy, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -36,6 +36,12 @@ interface AddFieldWithAIPanelProps {
   onUpgrade?: () => void;
   /** Open the Help Center for support questions. */
   onOpenHelpCenter?: () => void;
+  /**
+   * 'empty'  — app has no records yet; prompt to create the first one.
+   * 'locked' — app requires a plan upgrade; show upsell content.
+   * 'normal' — default field-adding experience.
+   */
+  appState?: 'normal' | 'empty' | 'locked';
 }
 
 type Message =
@@ -99,7 +105,7 @@ function resolveType(text: string): FieldType {
   return 'text';
 }
 
-export function AddFieldWithAIPanel({ isOpen, onClose, onAddField, context, onOpenAppBuilder, appBuilderLocked = false, onUpgrade, onOpenHelpCenter }: AddFieldWithAIPanelProps) {
+export function AddFieldWithAIPanel({ isOpen, onClose, onAddField, context, onOpenAppBuilder, appBuilderLocked = false, onUpgrade, onOpenHelpCenter, appState = 'normal' }: AddFieldWithAIPanelProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
@@ -120,21 +126,20 @@ export function AddFieldWithAIPanel({ isOpen, onClose, onAddField, context, onOp
   useEffect(() => {
     if (isOpen) {
       seq = 0;
-      setMessages([
-        {
-          id: nextId(),
-          role: 'ai',
-          kind: 'text',
-          text: `Hi! Tell me what ${noun} you'd like to add to ${target}, and I'll build it for you.`,
-        },
-      ]);
+      const greeting =
+        appState === 'empty'
+          ? `Looks like you haven't started with ${context?.entityLabel ?? 'this app'} yet. Create your first record to get going — or I can help you customize this screen in the meantime.`
+          : appState === 'locked'
+          ? `${context?.entityLabel ?? 'This app'} is available on Build and Scale plans. Upgrade to unlock it for your team.`
+          : `Hi! Tell me what ${noun} you'd like to add to ${target}, and I'll build it for you.`;
+      setMessages([{ id: nextId(), role: 'ai', kind: 'text', text: greeting }]);
       setInput('');
       setBusy(false);
       setCurrentPrompt('');
       setPendingClarify(null);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen]);
+  }, [isOpen, appState]);
 
   // Auto-scroll to the newest message.
   useEffect(() => {
@@ -189,9 +194,10 @@ export function AddFieldWithAIPanel({ isOpen, onClose, onAddField, context, onOp
   };
 
   // A brand-new field request from the prompt.
-  const handleRequest = (prompt: string) => {
+  const handleRequest = (prompt: string, fromExample = false) => {
     // A support/help question belongs in the Help Center, not the field builder.
-    if (isSupportQuestion(prompt)) {
+    // Example prompt chips are pre-validated field requests — skip the check for them.
+    if (!fromExample && isSupportQuestion(prompt)) {
       setBusy(true);
       setTimeout(() => {
         setBusy(false);
@@ -249,7 +255,7 @@ export function AddFieldWithAIPanel({ isOpen, onClose, onAddField, context, onOp
     }
   };
 
-  const send = (raw: string) => {
+  const send = (raw: string, fromExample = false) => {
     const text = raw.trim();
     if (!text || busy) return;
     setInput('');
@@ -259,7 +265,7 @@ export function AddFieldWithAIPanel({ isOpen, onClose, onAddField, context, onOp
       setPendingClarify(null);
       handleAnswer(c, text);
     } else {
-      handleRequest(text);
+      handleRequest(text, fromExample);
     }
   };
 
@@ -408,19 +414,66 @@ export function AddFieldWithAIPanel({ isOpen, onClose, onAddField, context, onOp
           </div>
         )}
 
-        {/* Starter suggestions appear directly under the greeting */}
+        {/* Starter suggestions — vary by app state */}
         {!busy && !pendingClarify && messages.length <= 1 && (
-          <div className="flex flex-wrap gap-2 pl-1">
-            {EXAMPLES.slice(0, 3).map((ex) => (
+          appState === 'locked' ? (
+            /* Locked: upgrade CTA + feature bullets */
+            <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 space-y-3">
+              <div className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                <Lock className="w-4 h-4 text-gray-400" />
+                Requires an upgrade
+              </div>
+              <ul className="space-y-1.5 text-sm text-gray-600">
+                <li className="flex items-center gap-2"><Check className="w-3.5 h-3.5 text-green-500 flex-shrink-0" />Access for your whole team</li>
+                <li className="flex items-center gap-2"><Check className="w-3.5 h-3.5 text-green-500 flex-shrink-0" />Unlimited records &amp; history</li>
+                <li className="flex items-center gap-2"><Check className="w-3.5 h-3.5 text-green-500 flex-shrink-0" />Custom fields &amp; workflows</li>
+              </ul>
+              {onUpgrade && (
+                <button
+                  onClick={onUpgrade}
+                  className="w-full inline-flex items-center justify-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 transition-colors"
+                >
+                  Upgrade to unlock <ArrowRight className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+          ) : appState === 'empty' ? (
+            /* Empty state: create-first CTA, then field chips as secondary */
+            <div className="space-y-3 w-full">
               <button
-                key={ex}
-                onClick={() => send(ex)}
-                className="text-sm rounded-full border border-gray-200 px-3 py-1.5 text-gray-600 hover:border-purple-300 hover:bg-purple-50 transition-colors"
+                className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-700 transition-colors"
+                onClick={onClose}
               >
-                {ex}
+                Create your first {context ? singular(context.entityLabel) : 'record'}
+                <ArrowRight className="w-4 h-4" />
               </button>
-            ))}
-          </div>
+              <p className="text-xs text-gray-400 text-center">or customize this screen first:</p>
+              <div className="flex flex-wrap gap-2">
+                {EXAMPLES.slice(0, 3).map((ex) => (
+                  <button
+                    key={ex}
+                    onClick={() => send(ex, true)}
+                    className="text-sm rounded-full border border-gray-200 px-3 py-1.5 text-gray-600 hover:border-purple-300 hover:bg-purple-50 transition-colors"
+                  >
+                    {ex}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : (
+            /* Normal: field suggestion chips */
+            <div className="flex flex-wrap gap-2 pl-1">
+              {EXAMPLES.slice(0, 3).map((ex) => (
+                <button
+                  key={ex}
+                  onClick={() => send(ex, true)}
+                  className="text-sm rounded-full border border-gray-200 px-3 py-1.5 text-gray-600 hover:border-purple-300 hover:bg-purple-50 transition-colors"
+                >
+                  {ex}
+                </button>
+              ))}
+            </div>
+          )
         )}
 
         {busy && (
@@ -436,8 +489,8 @@ export function AddFieldWithAIPanel({ isOpen, onClose, onAddField, context, onOp
         )}
       </div>
 
-      {/* Composer */}
-      <div className="border-t border-gray-200 p-3">
+      {/* Composer — hidden when the app is locked (no fields to add without access) */}
+      <div className={`border-t border-gray-200 p-3 ${appState === 'locked' ? 'hidden' : ''}`}>
         <div className="rounded-2xl border border-gray-200 focus-within:border-blue-400 px-3 pt-2.5 pb-2">
           {/* Screen context — always applied, can't be removed */}
           <div className="mb-2">

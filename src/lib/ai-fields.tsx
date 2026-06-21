@@ -158,11 +158,13 @@ export function AddFieldChatPanel({
   appBuilderLocked = false,
   onUpgrade,
   onOpenHelpCenter,
+  appState = 'normal',
 }: {
   onOpenAppBuilder?: () => void;
   appBuilderLocked?: boolean;
   onUpgrade?: () => void;
   onOpenHelpCenter?: () => void;
+  appState?: 'normal' | 'empty' | 'locked';
 } = {}) {
   const { request, activeSurface, closeRequest, addField } = useAIFields();
   // The panel follows the screen you're on: `request` controls open/closed, while
@@ -192,6 +194,7 @@ export function AddFieldChatPanel({
           : undefined
       }
       appBuilderLocked={appBuilderLocked}
+      appState={appState}
       onUpgrade={
         onUpgrade
           ? () => {

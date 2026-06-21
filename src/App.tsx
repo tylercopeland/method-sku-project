@@ -474,11 +474,10 @@ function App() {
         )}
         </div>
 
-        {/* Make the Customize launcher available on every app screen. Customers/
-            Contacts register their own surface (list vs detail), so skip them here. */}
+        {/* Make the Customize launcher available on app screens — including locked premium
+            apps (shows upsell) and empty-state apps (shows create-first prompt). */}
         {!isLocked &&
           !nonAppScreens.includes(currentPage) &&
-          !(premiumLocked && premiumApps.includes(currentPage)) &&
           !['customers', 'contacts'].includes(currentPage) && (
             <FieldSurfaceRegistrar
               entityType={currentPage}
@@ -490,6 +489,13 @@ function App() {
         <AddFieldChatPanel
           onOpenAppBuilder={() => setCurrentPage('app-studio')}
           appBuilderLocked={premiumLocked}
+          appState={
+            premiumLocked && premiumApps.includes(currentPage)
+              ? 'locked'
+              : shouldShowEmptyState
+              ? 'empty'
+              : 'normal'
+          }
           onUpgrade={() => {
             setOpenToChangePlan(true);
             setCurrentPage('subscription');
