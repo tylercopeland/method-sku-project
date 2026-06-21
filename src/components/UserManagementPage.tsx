@@ -29,6 +29,7 @@ import {
 } from 'lucide-react';
 import { ApplicationsAccessPage } from './ApplicationsAccessPage';
 import type { ActiveSubscription } from './SubscriptionPage';
+import { PLAN_ORDER, nextPlanId as getNextPlanId } from '@/lib/plans';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -64,8 +65,6 @@ interface InviteRow {
 }
 
 // ── Constants ──────────────────────────────────────────────────────────────────
-
-const PLAN_ORDER = ['essentials', 'build', 'scale'] as const;
 
 const PLAN_SEATS: Record<string, number> = {
   essentials: 1,
@@ -697,6 +696,7 @@ export function InviteModal({
   const [rows, setRows] = useState<InviteRow[]>(() => [newInviteRow(defaultRole)]);
   const [sent, setSent] = useState(false);
   const [copyFromUserId, setCopyFromUserId] = useState<string>('');
+  const [copyRoleOpen, setCopyRoleOpen] = useState(false);
 
   const handleEmailChange = (id: string, value: string) => {
     setRows((prev) => {
@@ -884,7 +884,7 @@ export function InviteModal({
                       <CornerDownRight className="w-3.5 h-3.5 text-gray-300 flex-shrink-0 ml-1 mt-6" />
                       <div className="flex-1 min-w-0 pr-9">
                         <label className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1">
-                          Username
+                          Full name
                         </label>
                         <input
                           type="text"
@@ -975,21 +975,21 @@ export function InviteModal({
                   Or{' '}
                   <button
                     type="button"
-                    onClick={() => setCopyFromUserId(copyFromUserId === '__open__' ? '' : '__open__')}
+                    onClick={() => setCopyRoleOpen((o) => !o)}
                     className="text-blue-600 underline underline-offset-2 hover:text-blue-800 transition-colors"
                   >
                     copy role and permissions from an existing user
                   </button>
                 </p>
               </div>
-              {copyFromUserId !== '' && (
+              {copyRoleOpen && (
                 <div className="mt-2.5">
                   <UserDropdownSelect
-                    value={copyFromUserId === '__open__' ? '' : copyFromUserId}
+                    value={copyFromUserId}
                     onChange={handleCopyFromUser}
                     options={ALL_MOCK_USERS}
                     placeholder="Select a user..."
-                    onClear={() => setCopyFromUserId('')}
+                    onClear={() => { setCopyFromUserId(''); setCopyRoleOpen(false); }}
                   />
                 </div>
               )}
@@ -1993,10 +1993,7 @@ export function UserManagementPage({
   const seatsAvailable = isTrial ? 999 : Math.max(0, includedSeats - totalSeatsUsed);
   const planName = subscription ? PLAN_NAMES[subscription.planId] : 'Trial';
 
-  const currentPlanIndex = subscription ? PLAN_ORDER.indexOf(subscription.planId as typeof PLAN_ORDER[number]) : -1;
-  const nextPlanId = currentPlanIndex >= 0 && currentPlanIndex < PLAN_ORDER.length - 1
-    ? PLAN_ORDER[currentPlanIndex + 1]
-    : null;
+  const nextPlanId = subscription ? getNextPlanId(subscription.planId) : null;
 
   // Per-user cost: full seats fill pool first, field crew fill remaining slots
   const userCosts: Record<string, string> = (() => {

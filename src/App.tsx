@@ -17,6 +17,7 @@ import { MultiEntitySetupPage } from '@/components/MultiEntitySetupPage';
 import { OnboardingModal } from '@/components/OnboardingModal';
 import { HelpDrawer } from '@/components/HelpDrawer';
 import { AIFieldsProvider, AddFieldChatPanel, FieldSurfaceRegistrar } from '@/lib/ai-fields';
+import { nextPlanId as getNextPlanId } from '@/lib/plans';
 import { Switch } from '@/components/ui/switch';
 import { useState, useEffect } from 'react';
 import { X, GripVertical, ChevronDown } from 'lucide-react';
@@ -114,11 +115,7 @@ function App() {
   const premiumLocked = subscription?.planId === 'essentials';
   const lockedApps = premiumLocked ? premiumApps : [];
 
-  const PLAN_ORDER = ['essentials', 'build', 'scale'] as const;
-  const currentPlanIdx = subscription ? PLAN_ORDER.indexOf(subscription.planId as typeof PLAN_ORDER[number]) : -1;
-  const nextPlanId: string | null = currentPlanIdx >= 0 && currentPlanIdx < PLAN_ORDER.length - 1
-    ? PLAN_ORDER[currentPlanIdx + 1]
-    : null;
+  const nextPlanId = subscription ? getNextPlanId(subscription.planId) : null;
 
   // Close mobile sidebar when navigating
   useEffect(() => {

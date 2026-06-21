@@ -121,8 +121,7 @@ export function MultiEntitySetupPage({
                 <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a.75.75 0 000 1.5h.253a.25.25 0 01.244.304l-.459 2.066A1.75 1.75 0 0010.747 15H11a.75.75 0 000-1.5h-.253a.25.25 0 01-.244-.304l.459-2.066A1.75 1.75 0 009.253 9H9z" clipRule="evenodd" />
               </svg>
               <p className="text-sm text-blue-800">
-                <span className="font-semibold">$40/month per entity</span> — billed in addition to your Scale plan subscription.{' '}
-                <button type="button" className="text-blue-700 hover:underline font-medium">See full pricing details.</button>
+                <span className="font-semibold">$40/month per entity</span> — billed in addition to your Scale plan subscription.
               </p>
             </div>
 
@@ -140,15 +139,7 @@ export function MultiEntitySetupPage({
               <span className="text-sm text-gray-700">
                 I understand that enabling multi-entity management is permanent, locks this account
                 to the Scale plan, and includes additional multi-entity pricing with a dedicated
-                support &amp; customization plan (
-                <button
-                  type="button"
-                  className="text-blue-600 hover:underline font-medium"
-                  onClick={(e) => e.preventDefault()}
-                >
-                  see pricing details
-                </button>
-                ).
+                support &amp; customization plan.
               </span>
             </label>
 
