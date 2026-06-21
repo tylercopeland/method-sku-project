@@ -13,6 +13,8 @@ interface AdminDashboardProps {
   onOpenApp?: (lockKey: string) => void;
   onUpgrade?: () => void;
   appStudioEnabled?: boolean;
+  appStudioEngaged?: boolean;
+  onNavigateToAppStudio?: () => void;
 }
 
 const dashboardTabs = [
@@ -21,7 +23,7 @@ const dashboardTabs = [
   { id: 'insights', label: 'Insights', beta: true },
 ];
 
-export function AdminDashboard({ userName, onNavigateToEstimates, onNavigateToCustomers, lockedApps = [], onOpenApp, onUpgrade, appStudioEnabled = false }: AdminDashboardProps) {
+export function AdminDashboard({ userName, onNavigateToEstimates, onNavigateToCustomers, lockedApps = [], onOpenApp, onUpgrade, appStudioEnabled = false, appStudioEngaged = false, onNavigateToAppStudio }: AdminDashboardProps) {
   const [activeTab, setActiveTab] = useState('home');
 
   return (
@@ -78,6 +80,9 @@ export function AdminDashboard({ userName, onNavigateToEstimates, onNavigateToCu
                 userName={userName}
                 onNavigateToEstimates={onNavigateToEstimates}
                 onNavigateToCustomers={onNavigateToCustomers}
+                appStudioEnabled={appStudioEnabled}
+                appStudioEngaged={appStudioEngaged}
+                onNavigateToAppStudio={onNavigateToAppStudio}
               />
             </div>
 

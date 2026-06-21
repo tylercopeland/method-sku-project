@@ -3,7 +3,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { Users, FolderSync as Sync, TrendingUp, Play, CircleCheck as CheckCircle, MessageCircle, FileText, ChevronRight, ChevronLeft, Info, Database, Calendar, GraduationCap, Building2 } from 'lucide-react';
+import { Users, FolderSync as Sync, TrendingUp, Play, CircleCheck as CheckCircle, MessageCircle, FileText, ChevronRight, ChevronLeft, Info, Database, Calendar, GraduationCap, Building2, Sparkles } from 'lucide-react';
 import { useRef } from 'react';
 import { useState } from 'react';
 import { VideoModal } from '@/components/VideoModal';
@@ -14,6 +14,9 @@ interface WelcomeBannerProps {
   userName: string;
   onNavigateToEstimates?: (filter?: string) => void;
   onNavigateToCustomers?: (filter?: string) => void;
+  appStudioEnabled?: boolean;
+  appStudioEngaged?: boolean;
+  onNavigateToAppStudio?: () => void;
 }
 
 interface ChecklistStep {
@@ -85,7 +88,7 @@ const checklistSteps: ChecklistStep[] = [
   },
 ];
 
-export function WelcomeBanner({ userName, onNavigateToEstimates, onNavigateToCustomers }: WelcomeBannerProps) {
+export function WelcomeBanner({ userName, onNavigateToEstimates, onNavigateToCustomers, appStudioEnabled = false, appStudioEngaged = false, onNavigateToAppStudio }: WelcomeBannerProps) {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [showMethodPayBanner] = useState(true);
   const [activeChecklistStep, setActiveChecklistStep] = useState(1);
@@ -276,8 +279,34 @@ export function WelcomeBanner({ userName, onNavigateToEstimates, onNavigateToCus
           </TooltipProvider>
         </div>
 
-        {onboardingDismissed ? null : showMethodPayBanner && isChecklistHidden ? (
-          /* Collapsed Single Banner */
+        {onboardingDismissed ? null : appStudioEnabled && !appStudioEngaged ? (
+          /* App Studio card — same structure as the blue onboarding card, purple palette */
+          <div className="mb-6 rounded-xl overflow-hidden border border-purple-100 bg-white">
+            <div className="bg-gradient-to-r from-purple-50 to-indigo-50 px-5 py-6">
+              <div className="flex items-stretch gap-5">
+                <div className="w-[160px] min-h-[120px] bg-purple-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <Sparkles className="w-14 h-14 text-purple-400" />
+                </div>
+                <div className="flex-1 flex flex-col">
+                  <span className="text-xs text-purple-500 mb-1">App Studio</span>
+                  <h2 className="text-xl font-semibold text-gray-900 mb-1">
+                    Build a custom app with App Studio
+                  </h2>
+                  <p className="text-gray-600 text-sm mb-3 leading-relaxed flex-1">
+                    Describe what you want and Method builds it for you — no code required.
+                  </p>
+                  <Button
+                    onClick={() => onNavigateToAppStudio?.()}
+                    className="bg-purple-600 hover:bg-purple-700 text-white w-fit"
+                  >
+                    Open App Studio
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : showMethodPayBanner && isChecklistHidden ? (
+          /* Collapsed blue banner */
           <div className="mb-6 rounded-xl overflow-hidden border border-gray-200 bg-gradient-to-r from-blue-50 to-blue-100 px-4 py-3 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <CheckCircle className="w-5 h-5 text-blue-600" />
@@ -296,9 +325,7 @@ export function WelcomeBanner({ userName, onNavigateToEstimates, onNavigateToCus
         ) : showMethodPayBanner ? (
           /* Single Step Banner - One step at a time */
           (() => {
-            // Single banner uses 4 steps (skip first "Sync your data" step)
             const singleBannerSteps = checklistSteps.slice(1);
-            // Adjust index since we skip the first step (activeChecklistStep 1 = singleBanner index 0)
             const singleBannerIndex = Math.max(0, activeChecklistStep - 1);
             const currentStep = singleBannerSteps[singleBannerIndex] || singleBannerSteps[0];
             const totalSteps = singleBannerSteps.length;
@@ -310,33 +337,19 @@ export function WelcomeBanner({ userName, onNavigateToEstimates, onNavigateToCus
                   <div className="flex items-stretch gap-5">
                     {currentStep.image ? (
                       <div className="w-[160px] min-h-[120px] rounded-lg overflow-hidden flex-shrink-0 bg-white">
-                        <img
-                          src={currentStep.image}
-                          alt=""
-                          className="w-full h-full object-cover"
-                        />
+                        <img src={currentStep.image} alt="" className="w-full h-full object-cover" />
                       </div>
                     ) : (
                       <div className="w-[160px] min-h-[120px] bg-blue-200/30 rounded-lg flex items-center justify-center flex-shrink-0">
-                        <div className="scale-[2.5]">
-                          {currentStep.detailIcon}
-                        </div>
+                        <div className="scale-[2.5]">{currentStep.detailIcon}</div>
                       </div>
                     )}
                     <div className="flex-1 flex flex-col">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-xs text-gray-500">Onboarding Step {currentStepNum} of {totalSteps}</span>
-                      </div>
-                      <h2 className="text-xl font-semibold text-gray-900 mb-1">
-                        {currentStep.title}
-                      </h2>
-                      <p className="text-gray-600 text-sm mb-3 leading-relaxed flex-1">
-                        {currentStep.description}
-                      </p>
+                      <span className="text-xs text-gray-500 mb-1">Onboarding Step {currentStepNum} of {totalSteps}</span>
+                      <h2 className="text-xl font-semibold text-gray-900 mb-1">{currentStep.title}</h2>
+                      <p className="text-gray-600 text-sm mb-3 leading-relaxed flex-1">{currentStep.description}</p>
                       <Button
                         onClick={() => {
-                          // Prototype: mark this step done, then advance to the next banner —
-                          // or dismiss the banner entirely once the last step is actioned.
                           setCompletedChecklistSteps(prev => {
                             const next = new Set(prev);
                             next.add(activeChecklistStep);

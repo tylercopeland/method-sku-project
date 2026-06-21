@@ -41,6 +41,7 @@ function App() {
   // Demo: whether App Studio is accessible (shown in the sidebar). Off by default;
   // toggled on via demo controls. While off, the sidebar shows no App Studio menu item.
   const [appStudioEnabled, setAppStudioEnabled] = useState(false);
+  const [appStudioEngaged, setAppStudioEngaged] = useState(false);
   // Demo: enables the "Add field with AI" custom-fields experience on detail screens.
   const [aiFieldsEnabled, setAiFieldsEnabled] = useState(false);
   // Demo: emphasize the annual discount with the discounted monthly price on plan cards.
@@ -422,8 +423,10 @@ function App() {
             onNavigateToCustomers={navigateToCustomers}
             lockedApps={lockedApps}
             appStudioEnabled={appStudioEnabled}
+            appStudioEngaged={appStudioEngaged}
             onOpenApp={(page) => setCurrentPage(page)}
             onUpgrade={openUpgradeModal}
+            onNavigateToAppStudio={() => { setAppStudioEngaged(true); setCurrentPage('app-studio'); }}
           />
         ) : currentPage === 'customers' || currentPage === 'contacts' ? (
           <div className="flex-1 overflow-y-auto p-3 sm:p-6">
