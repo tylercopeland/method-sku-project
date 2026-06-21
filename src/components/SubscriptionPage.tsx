@@ -1703,7 +1703,7 @@ export function SubscriptionPage({
     <div className="flex-1 overflow-y-auto p-3 sm:p-6">
       <div className="max-w-6xl mx-auto">
         {/* Header */}
-        <div className="text-center mb-10">
+        <div className="text-center mb-6">
           {isChangingPlan && (
             <button
               onClick={() => setStep('manage')}
@@ -1713,7 +1713,7 @@ export function SubscriptionPage({
               Back to your subscription
             </button>
           )}
-          <h1 className="text-3xl sm:text-4xl font-semibold text-gray-900 mb-3">
+          <h1 className="text-2xl sm:text-3xl font-semibold text-gray-900 mb-2">
             {isChangingPlan ? 'Change your plan' : "The right plan for where you're headed"}
           </h1>
           <p className="text-gray-500 max-w-xl mx-auto">
@@ -1724,7 +1724,7 @@ export function SubscriptionPage({
 
           {/* Billing toggle — hidden for already-subscribed users (their cycle is fixed) */}
           {!isChangingPlan && (
-            <div className="inline-flex items-center gap-3 mt-7">
+            <div className="inline-flex items-center gap-3 mt-5">
               <span
                 className={`text-sm font-medium ${billingCycle === 'monthly' ? 'text-gray-900' : 'text-gray-500'}`}
               >
@@ -1747,7 +1747,7 @@ export function SubscriptionPage({
         </div>
 
         {/* Plans */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 items-stretch">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-stretch">
           {plans.map((plan, index) => {
             const isContactSales = !!plan.contactSales;
             const isCurrent = isChangingPlan && plan.id === activeSubscription?.planId;
@@ -1791,7 +1791,7 @@ export function SubscriptionPage({
             return (
               <div
                 key={plan.id}
-                className={`relative bg-white rounded-2xl border p-6 sm:p-7 flex flex-col ${
+                className={`relative bg-white rounded-2xl border p-5 flex flex-col ${
                   highlight
                     ? 'border-blue-600 shadow-lg ring-1 ring-blue-600'
                     : 'border-gray-200 shadow-sm'
@@ -1815,21 +1815,21 @@ export function SubscriptionPage({
                 >
                   {plan.eyebrow}
                 </p>
-                <h3 className="text-xl font-semibold text-gray-900 mb-4">{plan.name}</h3>
+                <h3 className="text-xl font-semibold text-gray-900 mb-3">{plan.name}</h3>
 
                 {/* Price */}
                 {isContactSales ? (
                   <>
                     <div className="flex items-baseline mb-1">
-                      <span className="text-4xl font-bold text-gray-900 tracking-tight">Let's talk</span>
+                      <span className="text-3xl font-bold text-gray-900 tracking-tight">Let's talk</span>
                     </div>
-                    <p className="text-xs text-gray-500 mb-5">Tailored to your business</p>
+                    <p className="text-xs text-gray-500 mb-4">Tailored to your business</p>
                   </>
                 ) : (
                   <>
                     <div className="flex items-baseline gap-1 mb-1">
                       <span className="text-2xl font-medium text-gray-900">$</span>
-                      <span className="text-5xl font-bold text-gray-900 tracking-tight">{price}</span>
+                      <span className="text-4xl font-bold text-gray-900 tracking-tight">{price}</span>
                       <span className="text-gray-500 text-sm">/ mo</span>
                     </div>
                     <p className="text-xs text-gray-500 mb-1">
@@ -1858,42 +1858,42 @@ export function SubscriptionPage({
                         {teamSize} users · ${teamMonthly.toLocaleString()}/mo
                       </p>
                     ) : (
-                      <div className="mb-3" />
+                      <div className="mb-2" />
                     )}
                   </>
                 )}
 
                 {/* Seats — the highlighted focal point */}
                 <div
-                  className={`rounded-xl px-4 py-3 mb-5 flex items-center gap-3 ${
+                  className={`rounded-xl px-4 py-2.5 mb-4 flex items-center gap-3 ${
                     highlight ? 'bg-blue-50' : 'bg-gray-50'
                   }`}
                 >
                   <div
-                    className={`flex items-center justify-center w-10 h-10 rounded-lg flex-shrink-0 ${
+                    className={`flex items-center justify-center w-8 h-8 rounded-lg flex-shrink-0 ${
                       highlight ? 'bg-blue-100 text-blue-700' : 'bg-white text-gray-500'
                     }`}
                   >
-                    <Users className="w-5 h-5" />
+                    <Users className="w-4 h-4" />
                   </div>
                   <div className="leading-snug">
-                    <p className="text-sm font-bold text-gray-900">
+                    <p className="text-xs font-bold text-gray-900">
                       {plan.seats} {plan.seats === 1 ? 'seat' : 'seats'} included
                     </p>
-                    <p className="text-sm text-gray-600">{plan.seatsNote}</p>
+                    <p className="text-xs text-gray-600">{plan.seatsNote}</p>
                   </div>
                 </div>
 
-                <div className="border-t border-gray-100 mb-4" />
+                <div className="border-t border-gray-100 mb-3" />
 
-                <p className="text-xs font-bold uppercase tracking-wide text-gray-500 mb-3">
+                <p className="text-xs font-bold uppercase tracking-wide text-gray-500 mb-2">
                   {plan.includedLabel}
                 </p>
 
-                <ul className="space-y-2.5 mb-6">
+                <ul className="space-y-2 mb-5">
                   {plan.features.map((feature) => (
-                    <li key={feature} className="flex items-start gap-2.5 text-sm text-gray-700">
-                      <Check className="w-4 h-4 text-green-600 flex-shrink-0 mt-0.5" />
+                    <li key={feature} className="flex items-start gap-2 text-xs text-gray-700">
+                      <Check className="w-3.5 h-3.5 text-green-600 flex-shrink-0 mt-0.5" />
                       {feature}
                     </li>
                   ))}
