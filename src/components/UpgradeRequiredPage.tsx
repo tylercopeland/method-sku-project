@@ -12,6 +12,7 @@ import {
   Boxes,
   FileText,
   Plug,
+  Users,
 } from 'lucide-react';
 
 interface AppConfig {
@@ -107,6 +108,20 @@ const configs: Record<string, AppConfig> = {
       'Set reorder points and alerts',
       'Manage costs and margins',
       'Sync items with QuickBooks',
+    ],
+  },
+  'users': {
+    label: 'User Management',
+    icon: Users,
+    iconColor: 'text-blue-600',
+    gradient: 'from-blue-500 to-blue-600',
+    title: 'Manage Your Team with Ease',
+    description: 'Invite team members, control permissions, and collaborate across your whole organisation.',
+    valueProps: [
+      'Invite unlimited team members',
+      'Set role-based permissions per user',
+      'Manage developer & API access',
+      'See activity across your whole team',
     ],
   },
   'integrations-api': {
