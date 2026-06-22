@@ -312,7 +312,7 @@ interface SubscriptionPageProps {
     workflowDesignerOpened?: boolean;
   };
   /** For subscribed users, which view to open on: the manage card or the change-plan grid. */
-  initialStep?: 'manage' | 'plans';
+  initialStep?: 'manage' | 'plans' | 'billing';
   /** Render the checkout (payment + order summary) inline as a page, or in a modal. */
   checkoutMode?: 'inline' | 'modal';
   /** Whether the user has App Studio access (a Build-tier capability). Drives the
@@ -364,7 +364,7 @@ export function SubscriptionPage({
   // If upgradeFromPlanId is set, jump straight to checkout for that plan.
   // Otherwise, open on the requested view (manage by default, or plans grid when upgrading).
   const [step, setStep] = useState<Step>(
-    upgradeFromPlanId ? 'checkout' : (activeSubscription ? initialStep : 'plans')
+    initialStep === 'billing' ? 'billing' : upgradeFromPlanId ? 'checkout' : (activeSubscription ? initialStep : 'plans')
   );
   const [processing, setProcessing] = useState(false);
 

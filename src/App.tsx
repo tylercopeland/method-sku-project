@@ -234,10 +234,12 @@ function App() {
   };
 
   const [upgradeModalView, setUpgradeModalView] = useState<'quick' | 'full'>('quick');
+  const [upgradeOpenToBilling, setUpgradeOpenToBilling] = useState(false);
 
   const openUpgradeModal = (planId?: string) => {
     setUpgradeTargetPlanId(planId ?? null);
     setUpgradeModalView(planId ? 'quick' : 'full');
+    setUpgradeOpenToBilling(false);
     setUpgradeModalOpen(true);
   };
 
@@ -765,8 +767,8 @@ function App() {
               onClose={() => setUpgradeModalOpen(false)}
               onViewAllPlans={() => setUpgradeModalView('full')}
               onUpdateBilling={() => {
-                setUpgradeModalOpen(false);
-                setCurrentPage('subscription');
+                setUpgradeOpenToBilling(true);
+                setUpgradeModalView('full');
               }}
               onSubscribed={(sub) => {
                 setSubscription(sub);
@@ -793,7 +795,7 @@ function App() {
                   teamSize={teamSize}
                   checkoutMode="inline"
                   upgradeFromPlanId={effectiveUpgradeTarget ?? undefined}
-                  initialStep={!effectiveUpgradeTarget && subscription ? 'plans' : undefined}
+                  initialStep={upgradeOpenToBilling ? 'billing' : !effectiveUpgradeTarget && subscription ? 'plans' : undefined}
                   hasAppStudioAccess={appStudioEnabled}
                   showDiscountedPrice={showDiscountedPrice}
                   discountName={promoDiscount?.name}
