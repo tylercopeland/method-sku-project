@@ -355,7 +355,7 @@ export function SubscriptionPage({
   multiEntityEnabled = false,
 }: SubscriptionPageProps) {
   const [billingCycle, setBillingCycle] = useState<BillingCycle>(
-    activeSubscription?.billingCycle ?? 'monthly'
+    upgradeFromPlanId ? 'monthly' : (activeSubscription?.billingCycle ?? 'monthly')
   );
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(
     upgradeFromPlanId ?? activeSubscription?.planId ?? null
@@ -1329,13 +1329,13 @@ export function SubscriptionPage({
   // Shared checkout content — rendered inline (full page) or inside a modal.
   const checkoutBody = selectedPlan ? (
     <>
-          {checkoutMode === 'inline' && !upgradeFromPlanId && (
+          {checkoutMode === 'inline' && (
             <button
               onClick={() => setStep('plans')}
               className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 mb-5"
             >
               <ArrowLeft className="w-4 h-4" />
-              Back to plans
+              {upgradeFromPlanId ? 'View all plans' : 'Back to plans'}
             </button>
           )}
 
@@ -1570,8 +1570,8 @@ export function SubscriptionPage({
                   Order summary
                 </h3>
 
-                {/* Billing cycle toggle — visible in checkout so users aren't locked in */}
-                {!isChangingPlan && (
+                {/* Billing cycle toggle — always visible in checkout */}
+                {(
                   <div className="flex items-center gap-1 rounded-lg border border-gray-200 p-0.5 mb-4 w-fit">
                     {(['monthly', 'annual'] as const).map((cycle) => (
                       <button
