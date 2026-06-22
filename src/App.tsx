@@ -760,8 +760,14 @@ function App() {
           {upgradeModalView === 'quick' && effectiveUpgradeTarget ? (
             <QuickUpgradeModal
               targetPlanId={effectiveUpgradeTarget}
+              isChangingPlan={!!subscription}
+              currentCardLast4={subscription?.cardLast4}
               onClose={() => setUpgradeModalOpen(false)}
               onViewAllPlans={() => setUpgradeModalView('full')}
+              onUpdateBilling={() => {
+                setUpgradeModalOpen(false);
+                setCurrentPage('subscription');
+              }}
               onSubscribed={(sub) => {
                 setSubscription(sub);
                 setShowTrialBanner(false);

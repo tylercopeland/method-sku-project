@@ -1680,11 +1680,29 @@ export function SubscriptionPage({
                   Secure checkout · 30-day money-back guarantee
                 </div>
 
-                <div className="flex items-center gap-2 text-[10px] font-semibold text-gray-400">
+                <div className="flex items-center gap-2 text-[10px] font-semibold text-gray-400 mb-4">
                   <span className="px-1.5 py-0.5 rounded border border-gray-200">VISA</span>
                   <span className="px-1.5 py-0.5 rounded border border-gray-200">MASTERCARD</span>
                   <span className="px-1.5 py-0.5 rounded border border-gray-200">AMEX</span>
                 </div>
+
+                {/* Billing address preview */}
+                {isChangingPlan && (
+                  <div className="border-t border-gray-100 pt-4 flex items-start justify-between">
+                    <div>
+                      <p className="text-xs font-semibold text-gray-500 mb-1">Billing address</p>
+                      <p className="text-xs text-gray-500">Paul McLane</p>
+                      <p className="text-xs text-gray-400">123 King St W, Suite 400</p>
+                      <p className="text-xs text-gray-400">Toronto, ON M5H 1B5, Canada</p>
+                    </div>
+                    <button
+                      onClick={() => setStep('billing')}
+                      className="text-xs text-blue-600 hover:underline whitespace-nowrap ml-3 mt-0.5 flex-shrink-0"
+                    >
+                      Update billing
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           </div>
