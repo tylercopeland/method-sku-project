@@ -1,7 +1,7 @@
 import {
   LayoutGrid, Users, Wrench, Phone, BookOpen, AlertCircle, ArrowRight, X,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { ActiveSubscription } from '@/components/SubscriptionPage';
 
 interface MultiEntitySetupPageProps {
@@ -39,6 +39,28 @@ export function MultiEntitySetupPage({
 }: MultiEntitySetupPageProps) {
   const [acknowledged, setAcknowledged] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [settingUp, setSettingUp] = useState(false);
+  const [setupProgress, setSetupProgress] = useState(0);
+
+  useEffect(() => {
+    if (!settingUp) return;
+    setSetupProgress(0);
+    const duration = 3000;
+    const interval = 50;
+    const step = 100 / (duration / interval);
+    const timer = setInterval(() => {
+      setSetupProgress(p => {
+        const next = p + step;
+        if (next >= 100) {
+          clearInterval(timer);
+          onEnableMultiEntity();
+          return 100;
+        }
+        return next;
+      });
+    }, interval);
+    return () => clearInterval(timer);
+  }, [settingUp]);
 
   const isOnScale = subscription?.planId === 'scale';
   const canEnable = isOnScale;
@@ -234,13 +256,32 @@ export function MultiEntitySetupPage({
               <button
                 onClick={() => {
                   setConfirmOpen(false);
-                  onEnableMultiEntity();
+                  setSettingUp(true);
                 }}
                 className="px-5 py-2.5 rounded-lg bg-blue-600 text-sm font-semibold text-white hover:bg-blue-700 transition-colors shadow-sm"
               >
                 Enable feature
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {settingUp && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm px-8 py-10 flex flex-col items-center">
+            <div className="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center mb-5">
+              <LayoutGrid className="w-6 h-6 text-blue-600" />
+            </div>
+            <h2 className="text-lg font-bold text-gray-900 mb-1 text-center">Setting up Multi-Entity</h2>
+            <p className="text-sm text-gray-500 text-center mb-7">Configuring your account, just a moment…</p>
+            <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-blue-600 to-cyan-400 transition-[width] duration-100 ease-linear rounded-full"
+                style={{ width: `${setupProgress}%` }}
+              />
+            </div>
+            <p className="text-xs font-medium text-blue-600 mt-2">{Math.round(setupProgress)}%</p>
           </div>
         </div>
       )}

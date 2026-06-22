@@ -70,7 +70,7 @@ export function QuickUpgradeModal({
 
         <button
           onClick={onViewAllPlans}
-          className="mt-8 inline-flex items-center gap-1 text-sm text-gray-400 hover:text-gray-600 transition-colors self-start"
+          className="mt-8 inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700 transition-colors self-start"
         >
           Compare all plans <ArrowRight className="w-3.5 h-3.5" />
         </button>
@@ -114,20 +114,13 @@ export function QuickUpgradeModal({
             <p className="text-sm text-gray-400">Billed monthly · cancel anytime</p>
           )}
           <p className="text-xs text-gray-400 mt-1">
-            {plan.seats} seats included{plan.extraSeatPrice ? ` · +$${plan.extraSeatPrice}/user after` : ''}
+            {plan.seats} paid seats included{plan.extraSeatPrice ? ` · +$${plan.extraSeatPrice}/user after` : ''}
           </p>
         </div>
 
-        {/* Combined payment + billing address tile */}
+        {/* Combined billing address + payment tile */}
         <div className="rounded-xl border border-gray-200 bg-white overflow-hidden mb-5">
-          <div className="flex items-center gap-2.5 px-4 py-3 border-b border-gray-100">
-            <CreditCard className="w-4 h-4 text-gray-400 flex-shrink-0" />
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-gray-800">Visa ···· {cardLast4}</p>
-              <p className="text-xs text-gray-400">Default payment method</p>
-            </div>
-          </div>
-          <div className="flex items-start justify-between px-4 py-3">
+          <div className="flex items-start justify-between px-4 py-3 border-b border-gray-100">
             <div className="text-xs text-gray-500 leading-relaxed">
               <p className="font-medium text-gray-700 mb-0.5">{MOCK_BILLING.name}</p>
               <p>{MOCK_BILLING.line1}</p>
@@ -137,8 +130,15 @@ export function QuickUpgradeModal({
               onClick={onUpdateBilling}
               className="text-xs font-medium text-blue-600 hover:underline ml-4 mt-0.5 flex-shrink-0"
             >
-              Update
+              Update billing
             </button>
+          </div>
+          <div className="flex items-center gap-2.5 px-4 py-3">
+            <CreditCard className="w-4 h-4 text-gray-400 flex-shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-gray-800">Visa ···· {cardLast4}</p>
+              <p className="text-xs text-gray-400">Default payment method</p>
+            </div>
           </div>
         </div>
 
@@ -147,15 +147,15 @@ export function QuickUpgradeModal({
           onClick={() =>
             onSubscribed({ planId: plan.id as 'essentials' | 'build' | 'scale', billingCycle: billing, cardLast4 })
           }
-          className="w-full py-3 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 transition-colors mb-4"
+          className="w-full py-3 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 transition-colors mb-2"
         >
           Upgrade to {plan.name}
         </button>
 
         {/* Security */}
-        <div className="flex items-center gap-1.5 text-xs text-gray-400">
+        <div className="flex items-center justify-center gap-1.5 text-xs text-gray-400">
           <ShieldCheck className="w-3.5 h-3.5 flex-shrink-0 text-gray-400" />
-          Secure checkout · 30-day money-back guarantee
+          Secure checkout
         </div>
       </div>
     </div>

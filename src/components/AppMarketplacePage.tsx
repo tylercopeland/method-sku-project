@@ -109,7 +109,7 @@ export function AppMarketplacePage({ onBack, onOpenUserAccess, lockedApps = [], 
         <div className="w-9 h-9 rounded-full bg-blue-600 flex items-center justify-center flex-shrink-0">
           <LayoutGrid className="w-5 h-5 text-white" />
         </div>
-        <h1 className="text-2xl font-semibold text-gray-900">App Marketplace</h1>
+        <h1 className="text-2xl font-semibold text-gray-900">App Library</h1>
       </div>
 
       {/* Your installed apps — same set + order as the home App tab */}

@@ -29,6 +29,7 @@ import {
 } from 'lucide-react';
 import { ApplicationsAccessPage } from './ApplicationsAccessPage';
 import type { ActiveSubscription } from './SubscriptionPage';
+import { plans } from './SubscriptionPage';
 import { PLAN_ORDER, nextPlanId as getNextPlanId } from '@/lib/plans';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -66,7 +67,7 @@ interface InviteRow {
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
-const PLAN_SEATS: Record<string, number> = {
+export const PLAN_SEATS: Record<string, number> = {
   essentials: 1,
   build: 3,
   scale: 8,
@@ -133,7 +134,7 @@ const ROLE_OPTIONS: RoleOption[] = [
   },
 ];
 
-const ROLE_SEAT_TYPE: Record<UserRole, SeatType> = {
+export const ROLE_SEAT_TYPE: Record<UserRole, SeatType> = {
   Admin: 'full',
   Customizer: 'full',
   Regular: 'full',
@@ -141,7 +142,7 @@ const ROLE_SEAT_TYPE: Record<UserRole, SeatType> = {
   'View-only': 'view-only',
 };
 
-const ALL_MOCK_USERS: MockUser[] = [
+export const ALL_MOCK_USERS: MockUser[] = [
   {
     id: '1', name: 'Paul McLane', email: 'p.mclane@acme.com', role: 'Admin', status: 'Active',
     apps: ['CRM', 'Customers', 'Estimates', 'Invoices', 'Payments', 'Email'], avatarColor: 'bg-indigo-600',
@@ -603,73 +604,130 @@ function SeatMeter({
   const totalCost = basePrice + extraFullCost + extraFieldCrewCost;
 
   const isEssentials = subscription?.planId === 'essentials';
-  const theme = { bar: 'bg-blue-500', bg: 'bg-blue-50', border: 'border-blue-100', text: 'text-blue-700', label: 'text-gray-900', tag: 'bg-white text-blue-700' };
+  const usedCapped = Math.min(totalSeatsUsed, includedSeats);
+  const extraTotal = extraFullSeats + extraFieldCrew;
+
+  // Shared subtitle copy
+  const subtitleContent = multiEntityEnabled ? (
+    <>
+      Unlimited paid seats &middot; {usedCapped} of {includedSeats} included paid seats used
+      <span className="relative group inline-flex items-center">
+        <Info className="w-3 h-3 text-blue-400 cursor-default" />
+        <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 w-60 rounded-lg bg-gray-900 px-3 py-2 text-xs text-white opacity-0 group-hover:opacity-100 transition-opacity z-10 leading-relaxed">
+          Your Scale plan includes {includedSeats} paid seats. Each additional seat costs ${EXTRA_FULL_SEAT_PRICE}/month. View-only seats are always free and never count toward this limit.
+        </span>
+      </span>
+    </>
+  ) : isEssentials ? (
+    <>Unlimited view-only seats &middot; {totalSeatsUsed} of 1 paid seat used on your current plan</>
+  ) : (
+    <>
+      {usedCapped} of {includedSeats} included paid seats used on your current plan
+      {isOverLimit
+        ? <> &middot; <span className="font-semibold">{extraTotal} extra</span> seat{extraTotal !== 1 ? 's' : ''}</>
+        : ''}
+    </>
+  );
+
+  const overageLine = isOverLimit && (
+    <div className="mt-2 flex items-center justify-between gap-4">
+      <span className="text-xs text-gray-500">
+        {extraTotal} extra {extraTotal === 1 ? 'seat' : 'seats'}
+        {' '}({[
+          extraFullSeats > 0 && `${extraFullSeats} × $${EXTRA_FULL_SEAT_PRICE}`,
+          extraFieldCrew > 0 && `${extraFieldCrew} × $${EXTRA_FIELD_CREW_PRICE}`,
+        ].filter(Boolean).join(', ')})
+      </span>
+      <span className="text-xs font-semibold text-gray-700 whitespace-nowrap">${extraFullCost + extraFieldCrewCost}/mo extra</span>
+    </div>
+  );
+
+  const ctaButton = !multiEntityEnabled && (
+    <div className="flex-shrink-0">
+      <button
+        onClick={onUpgrade}
+        className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors border border-blue-600 bg-transparent text-blue-600 hover:bg-blue-50"
+      >
+        {isOverLimit || isNearLimit || isApproaching ? (
+          <><TrendingUp className="w-3.5 h-3.5" /> Upgrade plan</>
+        ) : 'Manage plan'}
+      </button>
+    </div>
+  );
+
+  // ── Seat meter bar ───────────────────────────────────────────────────────────
+  const SegmentedBlocks = () => {
+    const fillPct = (usedCapped / includedSeats) * 100;
+    return (
+      <div className="flex items-center gap-1.5 mt-1">
+        {/* Main bar */}
+        <div className="relative flex-1 h-3 bg-white border border-gray-200 rounded-full overflow-hidden">
+          {/* Fill */}
+          <div
+            className={`h-full transition-all rounded-full ${isOverLimit ? 'bg-blue-500' : 'bg-blue-500'}`}
+            style={{ width: `${fillPct}%` }}
+          />
+          {/* Separator lines at each seat boundary */}
+          {Array.from({ length: includedSeats - 1 }).map((_, i) => (
+            <div
+              key={i}
+              className="absolute top-0 bottom-0 w-px bg-gray-200"
+              style={{ left: `${((i + 1) / includedSeats) * 100}%` }}
+            />
+          ))}
+        </div>
+        {/* Overflow seats */}
+        {extraTotal > 0 && (
+          <div className="flex items-center gap-0.5 flex-shrink-0">
+            <div className="w-px h-3 bg-gray-300" />
+            <div className="relative h-3 rounded-full overflow-hidden bg-amber-100 border border-amber-300" style={{ width: `${extraTotal * 16}px` }}>
+              <div className="h-full w-full bg-amber-400 rounded-full" />
+              {Array.from({ length: extraTotal - 1 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="absolute top-0 bottom-0 w-px bg-white/70"
+                  style={{ left: `${((i + 1) / extraTotal) * 100}%` }}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
-    <div className={`rounded-xl border ${theme.border} ${theme.bg} p-4 mb-6`}>
-      <div className="flex flex-col sm:flex-row sm:items-start gap-4">
+    <div className="rounded-xl border border-blue-100 bg-blue-50 p-4 mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-start gap-8">
         <div className="flex items-start gap-3 flex-1 min-w-0">
           <div className="w-9 h-9 rounded-full mt-0.5 bg-blue-100 flex items-center justify-center flex-shrink-0">
             <Users className="w-4 h-4 text-blue-600" />
           </div>
           <div className="flex-1 min-w-0">
-            <div className="flex flex-wrap items-center gap-2 mb-0.5">
-              <p className={`text-sm font-semibold ${theme.label}`}>
-                {multiEntityEnabled ? 'Seat usage' : isOverLimit ? 'Over seat limit' : isNearLimit ? 'Seat limit reached' : isApproaching ? 'Approaching seat limit' : 'Seat usage'}
+            <div className="flex items-center gap-1.5 mb-2">
+              <p className="text-sm font-semibold text-gray-900">
+                {multiEntityEnabled ? 'Paid seat usage' : isOverLimit ? 'Over paid seat limit' : isNearLimit ? 'Paid seat limit reached' : isApproaching ? 'Approaching paid seat limit' : 'Paid seat usage'}
               </p>
-            </div>
-            <p className={`text-xs ${theme.text} mb-2 flex items-center gap-1 flex-wrap`}>
-              {multiEntityEnabled ? (
-                <>
-                  Unlimited regular seats &middot; {totalSeatsUsed} of {includedSeats} included used
-                  <span className="relative group inline-flex items-center">
-                    <Info className="w-3 h-3 text-blue-400 cursor-default" />
-                    <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 w-60 rounded-lg bg-gray-900 px-3 py-2 text-xs text-white opacity-0 group-hover:opacity-100 transition-opacity z-10 leading-relaxed">
-                      Your Scale plan includes {includedSeats} regular seats. Each additional seat costs ${EXTRA_FULL_SEAT_PRICE}/month. View-only seats are always free and never count toward this limit.
-                    </span>
+              {!multiEntityEnabled && !isEssentials && (
+                <span className="relative group inline-flex items-center">
+                  <Info className="w-3.5 h-3.5 text-blue-400 cursor-default" />
+                  <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 w-56 rounded-lg bg-gray-900 px-3 py-2 text-xs text-white opacity-0 group-hover:opacity-100 transition-opacity z-10 leading-relaxed">
+                    View-only seats are free and don't count toward this limit.
                   </span>
-                </>
-              ) : isEssentials ? (
-                <>Unlimited view-only seats &middot; {totalSeatsUsed} of 1 regular seat used</>
-              ) : (
-                <>
-                  {totalSeatsUsed} of {includedSeats} regular seats used on {planName}
-                  {!isOverLimit && totalSeatsUsed < includedSeats ? ` — ${includedSeats - totalSeatsUsed} remaining` : ''}
-                </>
-              )}
-            </p>
-            <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-              <div className={`h-full rounded-full transition-all ${theme.bar}`} style={{ width: `${pct}%` }} />
-            </div>
-            {!multiEntityEnabled && !isEssentials && (
-              <p className="text-xs text-blue-400 mt-1.5">View-only seats are free and don't count toward this limit.</p>
-            )}
-            {isOverLimit && (
-              <div className="mt-2 flex items-center justify-between gap-4">
-                <span className="text-xs text-gray-500">
-                  {extraFullSeats + extraFieldCrew} extra {extraFullSeats + extraFieldCrew === 1 ? 'seat' : 'seats'}
-                  {' '}({[
-                    extraFullSeats > 0 && `${extraFullSeats} × $${EXTRA_FULL_SEAT_PRICE}`,
-                    extraFieldCrew > 0 && `${extraFieldCrew} × $${EXTRA_FIELD_CREW_PRICE}`,
-                  ].filter(Boolean).join(', ')})
                 </span>
-                <span className="text-xs font-semibold text-gray-700 whitespace-nowrap">${extraFullCost + extraFieldCrewCost}/mo extra</span>
-              </div>
-            )}
+              )}
+            </div>
+            <SegmentedBlocks />
+            <div className="flex items-center justify-between mt-1.5 gap-2">
+              <p className="text-xs text-blue-700 flex items-center gap-1 flex-wrap">{subtitleContent}</p>
+              {!isOverLimit && totalSeatsUsed < includedSeats && !isEssentials && !multiEntityEnabled && (
+                <span className="text-xs text-blue-400 flex-shrink-0">{includedSeats - totalSeatsUsed} remaining</span>
+              )}
+            </div>
+            {overageLine}
           </div>
         </div>
-        {!multiEntityEnabled && (
-          <div className="flex-shrink-0">
-            <button
-              onClick={onUpgrade}
-              className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors border border-blue-600 bg-transparent text-blue-600 hover:bg-blue-50"
-            >
-              {isOverLimit || isNearLimit || isApproaching ? (
-                <><TrendingUp className="w-3.5 h-3.5" /> Upgrade plan</>
-              ) : 'Manage plan'}
-            </button>
-          </div>
-        )}
+        {ctaButton}
       </div>
     </div>
   );
@@ -906,29 +964,46 @@ export function InviteModal({
         {/* Footer area */}
         <div className="px-6 pb-5 flex-shrink-0 space-y-3">
           {/* Extra cost summary */}
-          {inviteSummary && (
-            <div className="rounded-xl bg-amber-50 border border-amber-200 p-4">
-              <p className="text-xs font-semibold text-amber-900 mb-2 flex items-center gap-1.5">
-                <AlertTriangle className="w-3.5 h-3.5" /> Additional monthly charges
-              </p>
-              <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-xs">
-                {inviteSummary.extraFull > 0 && (
-                  <>
-                    <span className="text-amber-700">{inviteSummary.extraFull} extra full {inviteSummary.extraFull === 1 ? 'seat' : 'seats'} × ${EXTRA_FULL_SEAT_PRICE}</span>
-                    <span className="text-amber-900 font-semibold">${inviteSummary.extraFullCost}/mo</span>
-                  </>
+          {inviteSummary && (() => {
+            const nextId = subscription ? getNextPlanId(subscription.planId) : null;
+            const nextPlan = nextId ? plans.find(p => p.id === nextId) : null;
+            return (
+              <div className="rounded-xl bg-amber-50 border border-amber-200 p-4">
+                <p className="text-xs font-semibold text-amber-900 mb-2 flex items-center gap-1.5">
+                  <AlertTriangle className="w-3.5 h-3.5" /> Additional monthly charges
+                </p>
+                <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-xs mb-3">
+                  {inviteSummary.extraFull > 0 && (
+                    <>
+                      <span className="text-amber-700">{inviteSummary.extraFull} extra full {inviteSummary.extraFull === 1 ? 'seat' : 'seats'} × ${EXTRA_FULL_SEAT_PRICE}</span>
+                      <span className="text-amber-900 font-semibold">${inviteSummary.extraFullCost}/mo</span>
+                    </>
+                  )}
+                  {inviteSummary.extraFieldCrew > 0 && (
+                    <>
+                      <span className="text-amber-700">{inviteSummary.extraFieldCrew} extra field crew × ${EXTRA_FIELD_CREW_PRICE}</span>
+                      <span className="text-amber-900 font-semibold">${inviteSummary.extraFieldCrewCost}/mo</span>
+                    </>
+                  )}
+                  <span className="text-amber-900 font-bold pt-1 border-t border-amber-200">Total added to bill</span>
+                  <span className="text-amber-900 font-bold pt-1 border-t border-amber-200">${inviteSummary.totalExtra}/mo</span>
+                </div>
+                {nextPlan && (
+                  <div className="border-t border-amber-200 pt-3 flex items-center justify-between gap-3">
+                    <p className="text-xs text-amber-800">
+                      <span className="font-semibold">{nextPlan.name}</span> includes {nextPlan.seats} paid seats — it may be worth upgrading instead.
+                    </p>
+                    <button
+                      onClick={() => { onClose(); onNavigate('subscription-upgrade'); }}
+                      className="flex-shrink-0 inline-flex items-center gap-1 text-xs font-semibold text-amber-900 underline underline-offset-2 hover:text-amber-950 whitespace-nowrap"
+                    >
+                      View plans <ArrowRight className="w-3 h-3" />
+                    </button>
+                  </div>
                 )}
-                {inviteSummary.extraFieldCrew > 0 && (
-                  <>
-                    <span className="text-amber-700">{inviteSummary.extraFieldCrew} extra field crew × ${EXTRA_FIELD_CREW_PRICE}</span>
-                    <span className="text-amber-900 font-semibold">${inviteSummary.extraFieldCrewCost}/mo</span>
-                  </>
-                )}
-                <span className="text-amber-900 font-bold pt-1 border-t border-amber-200">Total added to bill</span>
-                <span className="text-amber-900 font-bold pt-1 border-t border-amber-200">${inviteSummary.totalExtra}/mo</span>
               </div>
-            </div>
-          )}
+            );
+          })()}
 
           {/* Essentials warning */}
           {isEssentials && (

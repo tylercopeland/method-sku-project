@@ -718,28 +718,30 @@ export function SubscriptionPage({
             <div className="flex items-center gap-2 flex-shrink-0">
               <button
                 onClick={() => setStep('billing')}
-                className="text-sm text-gray-500 hover:text-gray-700 transition-colors px-3 py-2"
+                className="text-sm text-blue-600 hover:text-blue-700 transition-colors px-3 py-2"
               >
                 View billing details
               </button>
-              {selectedPlan && selectedPlan.id !== 'scale' && (() => {
-                const nextPlan = plans[plans.findIndex((p) => p.id === selectedPlan.id) + 1];
-                return nextPlan ? (
-                  <button
-                    onClick={() => {
-                      if (onUpgrade) {
-                        onUpgrade(nextPlan.id);
-                      } else {
-                        setSelectedPlanId(nextPlan.id);
-                        setStep('checkout');
-                      }
-                    }}
-                    className="inline-flex items-center gap-1.5 bg-blue-600 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-blue-700 transition-colors"
-                  >
-                    Upgrade plan
-                  </button>
-                ) : null;
-              })()}
+              <div className="relative group">
+                <button
+                  onClick={() => !multiEntityEnabled && setStep('plans')}
+                  disabled={multiEntityEnabled}
+                  className={`inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+                    multiEntityEnabled
+                      ? 'bg-blue-200 text-white cursor-not-allowed'
+                      : 'bg-blue-600 text-white hover:bg-blue-700'
+                  }`}
+                >
+                  Manage plan
+                </button>
+                {multiEntityEnabled && (
+                  <div className="absolute top-full right-0 mt-2 w-64 rounded-lg bg-gray-900 px-3 py-2.5 text-xs text-white shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 leading-relaxed">
+                    <div className="absolute bottom-full right-4 border-4 border-transparent border-b-gray-900" />
+                    Your plan is locked to Scale because multi-entity is enabled. To discuss plan changes,{' '}
+                    <span className="underline">contact support</span> or visit the Help Center.
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
@@ -901,26 +903,18 @@ export function SubscriptionPage({
           )}
 
           {/* Actions */}
-          {!multiEntityEnabled && (
-            <div className="flex flex-col sm:flex-row sm:items-center gap-3 mt-6">
+          {!multiEntityEnabled && !isCanceling && (
+            <div className="flex mt-6">
               <button
-                onClick={() => setStep('plans')}
-                className="inline-flex items-center justify-center rounded-lg border border-blue-600 bg-transparent text-blue-600 hover:bg-blue-50 px-4 py-2 text-sm font-medium transition-colors"
+                onClick={() => {
+                  setCancelReason('');
+                  setCancelDetail('');
+                  setStep('cancel');
+                }}
+                className="text-sm text-gray-400 hover:text-red-600 transition-colors"
               >
-                Change plan
+                Cancel subscription
               </button>
-              {!isCanceling && (
-                <button
-                  onClick={() => {
-                    setCancelReason('');
-                    setCancelDetail('');
-                    setStep('cancel');
-                  }}
-                  className="text-sm text-gray-400 hover:text-red-600 sm:ml-auto transition-colors"
-                >
-                  Cancel subscription
-                </button>
-              )}
             </div>
           )}
         </div>
@@ -955,7 +949,7 @@ export function SubscriptionPage({
         <div className="max-w-xl mx-auto">
           <button
             onClick={() => setStep(backStep)}
-            className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 mb-5"
+            className="inline-flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-700 mb-5"
           >
             <ArrowLeft className="w-4 h-4" />
             {cancelMode === 'subscription' ? 'Back to your subscription' : 'Back to plans'}
@@ -1100,7 +1094,7 @@ export function SubscriptionPage({
               {cancelMode === 'subscription' ? 'Reactivate my subscription' : 'Reactivate my trial'}
             </Button>
             {onBack && (
-              <Button variant="ghost" onClick={onBack} className="w-full text-gray-500">
+              <Button variant="ghost" onClick={onBack} className="w-full text-blue-600">
                 Back to dashboard
               </Button>
             )}
@@ -1145,7 +1139,7 @@ export function SubscriptionPage({
                 Back to your subscription
               </Button>
               {onBack && (
-                <Button variant="ghost" onClick={onBack} className="w-full text-gray-500">
+                <Button variant="ghost" onClick={onBack} className="w-full text-blue-600">
                   Back to dashboard
                 </Button>
               )}
@@ -1161,7 +1155,7 @@ export function SubscriptionPage({
         <div className="max-w-xl mx-auto">
           <button
             onClick={() => setStep('plans')}
-            className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 mb-5"
+            className="inline-flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-700 mb-5"
           >
             <ArrowLeft className="w-4 h-4" />
             Back to plans
@@ -1333,7 +1327,7 @@ export function SubscriptionPage({
           {checkoutMode === 'inline' && !upgradeFromPlanId && (
             <button
               onClick={() => setStep('plans')}
-              className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 mb-5"
+              className="inline-flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-700 mb-5"
             >
               <ArrowLeft className="w-4 h-4" />
               Back to plans
@@ -1677,7 +1671,7 @@ export function SubscriptionPage({
 
                 <div className="flex items-center gap-1.5 text-xs text-gray-500 mb-3">
                   <ShieldCheck className="w-4 h-4 text-gray-400" />
-                  Secure checkout · 30-day money-back guarantee
+                  Secure checkout
                 </div>
 
                 <div className="flex items-center gap-2 text-[10px] font-semibold text-gray-400 mb-4">
@@ -1726,7 +1720,7 @@ export function SubscriptionPage({
           {isChangingPlan && (
             <button
               onClick={() => setStep('manage')}
-              className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-4"
+              className="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700 mb-4"
             >
               <ArrowLeft className="w-4 h-4" />
               Back to your subscription

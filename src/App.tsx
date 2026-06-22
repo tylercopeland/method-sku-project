@@ -11,7 +11,7 @@ import { UpgradeRequiredPage } from '@/components/UpgradeRequiredPage';
 import { AppStudioPage, aiApps } from '@/components/AppStudioPage';
 import { AppMarketplacePage } from '@/components/AppMarketplacePage';
 import { ApplicationsAccessPage } from '@/components/ApplicationsAccessPage';
-import { UserManagementPage, InviteModal } from '@/components/UserManagementPage';
+import { UserManagementPage, InviteModal, PLAN_SEATS, ROLE_SEAT_TYPE, ALL_MOCK_USERS } from '@/components/UserManagementPage';
 import { MultiEntityPage } from '@/components/MultiEntityPage';
 import { MultiEntitySetupPage } from '@/components/MultiEntitySetupPage';
 import { OnboardingModal } from '@/components/OnboardingModal';
@@ -178,7 +178,7 @@ function App() {
     'purchase-orders': 'Purchase Orders',
     'bills': 'Bills',
     'proposals': 'Proposals',
-    'marketplace': 'App Marketplace',
+    'marketplace': 'App Library',
     'applications-access': 'Account Settings',
     'subscription': 'Subscription',
     'account-settings': 'Account Settings',
@@ -651,17 +651,27 @@ function App() {
                   { label: 'Build', id: 'build' },
                   { label: 'Scale', id: 'scale' },
                 ].map((opt) => (
-                  <button
-                    key={opt.id}
-                    onClick={() => setSubscription({ ...subscription, planId: opt.id })}
-                    className={`flex-1 rounded border px-2 py-1 transition-colors ${
-                      subscription.planId === opt.id
-                        ? 'border-blue-600 bg-blue-600 text-white'
-                        : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
-                    }`}
-                  >
-                    {opt.label}
-                  </button>
+                  <div key={opt.id} className="relative flex-1 group">
+                    <button
+                      onClick={() => !multiEntityEnabled || opt.id === 'scale' ? setSubscription({ ...subscription, planId: opt.id }) : undefined}
+                      disabled={multiEntityEnabled && opt.id !== 'scale'}
+                      className={`w-full rounded border px-2 py-1 transition-colors ${
+                        subscription.planId === opt.id
+                          ? 'border-blue-600 bg-blue-600 text-white'
+                          : multiEntityEnabled && opt.id !== 'scale'
+                          ? 'border-gray-100 bg-gray-50 text-gray-300 cursor-not-allowed'
+                          : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                    {multiEntityEnabled && opt.id !== 'scale' && (
+                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 rounded-lg bg-gray-900 px-3 py-2 text-xs text-white shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
+                        Multi-entity locks your account to Scale. Disable multi-entity first to switch plans.
+                        <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900" />
+                      </div>
+                    )}
+                  </div>
                 ))}
               </div>
             </div>
@@ -829,15 +839,22 @@ function App() {
       )}
 
       {/* Navbar invite modal — same as the full InviteModal on the Users page */}
-      {showNavbarInvite && (
-        <InviteModal
-          subscription={subscription}
-          isTrial={isInTrial && !subscription}
-          seatsAvailable={999}
-          onNavigate={handlePageNavigation}
-          onClose={() => setShowNavbarInvite(false)}
-        />
-      )}
+      {showNavbarInvite && (() => {
+        const navTeamUsers = ALL_MOCK_USERS.slice(0, Math.min(teamSize, ALL_MOCK_USERS.length));
+        const navFullSeatsUsed = navTeamUsers.filter(u => ROLE_SEAT_TYPE[u.role] === 'full').length;
+        const navFieldCrew = navTeamUsers.filter(u => ROLE_SEAT_TYPE[u.role] === 'field-crew').length;
+        const navIncludedSeats = subscription ? (PLAN_SEATS[subscription.planId] ?? 1) : 999;
+        const navSeatsAvailable = (isInTrial && !subscription) ? 999 : Math.max(0, navIncludedSeats - navFullSeatsUsed - navFieldCrew);
+        return (
+          <InviteModal
+            subscription={subscription}
+            isTrial={isInTrial && !subscription}
+            seatsAvailable={navSeatsAvailable}
+            onNavigate={handlePageNavigation}
+            onClose={() => setShowNavbarInvite(false)}
+          />
+        );
+      })()}
 
       {/* First-run onboarding — modal over Home, blocks the app until completed */}
       {showOnboarding && <OnboardingModal onComplete={() => setShowOnboarding(false)} />}
