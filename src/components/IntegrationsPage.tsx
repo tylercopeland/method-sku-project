@@ -41,19 +41,16 @@ const integrations = [
     title: 'Mailchimp',
     description: 'Send Contacts from Method to your Mailchimp account.',
     linkLabel: 'Mailchimp settings',
-    requiresUpgrade: true,
   },
   {
     title: 'Outlook Gadget',
     description: 'Find Contacts, Invoices, Opportunities, Activities, Estimates and Sales Receipts related to emails received.',
     linkLabel: 'Outlook Gadget settings',
-    requiresUpgrade: true,
   },
   {
     title: 'Zapier',
     description: 'Lets you connect Method to 2000+ other apps in its app store.',
     linkLabel: 'Zapier settings',
-    requiresUpgrade: true,
   },
 ];
 
