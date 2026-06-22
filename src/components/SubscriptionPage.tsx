@@ -37,11 +37,12 @@ interface Plan {
 }
 
 // Annual billing = 20% off the monthly rate.
-const ANNUAL_DISCOUNT = 0.20;
+export const ANNUAL_DISCOUNT = 0.20;
 const annualPerMonth = (monthly: number) => Math.round(monthly * (1 - ANNUAL_DISCOUNT));
 const annualYearly = (monthly: number) => Math.round(monthly * 12 * (1 - ANNUAL_DISCOUNT));
 
-const plans: Plan[] = [
+export type { Plan };
+export const plans: Plan[] = [
   {
     id: 'essentials',
     eyebrow: 'Solo operators',

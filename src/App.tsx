@@ -17,6 +17,7 @@ import { MultiEntitySetupPage } from '@/components/MultiEntitySetupPage';
 import { OnboardingModal } from '@/components/OnboardingModal';
 import { HelpDrawer } from '@/components/HelpDrawer';
 import { IntegrationsPage } from '@/components/IntegrationsPage';
+import { QuickUpgradeModal } from '@/components/QuickUpgradeModal';
 import { AIFieldsProvider, AddFieldChatPanel, FieldSurfaceRegistrar } from '@/lib/ai-fields';
 import { PLAN_ORDER, nextPlanId as getNextPlanId } from '@/lib/plans';
 import { Switch } from '@/components/ui/switch';
@@ -232,8 +233,11 @@ function App() {
     setCustomersFilter(undefined);
   };
 
+  const [upgradeModalView, setUpgradeModalView] = useState<'quick' | 'full'>('quick');
+
   const openUpgradeModal = (planId?: string) => {
     setUpgradeTargetPlanId(planId ?? null);
+    setUpgradeModalView(planId ? 'quick' : 'full');
     setUpgradeModalOpen(true);
   };
 
@@ -753,53 +757,66 @@ function App() {
           className="fixed inset-0 z-[55] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 sm:p-8"
           onClick={(e) => { if (e.target === e.currentTarget) setUpgradeModalOpen(false); }}
         >
-          <div className="bg-gray-50 rounded-2xl overflow-hidden flex flex-col w-full max-w-4xl shadow-2xl" style={{ maxHeight: '90vh' }}>
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-white flex-shrink-0">
-              <h2 className="text-sm font-semibold text-gray-700">
-                {effectiveUpgradeTarget ? 'Upgrade your plan' : 'Change your plan'}
-              </h2>
-              <button onClick={() => setUpgradeModalOpen(false)} className="text-gray-400 hover:text-gray-600 p-1">
-                <X className="w-5 h-5" />
-              </button>
+          {upgradeModalView === 'quick' && effectiveUpgradeTarget ? (
+            <QuickUpgradeModal
+              targetPlanId={effectiveUpgradeTarget}
+              onClose={() => setUpgradeModalOpen(false)}
+              onViewAllPlans={() => setUpgradeModalView('full')}
+              onSubscribed={(sub) => {
+                setSubscription(sub);
+                setShowTrialBanner(false);
+                setUpgradeModalOpen(false);
+              }}
+            />
+          ) : (
+            <div className="bg-gray-50 rounded-2xl overflow-hidden flex flex-col w-full max-w-4xl shadow-2xl" style={{ maxHeight: '90vh' }}>
+              <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-white flex-shrink-0">
+                <h2 className="text-sm font-semibold text-gray-700">
+                  {effectiveUpgradeTarget ? 'Upgrade your plan' : 'Change your plan'}
+                </h2>
+                <button onClick={() => setUpgradeModalOpen(false)} className="text-gray-400 hover:text-gray-600 p-1">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="flex-1 overflow-y-auto flex flex-col min-h-0">
+                <SubscriptionPage
+                  key={`${subscription?.planId ?? 'trial'}-${effectiveUpgradeTarget ?? 'none'}`}
+                  activeSubscription={subscription}
+                  isInTrial={isInTrial}
+                  trialEndLabel={trialEndLabel}
+                  teamSize={teamSize}
+                  checkoutMode="inline"
+                  upgradeFromPlanId={effectiveUpgradeTarget ?? undefined}
+                  initialStep={!effectiveUpgradeTarget && subscription ? 'plans' : undefined}
+                  hasAppStudioAccess={appStudioEnabled}
+                  showDiscountedPrice={showDiscountedPrice}
+                  discountName={promoDiscount?.name}
+                  discountPct={promoDiscount?.pct}
+                  multiEntityEnabled={multiEntityEnabled}
+                  onBack={() => setUpgradeModalOpen(false)}
+                  onSubscribed={(sub) => {
+                    setSubscription(sub);
+                    setShowTrialBanner(false);
+                    setUpgradeModalOpen(false);
+                  }}
+                  onCancel={() => {
+                    if (subscription) setSubscription({ ...subscription, cancelAtPeriodEnd: true });
+                    else setTrialCanceled(true);
+                  }}
+                  onScheduleDowngrade={(planId, effectiveDate) => {
+                    if (subscription) setSubscription({ ...subscription, scheduledDowngrade: { planId, effectiveDate } });
+                  }}
+                  onCancelDowngrade={() => {
+                    if (subscription) setSubscription({ ...subscription, scheduledDowngrade: undefined });
+                  }}
+                  onResume={() => {
+                    if (subscription) setSubscription({ ...subscription, cancelAtPeriodEnd: false });
+                    else setTrialCanceled(false);
+                  }}
+                />
+              </div>
             </div>
-            <div className="flex-1 overflow-y-auto flex flex-col min-h-0">
-              <SubscriptionPage
-                key={`${subscription?.planId ?? 'trial'}-${effectiveUpgradeTarget ?? 'none'}`}
-                activeSubscription={subscription}
-                isInTrial={isInTrial}
-                trialEndLabel={trialEndLabel}
-                teamSize={teamSize}
-                checkoutMode="inline"
-                upgradeFromPlanId={effectiveUpgradeTarget ?? undefined}
-                initialStep={!effectiveUpgradeTarget && subscription ? 'plans' : undefined}
-                hasAppStudioAccess={appStudioEnabled}
-                showDiscountedPrice={showDiscountedPrice}
-                discountName={promoDiscount?.name}
-                discountPct={promoDiscount?.pct}
-                multiEntityEnabled={multiEntityEnabled}
-                onBack={() => setUpgradeModalOpen(false)}
-                onSubscribed={(sub) => {
-                  setSubscription(sub);
-                  setShowTrialBanner(false);
-                  setUpgradeModalOpen(false);
-                }}
-                onCancel={() => {
-                  if (subscription) setSubscription({ ...subscription, cancelAtPeriodEnd: true });
-                  else setTrialCanceled(true);
-                }}
-                onScheduleDowngrade={(planId, effectiveDate) => {
-                  if (subscription) setSubscription({ ...subscription, scheduledDowngrade: { planId, effectiveDate } });
-                }}
-                onCancelDowngrade={() => {
-                  if (subscription) setSubscription({ ...subscription, scheduledDowngrade: undefined });
-                }}
-                onResume={() => {
-                  if (subscription) setSubscription({ ...subscription, cancelAtPeriodEnd: false });
-                  else setTrialCanceled(false);
-                }}
-              />
-            </div>
-          </div>
+          )}
         </div>
       )}
 
