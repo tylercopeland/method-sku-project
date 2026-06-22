@@ -16,6 +16,7 @@ import { MultiEntityPage } from '@/components/MultiEntityPage';
 import { MultiEntitySetupPage } from '@/components/MultiEntitySetupPage';
 import { OnboardingModal } from '@/components/OnboardingModal';
 import { HelpDrawer } from '@/components/HelpDrawer';
+import { IntegrationsPage } from '@/components/IntegrationsPage';
 import { AIFieldsProvider, AddFieldChatPanel, FieldSurfaceRegistrar } from '@/lib/ai-fields';
 import { PLAN_ORDER, nextPlanId as getNextPlanId } from '@/lib/plans';
 import { Switch } from '@/components/ui/switch';
@@ -132,6 +133,7 @@ function App() {
   // (e.g. after downgrading from Build) — clicking routes to the upgrade value moment.
   const premiumApps = ['work-orders', 'time-tracking', 'field-crew', 'jobs', 'schedules', 'inventory'];
   const premiumLocked = subscription?.planId === 'essentials';
+  const multiEntityLocked = !subscription || subscription.planId !== 'scale';
   const lockedApps = premiumLocked ? premiumApps : [];
 
   const nextPlanId = subscription ? getNextPlanId(subscription.planId) : null;
@@ -181,6 +183,9 @@ function App() {
     'account-settings': 'Account Settings',
     'users': 'Users',
     'multi-entity': 'Multi-entity Management',
+    'app-routines': 'App Routines',
+    'integrations': 'Integrations',
+    'integrations-api': 'API & Integrations',
   };
 
   // Determine if current page should show empty state
@@ -194,7 +199,7 @@ function App() {
 
   // System pages (not CRM app/object screens) — these don't get the app-title menu.
   const nonAppScreens = [
-    'home', 'subscription', 'account-settings', 'users', 'marketplace', 'applications-access', 'app-studio', 'multi-entity',
+    'home', 'subscription', 'account-settings', 'users', 'marketplace', 'applications-access', 'app-studio', 'multi-entity', 'app-routines', 'integrations', 'integrations-api',
   ];
 
   const handlePageNavigation = (page: string) => {
@@ -466,11 +471,30 @@ function App() {
               }}
             />
           )
+        ) : currentPage === 'app-routines' ? (
+          <UpgradeRequiredPage
+            page="app-routines"
+            onUpgrade={() => openUpgradeModal(nextPlanId ?? undefined)}
+            onBack={() => setCurrentPage('account-settings')}
+          />
+        ) : currentPage === 'integrations' ? (
+          <IntegrationsPage
+            onBack={navigateToHome}
+            upgradeRequired={premiumLocked}
+            onNavigate={handlePageNavigation}
+          />
+        ) : currentPage === 'integrations-api' ? (
+          <UpgradeRequiredPage
+            page="integrations-api"
+            onUpgrade={() => openUpgradeModal(nextPlanId ?? undefined)}
+            onBack={() => setCurrentPage('integrations')}
+          />
         ) : currentPage === 'account-settings' ? (
           <AccountSettingsPage
             onBack={navigateToHome}
             onNavigate={handlePageNavigation}
             upgradeRequired={premiumLocked}
+            multiEntityUpgradeRequired={multiEntityLocked && !multiEntityEnabled}
             multiEntityEnabled={multiEntityEnabled}
             onUpgrade={() => {
               setOpenToChangePlan(true);

@@ -10,6 +10,8 @@ import {
   Hammer,
   CalendarDays,
   Boxes,
+  FileText,
+  Plug,
 } from 'lucide-react';
 
 interface AppConfig {
@@ -107,14 +109,43 @@ const configs: Record<string, AppConfig> = {
       'Sync items with QuickBooks',
     ],
   },
+  'integrations-api': {
+    label: 'API & Integrations',
+    icon: Plug,
+    iconColor: 'text-blue-600',
+    gradient: 'from-blue-500 to-blue-600',
+    title: 'Connect Method to Your Favourite Tools',
+    description: 'Unlock API access and powerful third-party integrations to extend Method across your entire workflow.',
+    valueProps: [
+      'Full API access to read, write, and automate data',
+      'Connect to Zapier and 2,000+ apps',
+      'Sync contacts with Mailchimp',
+      'Surface Method data in Outlook and Gmail',
+    ],
+  },
+  'app-routines': {
+    label: 'App Routines',
+    icon: FileText,
+    iconColor: 'text-violet-600',
+    gradient: 'from-violet-500 to-violet-600',
+    title: 'Automate Your Workflows with App Routines',
+    description: 'Set up routines that run automatically to keep your apps and data in sync without manual effort.',
+    valueProps: [
+      'Trigger actions based on events or schedules',
+      'Automate repetitive tasks across apps',
+      'Keep records updated without manual work',
+      'Build multi-step workflows with ease',
+    ],
+  },
 };
 
 interface UpgradeRequiredPageProps {
   page: string;
   onUpgrade?: () => void;
+  onBack?: () => void;
 }
 
-export function UpgradeRequiredPage({ page, onUpgrade }: UpgradeRequiredPageProps) {
+export function UpgradeRequiredPage({ page, onUpgrade, onBack }: UpgradeRequiredPageProps) {
   const cfg = configs[page] ?? {
     label: 'This app',
     icon: Lock,
@@ -129,6 +160,15 @@ export function UpgradeRequiredPage({ page, onUpgrade }: UpgradeRequiredPageProp
   return (
     <div className="flex-1 overflow-y-auto p-6 bg-gray-50">
       <div className="max-w-7xl mx-auto space-y-6">
+        {onBack && (
+          <button
+            onClick={onBack}
+            className="inline-flex items-center gap-1 text-blue-600 hover:underline text-sm"
+          >
+            <ArrowRight className="w-4 h-4 rotate-180" />
+            Account Settings
+          </button>
+        )}
         <Card className="border-gray-200 shadow-xl bg-white w-full">
           <CardContent className="p-8">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-stretch min-h-[500px]">

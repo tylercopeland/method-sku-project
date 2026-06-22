@@ -141,7 +141,10 @@ export function TopHeader({ currentPageLabel = 'Home', isAppScreen = false, onNa
                     <Settings className="w-5 h-5 mr-3 text-blue-600" />
                     <span className="text-base">Account Settings</span>
                   </DropdownMenuItem>
-                  <DropdownMenuItem className="px-4 py-2.5 text-blue-600 focus:text-blue-700 focus:bg-blue-50 cursor-pointer">
+                  <DropdownMenuItem
+                    onClick={() => onNavigate?.('integrations')}
+                    className="px-4 py-2.5 text-blue-600 focus:text-blue-700 focus:bg-blue-50 cursor-pointer"
+                  >
                     <Share2 className="w-5 h-5 mr-3 text-blue-600" />
                     <span className="text-base">Integrations</span>
                   </DropdownMenuItem>

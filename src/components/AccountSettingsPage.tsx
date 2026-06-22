@@ -5,8 +5,9 @@ interface SettingsSection {
   description: string;
   linkLabel: string;
   page?: string;
-  /** Higher-tier feature — locked (upgrade CTA) for Essentials subscribers. */
   requiresUpgrade?: boolean;
+  /** When set, overrides the requiresUpgrade + global upgradeRequired check. */
+  locked?: boolean;
 }
 
 const sections: SettingsSection[] = [
@@ -57,6 +58,8 @@ const sections: SettingsSection[] = [
     title: 'App Routines',
     description: 'See a list of app routines that have been queued up to run.',
     linkLabel: 'App Routine settings',
+    page: 'app-routines',
+    requiresUpgrade: true,
   },
   {
     title: 'Reports & Print Templates',
@@ -77,11 +80,12 @@ interface AccountSettingsPageProps {
   onBack?: () => void;
   onNavigate?: (page: string) => void;
   upgradeRequired?: boolean;
+  multiEntityUpgradeRequired?: boolean;
   onUpgrade?: () => void;
   multiEntityEnabled?: boolean;
 }
 
-export function AccountSettingsPage({ onBack, onNavigate, upgradeRequired = false, onUpgrade, multiEntityEnabled = false }: AccountSettingsPageProps) {
+export function AccountSettingsPage({ onBack, onNavigate, upgradeRequired = false, multiEntityUpgradeRequired = false, onUpgrade, multiEntityEnabled = false }: AccountSettingsPageProps) {
   const visibleSections = (() => {
     const base = sections.filter(s => s.page !== 'multi-entity');
     const meSection = {
@@ -89,7 +93,7 @@ export function AccountSettingsPage({ onBack, onNavigate, upgradeRequired = fals
       description: 'Set up multi-entity management for your multiple franchises, locations, or QuickBooks accounts.',
       linkLabel: multiEntityEnabled ? 'Manage multi-entity' : 'Multi-entity settings',
       page: 'multi-entity' as const,
-      requiresUpgrade: false,
+      locked: multiEntityUpgradeRequired && !multiEntityEnabled,
     };
     return multiEntityEnabled ? [meSection, ...base] : [...base, meSection];
   })();
@@ -118,7 +122,9 @@ export function AccountSettingsPage({ onBack, onNavigate, upgradeRequired = fals
         {/* Sections */}
         <div className="divide-y divide-transparent">
           {visibleSections.map((section) => {
-            const locked = Boolean(section.requiresUpgrade) && upgradeRequired;
+            const locked = section.locked !== undefined
+              ? section.locked
+              : Boolean(section.requiresUpgrade) && upgradeRequired;
             return (
               <div
                 key={section.title}
@@ -126,18 +132,12 @@ export function AccountSettingsPage({ onBack, onNavigate, upgradeRequired = fals
               >
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 mb-3">
-                    {locked ? (
-                      <h2 className="text-lg sm:text-xl font-medium text-blue-700">
-                        {section.title}
-                      </h2>
-                    ) : (
-                      <button
-                        onClick={() => section.page && onNavigate?.(section.page)}
-                        className="text-lg sm:text-xl font-medium text-blue-700 hover:underline text-left"
-                      >
-                        {section.title}
-                      </button>
-                    )}
+                    <button
+                      onClick={() => section.page && onNavigate?.(section.page)}
+                      className="text-lg sm:text-xl font-medium text-blue-700 hover:underline text-left"
+                    >
+                      {section.title}
+                    </button>
                     {locked && (
                       <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-xs font-semibold text-gray-500">
                         <Lock className="w-3 h-3" />
@@ -149,22 +149,12 @@ export function AccountSettingsPage({ onBack, onNavigate, upgradeRequired = fals
                     {section.description}
                   </p>
                 </div>
-                {locked ? (
-                  <button
-                    onClick={() => onUpgrade?.()}
-                    className="inline-flex items-center gap-1.5 font-semibold text-blue-600 hover:underline whitespace-nowrap flex-shrink-0 text-sm sm:text-base"
-                  >
-                    Upgrade to unlock
-                    <ArrowRight className="w-4 h-4" />
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => section.page && onNavigate?.(section.page)}
-                    className="text-blue-600 hover:underline whitespace-nowrap flex-shrink-0 text-sm sm:text-base"
-                  >
-                    {section.linkLabel}
-                  </button>
-                )}
+                <button
+                  onClick={() => section.page && onNavigate?.(section.page)}
+                  className="text-blue-600 hover:underline whitespace-nowrap flex-shrink-0 text-sm sm:text-base"
+                >
+                  {section.linkLabel}
+                </button>
               </div>
             );
           })}

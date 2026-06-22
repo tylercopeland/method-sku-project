@@ -1329,7 +1329,7 @@ export function SubscriptionPage({
   // Shared checkout content — rendered inline (full page) or inside a modal.
   const checkoutBody = selectedPlan ? (
     <>
-          {checkoutMode === 'inline' && (
+          {checkoutMode === 'inline' && !upgradeFromPlanId && (
             <button
               onClick={() => setStep('plans')}
               className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 mb-5"

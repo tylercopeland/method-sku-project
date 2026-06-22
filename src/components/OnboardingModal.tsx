@@ -78,7 +78,7 @@ function Testimonial() {
 export function OnboardingModal({ onComplete }: OnboardingModalProps) {
   const [step, setStep] = useState<Step>('software');
   const [software, setSoftware] = useState<'quickbooks' | 'xero'>('quickbooks');
-  const [industry, setIndustry] = useState('Construction');
+  const [industry, setIndustry] = useState('Professional Services');
   const [role, setRole] = useState('Owner');
   const [qbVersion, setQbVersion] = useState<'desktop' | 'online'>('online');
   const [slot, setSlot] = useState<string | null>(null);

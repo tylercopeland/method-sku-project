@@ -335,9 +335,9 @@ export function CustomersPage({ initialFilter }: CustomersPageProps) {
   if (selectedCustomer) {
     
     return (
-      <div className="flex h-full">
+      <div className="flex flex-col md:flex-row min-h-0 flex-1">
         {/* Left Sidebar */}
-        <div className="w-80 bg-white border-r border-gray-200 p-6 space-y-6">
+        <div className="w-full md:w-80 flex-shrink-0 bg-white border-b md:border-b-0 md:border-r border-gray-200 p-6 space-y-6 overflow-y-auto">
           {/* Back Button */}
           <Button
             variant="ghost"
@@ -429,7 +429,7 @@ export function CustomersPage({ initialFilter }: CustomersPageProps) {
         </div>
 
         {/* Main Content Area */}
-        <div className="flex-1 bg-white">
+        <div className="flex-1 bg-white min-h-0 overflow-y-auto">
           {/* Tabs */}
           <div className="border-b border-gray-200 px-6">
             <div className="flex space-x-8">
