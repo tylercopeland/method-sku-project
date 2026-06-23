@@ -337,6 +337,7 @@ function App() {
           onMobileMenuToggle={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
           onInviteUser={() => setShowNavbarInvite(true)}
           onOpenHelp={() => setHelpOpen(true)}
+          isLocked={isLocked}
         />
 
         {/* Page + chat panel share a row below the top bar */}

@@ -22,9 +22,10 @@ interface TopHeaderProps {
   onInviteUser?: () => void;
   /** Open the Help Center (help drawer), now owned by App. */
   onOpenHelp?: () => void;
+  isLocked?: boolean;
 }
 
-export function TopHeader({ currentPageLabel = 'Home', isAppScreen = false, onNavigate, onMobileMenuToggle, onInviteUser, onOpenHelp }: TopHeaderProps) {
+export function TopHeader({ currentPageLabel = 'Home', isAppScreen = false, onNavigate, onMobileMenuToggle, onInviteUser, onOpenHelp, isLocked = false }: TopHeaderProps) {
   return (
     <>
       <header className="bg-white border-b border-gray-200 px-3 sm:px-5 py-3 flex-shrink-0">
@@ -81,16 +82,18 @@ export function TopHeader({ currentPageLabel = 'Home', isAppScreen = false, onNa
               <Plus className="w-5 h-5 text-gray-600" />
             </Button>
 
-            {/* Invite user shortcut */}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => onInviteUser?.()}
-              className="p-2"
-              title="Invite team member"
-            >
-              <UserPlus className="w-5 h-5 text-gray-600" />
-            </Button>
+            {/* Invite user shortcut — hidden when trial has expired */}
+            {!isLocked && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => onInviteUser?.()}
+                className="p-2"
+                title="Invite team member"
+              >
+                <UserPlus className="w-5 h-5 text-gray-600" />
+              </Button>
+            )}
 
             {/* Help */}
             <Button
