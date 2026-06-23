@@ -343,7 +343,7 @@ export function CustomersPage({ initialFilter }: CustomersPageProps) {
             variant="ghost"
             size="sm"
             onClick={() => setSelectedCustomer(null)}
-            className="text-gray-600 hover:text-gray-900 mb-4"
+            className="text-blue-600 hover:text-blue-700 mb-4"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back
@@ -818,7 +818,7 @@ export function CustomersPage({ initialFilter }: CustomersPageProps) {
                   variant="ghost"
                   size="sm"
                   onClick={() => setShowAddLeadPanel(false)}
-                  className="text-gray-600 hover:text-gray-900"
+                  className="text-blue-600 hover:text-blue-700"
                 >
                   <ArrowLeft className="w-4 h-4 mr-2" />
                   Back

@@ -363,7 +363,7 @@ export function Sidebar({ currentPage, onNavigate, isMobileOpen = false, onMobil
               className="w-full justify-start text-left p-3 h-auto text-blue-100 hover:bg-blue-700 hover:text-white"
             >
               <Store className="w-5 h-5 flex-shrink-0" />
-              {(!isCollapsed || isMobileOpen) && <span className="ml-3">App Marketplace</span>}
+              {(!isCollapsed || isMobileOpen) && <span className="ml-3">App Library</span>}
             </Button>
           </div>
         )}

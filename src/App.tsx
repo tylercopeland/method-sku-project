@@ -11,12 +11,13 @@ import { UpgradeRequiredPage } from '@/components/UpgradeRequiredPage';
 import { AppStudioPage, aiApps } from '@/components/AppStudioPage';
 import { AppMarketplacePage } from '@/components/AppMarketplacePage';
 import { ApplicationsAccessPage } from '@/components/ApplicationsAccessPage';
-import { UserManagementPage, InviteModal } from '@/components/UserManagementPage';
+import { UserManagementPage, InviteModal, PLAN_SEATS, ROLE_SEAT_TYPE, ALL_MOCK_USERS } from '@/components/UserManagementPage';
 import { MultiEntityPage } from '@/components/MultiEntityPage';
 import { MultiEntitySetupPage } from '@/components/MultiEntitySetupPage';
 import { OnboardingModal } from '@/components/OnboardingModal';
 import { HelpDrawer } from '@/components/HelpDrawer';
 import { IntegrationsPage } from '@/components/IntegrationsPage';
+import { QuickUpgradeModal } from '@/components/QuickUpgradeModal';
 import { AIFieldsProvider, AddFieldChatPanel, FieldSurfaceRegistrar } from '@/lib/ai-fields';
 import { PLAN_ORDER, nextPlanId as getNextPlanId } from '@/lib/plans';
 import { Switch } from '@/components/ui/switch';
@@ -75,7 +76,7 @@ function App() {
   const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
   const [upgradeTargetPlanId, setUpgradeTargetPlanId] = useState<string | null>(null);
   // Feature flag: folder-based sidebar navigation.
-  const [navFoldersEnabled, setNavFoldersEnabled] = useState(false);
+  const [navFoldersEnabled, setNavFoldersEnabled] = useState(true);
   // Help Center (help drawer) — opened from the header or the AI chat panel.
   const [helpOpen, setHelpOpen] = useState(false);
   // Multi-entity: when enabled, account is locked to Scale plan permanently.
@@ -177,7 +178,7 @@ function App() {
     'purchase-orders': 'Purchase Orders',
     'bills': 'Bills',
     'proposals': 'Proposals',
-    'marketplace': 'App Marketplace',
+    'marketplace': 'App Library',
     'applications-access': 'Account Settings',
     'subscription': 'Subscription',
     'account-settings': 'Account Settings',
@@ -232,8 +233,13 @@ function App() {
     setCustomersFilter(undefined);
   };
 
+  const [upgradeModalView, setUpgradeModalView] = useState<'quick' | 'full'>('quick');
+  const [upgradeOpenToBilling, setUpgradeOpenToBilling] = useState(false);
+
   const openUpgradeModal = (planId?: string) => {
     setUpgradeTargetPlanId(planId ?? null);
+    setUpgradeModalView(planId ? 'quick' : 'full');
+    setUpgradeOpenToBilling(false);
     setUpgradeModalOpen(true);
   };
 
@@ -645,17 +651,27 @@ function App() {
                   { label: 'Build', id: 'build' },
                   { label: 'Scale', id: 'scale' },
                 ].map((opt) => (
-                  <button
-                    key={opt.id}
-                    onClick={() => setSubscription({ ...subscription, planId: opt.id })}
-                    className={`flex-1 rounded border px-2 py-1 transition-colors ${
-                      subscription.planId === opt.id
-                        ? 'border-blue-600 bg-blue-600 text-white'
-                        : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
-                    }`}
-                  >
-                    {opt.label}
-                  </button>
+                  <div key={opt.id} className="relative flex-1 group">
+                    <button
+                      onClick={() => !multiEntityEnabled || opt.id === 'scale' ? setSubscription({ ...subscription, planId: opt.id }) : undefined}
+                      disabled={multiEntityEnabled && opt.id !== 'scale'}
+                      className={`w-full rounded border px-2 py-1 transition-colors ${
+                        subscription.planId === opt.id
+                          ? 'border-blue-600 bg-blue-600 text-white'
+                          : multiEntityEnabled && opt.id !== 'scale'
+                          ? 'border-gray-100 bg-gray-50 text-gray-300 cursor-not-allowed'
+                          : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                    {multiEntityEnabled && opt.id !== 'scale' && (
+                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 rounded-lg bg-gray-900 px-3 py-2 text-xs text-white shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
+                        Multi-entity locks your account to Scale. Disable multi-entity first to switch plans.
+                        <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900" />
+                      </div>
+                    )}
+                  </div>
                 ))}
               </div>
             </div>
@@ -753,66 +769,92 @@ function App() {
           className="fixed inset-0 z-[55] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 sm:p-8"
           onClick={(e) => { if (e.target === e.currentTarget) setUpgradeModalOpen(false); }}
         >
-          <div className="bg-gray-50 rounded-2xl overflow-hidden flex flex-col w-full max-w-4xl shadow-2xl" style={{ maxHeight: '90vh' }}>
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-white flex-shrink-0">
-              <h2 className="text-sm font-semibold text-gray-700">
-                {effectiveUpgradeTarget ? 'Upgrade your plan' : 'Change your plan'}
-              </h2>
-              <button onClick={() => setUpgradeModalOpen(false)} className="text-gray-400 hover:text-gray-600 p-1">
-                <X className="w-5 h-5" />
-              </button>
+          {upgradeModalView === 'quick' && effectiveUpgradeTarget ? (
+            <QuickUpgradeModal
+              targetPlanId={effectiveUpgradeTarget}
+              isChangingPlan={!!subscription}
+              currentCardLast4={subscription?.cardLast4}
+              onClose={() => setUpgradeModalOpen(false)}
+              onViewAllPlans={() => setUpgradeModalView('full')}
+              onUpdateBilling={() => {
+                setUpgradeOpenToBilling(true);
+                setUpgradeModalView('full');
+              }}
+              onSubscribed={(sub) => {
+                setSubscription(sub);
+                setShowTrialBanner(false);
+                setUpgradeModalOpen(false);
+              }}
+            />
+          ) : (
+            <div className="bg-gray-50 rounded-2xl overflow-hidden flex flex-col w-full max-w-4xl shadow-2xl" style={{ maxHeight: '90vh' }}>
+              <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-white flex-shrink-0">
+                <h2 className="text-sm font-semibold text-gray-700">
+                  {effectiveUpgradeTarget ? 'Upgrade your plan' : 'Change your plan'}
+                </h2>
+                <button onClick={() => setUpgradeModalOpen(false)} className="text-gray-400 hover:text-gray-600 p-1">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="flex-1 overflow-y-auto flex flex-col min-h-0">
+                <SubscriptionPage
+                  key={`${subscription?.planId ?? 'trial'}-${effectiveUpgradeTarget ?? 'none'}`}
+                  activeSubscription={subscription}
+                  isInTrial={isInTrial}
+                  trialEndLabel={trialEndLabel}
+                  teamSize={teamSize}
+                  checkoutMode="inline"
+                  upgradeFromPlanId={effectiveUpgradeTarget ?? undefined}
+                  initialStep={upgradeOpenToBilling ? 'billing' : !effectiveUpgradeTarget && subscription ? 'plans' : undefined}
+                  hasAppStudioAccess={appStudioEnabled}
+                  showDiscountedPrice={showDiscountedPrice}
+                  discountName={promoDiscount?.name}
+                  discountPct={promoDiscount?.pct}
+                  multiEntityEnabled={multiEntityEnabled}
+                  onBack={() => setUpgradeModalOpen(false)}
+                  onSubscribed={(sub) => {
+                    setSubscription(sub);
+                    setShowTrialBanner(false);
+                    setUpgradeModalOpen(false);
+                  }}
+                  onCancel={() => {
+                    if (subscription) setSubscription({ ...subscription, cancelAtPeriodEnd: true });
+                    else setTrialCanceled(true);
+                  }}
+                  onScheduleDowngrade={(planId, effectiveDate) => {
+                    if (subscription) setSubscription({ ...subscription, scheduledDowngrade: { planId, effectiveDate } });
+                  }}
+                  onCancelDowngrade={() => {
+                    if (subscription) setSubscription({ ...subscription, scheduledDowngrade: undefined });
+                  }}
+                  onResume={() => {
+                    if (subscription) setSubscription({ ...subscription, cancelAtPeriodEnd: false });
+                    else setTrialCanceled(false);
+                  }}
+                />
+              </div>
             </div>
-            <div className="flex-1 overflow-y-auto flex flex-col min-h-0">
-              <SubscriptionPage
-                key={`${subscription?.planId ?? 'trial'}-${effectiveUpgradeTarget ?? 'none'}`}
-                activeSubscription={subscription}
-                isInTrial={isInTrial}
-                trialEndLabel={trialEndLabel}
-                teamSize={teamSize}
-                checkoutMode="inline"
-                upgradeFromPlanId={effectiveUpgradeTarget ?? undefined}
-                initialStep={!effectiveUpgradeTarget && subscription ? 'plans' : undefined}
-                hasAppStudioAccess={appStudioEnabled}
-                showDiscountedPrice={showDiscountedPrice}
-                discountName={promoDiscount?.name}
-                discountPct={promoDiscount?.pct}
-                multiEntityEnabled={multiEntityEnabled}
-                onBack={() => setUpgradeModalOpen(false)}
-                onSubscribed={(sub) => {
-                  setSubscription(sub);
-                  setShowTrialBanner(false);
-                  setUpgradeModalOpen(false);
-                }}
-                onCancel={() => {
-                  if (subscription) setSubscription({ ...subscription, cancelAtPeriodEnd: true });
-                  else setTrialCanceled(true);
-                }}
-                onScheduleDowngrade={(planId, effectiveDate) => {
-                  if (subscription) setSubscription({ ...subscription, scheduledDowngrade: { planId, effectiveDate } });
-                }}
-                onCancelDowngrade={() => {
-                  if (subscription) setSubscription({ ...subscription, scheduledDowngrade: undefined });
-                }}
-                onResume={() => {
-                  if (subscription) setSubscription({ ...subscription, cancelAtPeriodEnd: false });
-                  else setTrialCanceled(false);
-                }}
-              />
-            </div>
-          </div>
+          )}
         </div>
       )}
 
       {/* Navbar invite modal — same as the full InviteModal on the Users page */}
-      {showNavbarInvite && (
-        <InviteModal
-          subscription={subscription}
-          isTrial={isInTrial && !subscription}
-          seatsAvailable={999}
-          onNavigate={handlePageNavigation}
-          onClose={() => setShowNavbarInvite(false)}
-        />
-      )}
+      {showNavbarInvite && (() => {
+        const navTeamUsers = ALL_MOCK_USERS.slice(0, Math.min(teamSize, ALL_MOCK_USERS.length));
+        const navFullSeatsUsed = navTeamUsers.filter(u => ROLE_SEAT_TYPE[u.role] === 'full').length;
+        const navFieldCrew = navTeamUsers.filter(u => ROLE_SEAT_TYPE[u.role] === 'field-crew').length;
+        const navIncludedSeats = subscription ? (PLAN_SEATS[subscription.planId] ?? 1) : 999;
+        const navSeatsAvailable = (isInTrial && !subscription) ? 999 : Math.max(0, navIncludedSeats - navFullSeatsUsed - navFieldCrew);
+        return (
+          <InviteModal
+            subscription={subscription}
+            isTrial={isInTrial && !subscription}
+            seatsAvailable={navSeatsAvailable}
+            onNavigate={handlePageNavigation}
+            onClose={() => setShowNavbarInvite(false)}
+          />
+        );
+      })()}
 
       {/* First-run onboarding — modal over Home, blocks the app until completed */}
       {showOnboarding && <OnboardingModal onComplete={() => setShowOnboarding(false)} />}
