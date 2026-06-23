@@ -76,7 +76,7 @@ function App() {
   const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
   const [upgradeTargetPlanId, setUpgradeTargetPlanId] = useState<string | null>(null);
   // Feature flag: folder-based sidebar navigation.
-  const [navFoldersEnabled, setNavFoldersEnabled] = useState(true);
+  const [navFoldersEnabled, setNavFoldersEnabled] = useState(false);
   // Help Center (help drawer) — opened from the header or the AI chat panel.
   const [helpOpen, setHelpOpen] = useState(false);
   // Multi-entity: when enabled, account is locked to Scale plan permanently.
