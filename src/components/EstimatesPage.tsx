@@ -20,9 +20,11 @@ interface Estimate {
 
 interface EstimatesPageProps {
   initialFilter?: string;
+  /** Hide the value-prop banner above the screen (used when embedded in App Builder). */
+  hideBanner?: boolean;
 }
 
-export function EstimatesPage({ initialFilter }: EstimatesPageProps) {
+export function EstimatesPage({ initialFilter, hideBanner = false }: EstimatesPageProps) {
   const [statusFilter, setStatusFilter] = useState(initialFilter || 'all');
   const [searchTerm, setSearchTerm] = useState('');
   const [dismissedBanner, setDismissedBanner] = useState(false);
@@ -149,7 +151,7 @@ export function EstimatesPage({ initialFilter }: EstimatesPageProps) {
   return (
     <div className="max-w-7xl mx-auto space-y-6">
       {/* Value Proposition Banner */}
-      {!dismissedBanner && (
+      {!dismissedBanner && !hideBanner && (
         <Card className="mb-6 border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50">
           <CardContent className="p-6">
             <div className="flex items-start justify-between">
