@@ -5,11 +5,17 @@ import {
   useEffect,
   useCallback,
   useMemo,
+  useRef,
   type ReactNode,
 } from 'react';
-import { Sparkles, X } from 'lucide-react';
+import { Sparkles, X, Wrench } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from '@/components/ui/dropdown-menu';
 import { type CustomField, type FieldContext } from '@/components/AddFieldWithAIModal';
 import { AddFieldWithAIPanel } from '@/components/AddFieldWithAIPanel';
 
@@ -49,6 +55,8 @@ interface AIFieldsApi {
   registerSurface: (ctx: FieldContext | null) => void;
   /** Open the builder. Falls back to the active surface when no context given. */
   openAddField: (ctx?: FieldContext) => void;
+  /** Open the full App Builder for deeper customization (undefined when not wired). */
+  openAppBuilder?: () => void;
   /** The open chat request (null when the panel is closed). */
   request: FieldContext | null;
   /** Close the chat panel. */
@@ -63,10 +71,12 @@ const nextId = () => `cf-${++fieldSeq}-${fieldSeq * 31 + 7}`;
 export function AIFieldsProvider({
   enabled,
   mode = 'global',
+  onOpenAppBuilder,
   children,
 }: {
   enabled: boolean;
   mode?: FieldLauncherMode;
+  onOpenAppBuilder?: () => void;
   children: ReactNode;
 }) {
   const [fieldsByEntity, setFieldsByEntity] = useState<Record<string, CustomField[]>>({});
@@ -139,10 +149,11 @@ export function AIFieldsProvider({
       activeSurface,
       registerSurface,
       openAddField,
+      openAppBuilder: onOpenAppBuilder,
       request: pending,
       closeRequest: () => setPending(null),
     }),
-    [enabled, mode, getFields, addField, removeField, lastAddedId, getValue, setValue, activeSurface, registerSurface, openAddField, pending],
+    [enabled, mode, getFields, addField, removeField, lastAddedId, getValue, setValue, activeSurface, registerSurface, openAddField, onOpenAppBuilder, pending],
   );
 
   return <AIFieldsContext.Provider value={api}>{children}</AIFieldsContext.Provider>;
@@ -258,13 +269,16 @@ export function FieldSurfaceRegistrar({
 }
 
 /** Register the on-screen surface so the global launcher knows where to add. */
-export function useFieldSurface(ctx: FieldContext) {
+export function useFieldSurface(ctx: FieldContext, enabled = true) {
   const { registerSurface } = useAIFields();
   const { entityType, entityLabel, surface } = ctx;
   useEffect(() => {
+    // An embedded mirror (e.g. the App Builder canvas) passes enabled=false so it
+    // doesn't register/clear the global surface and steal it from the live screen.
+    if (!enabled) return;
     registerSurface({ entityType, entityLabel, surface });
     return () => registerSurface(null);
-  }, [registerSurface, entityType, entityLabel, surface]);
+  }, [registerSurface, entityType, entityLabel, surface, enabled]);
 }
 
 // ---------------------------------------------------------------------------
@@ -451,41 +465,80 @@ export function AddFieldLauncher({
  * until the experience is enabled and a surface is in view.
  */
 export function GlobalAddFieldButton() {
-  const { enabled, mode, activeSurface, openAddField } = useAIFields();
+  const { enabled, mode, activeSurface, openAddField, openAppBuilder } = useAIFields();
+  // The menu opens on hover (not just click). We control `open` ourselves so a short
+  // close delay bridges the gap between the trigger and the menu content.
+  const [open, setOpen] = useState(false);
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cancelClose = () => {
+    if (closeTimer.current) clearTimeout(closeTimer.current);
+    closeTimer.current = null;
+  };
+  const scheduleClose = () => {
+    cancelClose();
+    closeTimer.current = setTimeout(() => setOpen(false), 150);
+  };
   if (!enabled || mode !== 'global' || !activeSurface) return null;
+
+  // On Essentials there is no "App Builder" option, so the menu has a single action and
+  // the button doubles as a direct shortcut to the chat. On richer plans the button only
+  // surfaces the menu — the action comes from picking an item.
+  const buttonIsShortcut = !openAppBuilder;
+
   return (
-    <TooltipProvider delayDuration={150}>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          {/* Fixed 24px footprint keeps surrounding layout (the global search) static;
-              the button expands as an absolute overlay on hover instead of reflowing. */}
-          <span className="relative inline-block h-6 w-6 flex-shrink-0">
-            <button
-              onClick={() => openAddField()}
-              aria-label="Customize the screen by adding a custom field using Method AI"
-              className="group absolute left-0 top-0 z-10 inline-flex h-6 items-center rounded-full border border-purple-200 bg-purple-50 px-1 text-xs font-semibold text-purple-600 hover:bg-purple-100 hover:px-2.5 transition-all"
-            >
-              <Sparkles className="w-3.5 h-3.5 shrink-0" />
-              <span className="max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-all duration-200 group-hover:ml-1 group-hover:max-w-[80px] group-hover:opacity-100">
-                Customize
-              </span>
-            </button>
-          </span>
-        </TooltipTrigger>
-        <TooltipContent
-          side="bottom"
-          align="start"
-          className="max-w-[15rem] p-3 bg-white text-left border border-gray-200 shadow-lg"
+    <DropdownMenu open={open} onOpenChange={setOpen} modal={false}>
+      <DropdownMenuTrigger asChild>
+        {/* The "Customize" CTA label is always shown so the call to action is never
+            hidden. On hover — or while the menu is open — the background darkens
+            slightly and the border picks up the icon/text color. */}
+        <button
+          aria-label="Customize the screen by adding a custom field using Method AI"
+          onMouseEnter={() => {
+            cancelClose();
+            setOpen(true);
+          }}
+          onMouseLeave={scheduleClose}
+          onClick={() => {
+            if (buttonIsShortcut) {
+              cancelClose();
+              setOpen(false);
+              openAddField();
+            }
+          }}
+          className="group inline-flex h-6 flex-shrink-0 items-center rounded-full border border-purple-200 bg-purple-50 px-2.5 text-xs font-semibold text-purple-600 transition-all hover:bg-purple-100 hover:border-purple-600 data-[state=open]:bg-purple-100 data-[state=open]:border-purple-600"
         >
-          <div className="flex items-center gap-1.5 text-sm font-semibold text-gray-900">
-            <Sparkles className="w-3.5 h-3.5 text-purple-500" />
-            Customize with Method AI
+          <Sparkles className="w-3.5 h-3.5 shrink-0" />
+          <span className="ml-1 whitespace-nowrap">Customize</span>
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent
+        align="start"
+        sideOffset={8}
+        className="w-64"
+        onMouseEnter={cancelClose}
+        onMouseLeave={scheduleClose}
+      >
+        <DropdownMenuItem onSelect={() => openAddField()} className="cursor-pointer gap-2 py-2">
+          <Sparkles className="w-4 h-4 shrink-0 text-purple-500" />
+          <div className="flex flex-col">
+            <span className="text-sm font-medium text-gray-900">Quick Customize with AI</span>
+            <span className="text-xs leading-snug text-gray-500">
+              Describe a field and Method AI adds it to this screen.
+            </span>
           </div>
-          <p className="mt-1 text-xs leading-relaxed text-gray-600">
-            Customize this screen by adding a custom field — just describe it and Method AI builds it.
-          </p>
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
+        </DropdownMenuItem>
+        {openAppBuilder && (
+          <DropdownMenuItem onSelect={() => openAppBuilder()} className="cursor-pointer gap-2 py-2">
+            <Wrench className="w-4 h-4 shrink-0 text-gray-500" />
+            <div className="flex flex-col">
+              <span className="text-sm font-medium text-gray-900">Customize in App Builder</span>
+              <span className="text-xs leading-snug text-gray-500">
+                Open the full builder for deeper changes.
+              </span>
+            </div>
+          </DropdownMenuItem>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

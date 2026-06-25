@@ -36,16 +36,24 @@ interface Customer {
 
 interface CustomersPageProps {
   initialFilter?: string;
+  /** Hide the value-prop banner above the list (used when embedded in App Builder). */
+  hideBanner?: boolean;
+  /** Preselect a customer's detail view on mount (lets the App Builder canvas mirror it). */
+  initialSelectedCustomerId?: string;
+  /** Notified when the open contact changes, so a parent can mirror the current view. */
+  onSelectedCustomerChange?: (id: string | null) => void;
+  /** Rendered as a read-only mirror (App Builder canvas) — don't claim the global field surface. */
+  embedded?: boolean;
 }
 
-export function CustomersPage({ initialFilter }: CustomersPageProps) {
+export function CustomersPage({ initialFilter, hideBanner = false, initialSelectedCustomerId, onSelectedCustomerChange, embedded = false }: CustomersPageProps) {
   const [sortFilter, setSortFilter] = useState(initialFilter === 'add-lead' ? 'all' : (initialFilter || 'all'));
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [activeTab, setActiveTab] = useState('estimates');
   // Register the Customer surface so the global header launcher can add fields.
   // Customer fields render on the detail screen, not inline in the data table.
-  useFieldSurface({ entityType: 'customer', entityLabel: 'Customers', surface: 'detail' });
+  useFieldSurface({ entityType: 'customer', entityLabel: 'Customers', surface: 'detail' }, !embedded);
   const ai = useAIFields();
   // AI-added fields shown as columns on the Customers list, managed via the
   // Columns menu (which also kicks off "Add field" for this list component).
@@ -295,6 +303,20 @@ export function CustomersPage({ initialFilter }: CustomersPageProps) {
 
   // Prepend sample customer to the list (always show at top, regardless of filters/sorts)
   const customersToDisplay = [sampleCustomer, ...filteredCustomers];
+
+  // When embedded with a preselected contact (App Builder canvas), open that detail on mount.
+  useEffect(() => {
+    if (!initialSelectedCustomerId) return;
+    const match = [sampleCustomer, ...customers].find((c) => c.id === initialSelectedCustomerId);
+    if (match) setSelectedCustomer(match);
+    // Run once on mount.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Report the open contact up so a parent can mirror the current view.
+  useEffect(() => {
+    onSelectedCustomerChange?.(selectedCustomer?.id ?? null);
+  }, [selectedCustomer, onSelectedCustomerChange]);
 
   const getStatusBadge = (status: string) => {
     const statusConfig = {
@@ -1036,7 +1058,7 @@ export function CustomersPage({ initialFilter }: CustomersPageProps) {
   return (
     <div className="max-w-7xl mx-auto space-y-6">
       {/* Value Proposition Banner */}
-      {!dismissedBanner && (
+      {!dismissedBanner && !hideBanner && (
         <Card className="mb-6 border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50">
           <CardContent className="p-6">
             <div className="flex items-start justify-between">

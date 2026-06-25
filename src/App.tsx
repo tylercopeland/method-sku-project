@@ -4,6 +4,7 @@ import { AdminDashboard } from '@/components/AdminDashboard';
 import { EstimatesPage } from '@/components/EstimatesPage';
 import { CustomersPage } from '@/components/CustomersPage';
 import { EmptyStatePage } from '@/components/EmptyStatePage';
+import { AppBuilderView } from '@/components/AppBuilderView';
 import { SubscriptionPage } from '@/components/SubscriptionPage';
 import type { ActiveSubscription } from '@/components/SubscriptionPage';
 import { AccountSettingsPage } from '@/components/AccountSettingsPage';
@@ -20,6 +21,7 @@ import { IntegrationsPage } from '@/components/IntegrationsPage';
 import { QuickUpgradeModal } from '@/components/QuickUpgradeModal';
 import { AIFieldsProvider, AddFieldChatPanel, FieldSurfaceRegistrar } from '@/lib/ai-fields';
 import { PLAN_ORDER, nextPlanId as getNextPlanId } from '@/lib/plans';
+import { getEntitlements, type PlanTier } from '@/lib/entitlements';
 import { Switch } from '@/components/ui/switch';
 import { useState, useEffect } from 'react';
 import { X, GripVertical, ChevronDown } from 'lucide-react';
@@ -44,6 +46,12 @@ function App() {
   // toggled on via demo controls. While off, the sidebar shows no App Studio menu item.
   const [appStudioEnabled, setAppStudioEnabled] = useState(false);
   const [appStudioEngaged, setAppStudioEngaged] = useState(false);
+  // Delivery phase being demoed (P1 = MVP → P4). Gates feature availability; see selectPhase.
+  const [phase, setPhase] = useState<1 | 2 | 3 | 4>(1);
+  // The page being customized in the immersive App Builder view (null = closed).
+  const [appBuilderPage, setAppBuilderPage] = useState<string | null>(null);
+  // Tracks the open contact on the live Customers page so the App Builder canvas can mirror it.
+  const [customersSelectedId, setCustomersSelectedId] = useState<string | null>(null);
   // Demo: enables the "Add field with AI" custom-fields experience on detail screens.
   const [aiFieldsEnabled, setAiFieldsEnabled] = useState(false);
   // Demo: emphasize the annual discount with the discounted monthly price on plan cards.
@@ -130,12 +138,33 @@ function App() {
   // Subscribe screen is reachable until the user subscribes.
   const isLocked = !isInTrial && !subscription;
 
-  // Build-tier ("Your Team, Your Way") multi-user apps. Locked for Essentials subscribers
-  // (e.g. after downgrading from Build) — clicking routes to the upgrade value moment.
+  // The active plan tier drives every feature gate via the entitlements matrix.
+  // No subscription = trial tier.
+  const planTier: PlanTier = (subscription?.planId as PlanTier) ?? 'trial';
+  const ent = getEntitlements(planTier);
+
+  // Build-tier ("Your Team, Your Way") multi-user apps. Locked when the active plan
+  // doesn't include multi-user apps (Essentials) — clicking routes to the upgrade value moment.
   const premiumApps = ['work-orders', 'time-tracking', 'field-crew', 'jobs', 'schedules', 'inventory'];
-  const premiumLocked = subscription?.planId === 'essentials';
-  const multiEntityLocked = !subscription || subscription.planId !== 'scale';
-  const lockedApps = premiumLocked ? premiumApps : [];
+  const premiumLocked = !ent.appCustomization;
+  const multiEntityLocked = !ent.multiEntity;
+  const lockedApps = ent.multiUserApps ? [] : premiumApps;
+
+  // Plan-derived feature defaults with manual override: switching the plan resets each
+  // demo toggle to the new tier's default, but the presenter can still flip a toggle
+  // afterward (it persists until the next plan switch).
+  useEffect(() => {
+    // Phase gates feature availability (does it exist yet); plan entitlements gate
+    // access within a phase. A feature is on only when its phase is unlocked AND the
+    // plan entitles it.
+    setAppStudioEnabled(phase >= 2 && ent.appStudioAccess);
+    setAiFieldsEnabled(phase >= 1 && ent.aiCustomFields);
+    setNavFoldersEnabled(phase >= 2);
+    if (phase < 4 || !ent.multiEntity) setMultiEntityEnabled(false);
+    // Discounted price is trial-only on every phase (and picks a promo); off on paid plans.
+    handleDiscountToggle(planTier === 'trial');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [planTier, phase]);
 
   const nextPlanId = subscription ? getNextPlanId(subscription.planId) : null;
 
@@ -233,6 +262,25 @@ function App() {
     setCustomersFilter(undefined);
   };
 
+  // Switch the demoed delivery phase. The entitlements effect (keyed on `phase`)
+  // turns AI fields / App Studio / nav folders / discounting on or off per phase;
+  // here we handle the side effects that the effect can't express on its own.
+  const selectPhase = (n: 1 | 2 | 3 | 4) => {
+    setPhase(n);
+    if (n >= 4) {
+      // Multi-entity requires Scale, so entering P4 forces the Scale plan + enables it.
+      setMultiEntityEnabled(true);
+      setSubscription({ planId: 'scale', billingCycle: 'annual', cardLast4: subscription?.cardLast4 ?? '4242' });
+    } else {
+      setMultiEntityEnabled(false);
+    }
+    // App Studio / App Builder don't exist below P2 — close them if open.
+    if (n < 2) {
+      setAppBuilderPage(null);
+      if (currentPage === 'app-studio') navigateToHome();
+    }
+  };
+
   const [upgradeModalView, setUpgradeModalView] = useState<'quick' | 'full'>('quick');
   const [upgradeOpenToBilling, setUpgradeOpenToBilling] = useState(false);
 
@@ -255,7 +303,12 @@ function App() {
   })();
 
   return (
-    <AIFieldsProvider enabled={aiFieldsEnabled}>
+    <AIFieldsProvider
+      enabled={aiFieldsEnabled}
+      // "Customize in App Builder" is hidden on Essentials (App Builder is a premium tier).
+      // On other plans it opens the immersive App Builder view for the current screen.
+      onOpenAppBuilder={premiumLocked ? undefined : () => setAppBuilderPage(currentPage)}
+    >
     <div className="h-screen bg-gray-50 flex flex-col overflow-hidden">
       {/* Trial Banner */}
       {showTrialBanner && !subscription && (
@@ -442,7 +495,7 @@ function App() {
           />
         ) : currentPage === 'customers' || currentPage === 'contacts' ? (
           <div className="flex-1 overflow-y-auto p-3 sm:p-6">
-            <CustomersPage initialFilter={customersFilter} />
+            <CustomersPage initialFilter={customersFilter} onSelectedCustomerChange={setCustomersSelectedId} />
           </div>
         ) : currentPage === 'estimates' ? (
           <div className="flex-1 overflow-y-auto p-3 sm:p-6">
@@ -487,7 +540,7 @@ function App() {
         ) : currentPage === 'integrations' ? (
           <IntegrationsPage
             onBack={navigateToHome}
-            upgradeRequired={premiumLocked}
+            upgradeRequired={!ent.apiAccess}
             onNavigate={handlePageNavigation}
           />
         ) : currentPage === 'integrations-api' ? (
@@ -532,7 +585,7 @@ function App() {
 
         {/* Add-field chat panel — sits below the top bar, beside the page */}
         <AddFieldChatPanel
-          onOpenAppBuilder={() => setCurrentPage('app-studio')}
+          onOpenAppBuilder={() => setAppBuilderPage(currentPage)}
           appBuilderLocked={premiumLocked}
           appState={
             premiumLocked && premiumApps.includes(currentPage)
@@ -578,11 +631,89 @@ function App() {
           </div>
           {!demoCollapsed && (
             <>
-          {/* Trial state is only relevant before subscribing */}
-          {!subscription && (
-            <>
-              <p className="mb-1 text-gray-500">Trial</p>
-              <div className="mb-3 flex gap-1">
+          {/* Delivery phase — gates which features exist. P1 = MVP → P4 = everything.
+              Selecting a phase enables its features and locks later-phase toggles. */}
+          <div>
+            <p className="mb-1 text-gray-500">Phase (feature set)</p>
+            <div className="grid grid-cols-4 gap-1">
+              {([
+                { label: 'P1', n: 1 as const },
+                { label: 'P2', n: 2 as const },
+                { label: 'P3', n: 3 as const },
+                { label: 'P4', n: 4 as const },
+              ]).map((opt) => (
+                <button
+                  key={opt.n}
+                  onClick={() => selectPhase(opt.n)}
+                  title={opt.n === 1 ? 'MVP' : `Phase ${opt.n}`}
+                  className={`rounded border px-2 py-1 transition-colors ${
+                    phase === opt.n
+                      ? 'border-blue-600 bg-blue-600 text-white'
+                      : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+            <p className="mt-1 text-[10px] text-gray-400">P1 = MVP. Later phases unlock more features.</p>
+          </div>
+          {/* Unified plan switch — drives every feature gate via the entitlements matrix.
+              Selecting Trial drops the subscription back to the trial-active state. */}
+          <div className="border-t border-gray-100 pt-2 mt-2">
+            <p className="mb-1 text-gray-500">Plan (drives features)</p>
+            <div className="grid grid-cols-2 gap-1">
+              {([
+                { label: 'Trial', id: 'trial' },
+                { label: 'Essentials', id: 'essentials' },
+                { label: 'Build', id: 'build' },
+                { label: 'Scale', id: 'scale' },
+              ] as const).map((opt) => {
+                const active = planTier === opt.id;
+                // Multi-entity permanently locks the account to Scale until disabled.
+                const meLocked = multiEntityEnabled && opt.id !== 'scale';
+                return (
+                  <div key={opt.id} className="relative group">
+                    <button
+                      onClick={() => {
+                        if (meLocked) return;
+                        if (opt.id === 'trial') {
+                          setSubscription(null);
+                          if (trialDaysLeft === 0) setTrialDaysLeft(10);
+                          setShowTrialBanner(true);
+                          setTrialCanceled(false);
+                        } else {
+                          setSubscription({ planId: opt.id, billingCycle: 'annual', cardLast4: subscription?.cardLast4 ?? '4242' });
+                          setShowTrialBanner(false);
+                        }
+                      }}
+                      disabled={meLocked}
+                      className={`w-full rounded border px-2 py-1 transition-colors ${
+                        active
+                          ? 'border-blue-600 bg-blue-600 text-white'
+                          : meLocked
+                          ? 'border-gray-100 bg-gray-50 text-gray-300 cursor-not-allowed'
+                          : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                    {meLocked && (
+                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 rounded-lg bg-gray-900 px-3 py-2 text-xs text-white shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
+                        Multi-entity locks your account to Scale. Disable multi-entity first to switch plans.
+                        <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900" />
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+          {/* Trial length is only relevant while on the trial tier */}
+          {planTier === 'trial' && (
+            <div className="border-t border-gray-100 pt-2 mt-2">
+              <p className="mb-1 text-gray-500">Trial length</p>
+              <div className="flex gap-1">
                 {[
                   { label: '10 days', days: 10 },
                   { label: '2 days', days: 2 },
@@ -605,74 +736,6 @@ function App() {
                   >
                     {opt.label}
                   </button>
-                ))}
-              </div>
-            </>
-          )}
-          <div className="border-t border-gray-100 pt-2">
-            <div className="flex items-center justify-between">
-              <span className="text-gray-500">
-                {subscription ? 'Trial ended' : 'Not subscribed'}
-              </span>
-              {subscription && (
-                <button
-                  onClick={() => {
-                    setSubscription(null);
-                    setShowTrialBanner(true);
-                  }}
-                  className="font-medium text-blue-600 hover:underline"
-                >
-                  Back to trial
-                </button>
-              )}
-            </div>
-            {!subscription && (
-              <div className="flex gap-1 mt-1.5">
-                {(['essentials', 'build', 'scale'] as const).map((planId) => (
-                  <button
-                    key={planId}
-                    onClick={() => {
-                      setSubscription({ planId, billingCycle: 'annual', cardLast4: '4242' });
-                      setShowTrialBanner(false);
-                    }}
-                    className="flex-1 rounded border border-gray-200 bg-white px-1.5 py-1 text-xs text-gray-600 hover:border-blue-400 hover:text-blue-600 transition-colors capitalize"
-                  >
-                    {planId.charAt(0).toUpperCase() + planId.slice(1)}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-          {subscription && (
-            <div className="border-t border-gray-100 pt-2 mt-2">
-              <p className="mb-1 text-gray-500">Plan (gates apps)</p>
-              <div className="flex gap-1">
-                {[
-                  { label: 'Essentials', id: 'essentials' },
-                  { label: 'Build', id: 'build' },
-                  { label: 'Scale', id: 'scale' },
-                ].map((opt) => (
-                  <div key={opt.id} className="relative flex-1 group">
-                    <button
-                      onClick={() => !multiEntityEnabled || opt.id === 'scale' ? setSubscription({ ...subscription, planId: opt.id }) : undefined}
-                      disabled={multiEntityEnabled && opt.id !== 'scale'}
-                      className={`w-full rounded border px-2 py-1 transition-colors ${
-                        subscription.planId === opt.id
-                          ? 'border-blue-600 bg-blue-600 text-white'
-                          : multiEntityEnabled && opt.id !== 'scale'
-                          ? 'border-gray-100 bg-gray-50 text-gray-300 cursor-not-allowed'
-                          : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
-                      }`}
-                    >
-                      {opt.label}
-                    </button>
-                    {multiEntityEnabled && opt.id !== 'scale' && (
-                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 rounded-lg bg-gray-900 px-3 py-2 text-xs text-white shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
-                        Multi-entity locks your account to Scale. Disable multi-entity first to switch plans.
-                        <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900" />
-                      </div>
-                    )}
-                  </div>
                 ))}
               </div>
             </div>
@@ -717,8 +780,12 @@ function App() {
           </div>
           */}
           <div className="flex items-center justify-between border-t border-gray-100 pt-2 mt-2">
-            <span className="text-gray-500">App Studio access</span>
+            <span className={phase < 2 ? 'text-gray-300' : 'text-gray-500'}>
+              App Studio access
+              <span className="ml-1 rounded bg-gray-100 px-1 text-[9px] font-medium text-gray-400">P2</span>
+            </span>
             <Switch
+              disabled={phase < 2}
               checked={appStudioEnabled}
               onCheckedChange={(v) => {
                 setAppStudioEnabled(v);
@@ -728,20 +795,33 @@ function App() {
             />
           </div>
           <div className="flex items-center justify-between border-t border-gray-100 pt-2 mt-2">
-            <span className="text-gray-500">AI custom fields</span>
+            <span className="text-gray-500">
+              AI custom fields
+              <span className="ml-1 rounded bg-gray-100 px-1 text-[9px] font-medium text-gray-400">P1</span>
+            </span>
             <Switch checked={aiFieldsEnabled} onCheckedChange={setAiFieldsEnabled} />
           </div>
           <div className="flex items-center justify-between border-t border-gray-100 pt-2 mt-2">
-            <span className="text-gray-500">Discounted price</span>
-            <Switch checked={showDiscountedPrice} onCheckedChange={handleDiscountToggle} />
+            <span className={planTier !== 'trial' ? 'text-gray-300' : 'text-gray-500'}>
+              Discounted price
+              <span className="ml-1 rounded bg-gray-100 px-1 text-[9px] font-medium text-gray-400">Trial</span>
+            </span>
+            <Switch disabled={planTier !== 'trial'} checked={showDiscountedPrice} onCheckedChange={handleDiscountToggle} />
           </div>
           <div className="flex items-center justify-between border-t border-gray-100 pt-2 mt-2">
-            <span className="text-gray-500">Nav folders</span>
-            <Switch checked={navFoldersEnabled} onCheckedChange={setNavFoldersEnabled} />
+            <span className={phase < 2 ? 'text-gray-300' : 'text-gray-500'}>
+              Nav folders
+              <span className="ml-1 rounded bg-gray-100 px-1 text-[9px] font-medium text-gray-400">P2</span>
+            </span>
+            <Switch disabled={phase < 2} checked={navFoldersEnabled} onCheckedChange={setNavFoldersEnabled} />
           </div>
           <div className="flex items-center justify-between border-t border-gray-100 pt-2 mt-2">
-            <span className="text-gray-500">Multi-entity</span>
+            <span className={phase < 4 ? 'text-gray-300' : 'text-gray-500'}>
+              Multi-entity
+              <span className="ml-1 rounded bg-gray-100 px-1 text-[9px] font-medium text-gray-400">P4</span>
+            </span>
             <Switch
+              disabled={phase < 4}
               checked={multiEntityEnabled}
               onCheckedChange={(v) => {
                 setMultiEntityEnabled(v);
@@ -862,6 +942,29 @@ function App() {
 
       {/* Help Center drawer — opened from the header or the AI chat panel */}
       <HelpDrawer isOpen={helpOpen} onClose={() => setHelpOpen(false)} />
+
+      {/* Immersive App Builder view — opened from "Customize in App Builder".
+          Full-screen overlay (hides the sidebar, top header and value-prop banner);
+          the center canvas renders the runtime screen the user was customizing. */}
+      {appBuilderPage && (
+        <AppBuilderView
+          appName={pageLabels[appBuilderPage] || 'App'}
+          screenName="List view"
+          onExit={() => setAppBuilderPage(null)}
+        >
+          <div className="p-3 sm:p-6">
+            {appBuilderPage === 'estimates' ? (
+              <EstimatesPage hideBanner />
+            ) : appBuilderPage === 'customers' || appBuilderPage === 'contacts' ? (
+              // Mirror the live page's view (list or a specific contact's detail). No
+              // onSelectedCustomerChange here — the canvas is a read-only mirror.
+              <CustomersPage embedded hideBanner initialSelectedCustomerId={customersSelectedId ?? undefined} />
+            ) : (
+              <EmptyStatePage page={appBuilderPage} showBanner={false} showSampleData />
+            )}
+          </div>
+        </AppBuilderView>
+      )}
     </div>
     </AIFieldsProvider>
   );
