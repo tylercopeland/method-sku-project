@@ -939,7 +939,7 @@ export function ApplicationsAccessPage({
                 </div>
                 {isAdmin ? (
                   <div className="relative group flex-shrink-0 pointer-events-auto cursor-default">
-                    <div className="pointer-events-none">
+                    <div className="pointer-events-none opacity-40">
                       <Toggle checked={true} onChange={() => {}} />
                     </div>
                     <div className="absolute right-0 bottom-full mb-1.5 z-50 opacity-0 group-hover:opacity-100 w-52 p-2.5 bg-gray-900 text-white text-xs rounded-lg shadow-xl pointer-events-none transition-opacity">
