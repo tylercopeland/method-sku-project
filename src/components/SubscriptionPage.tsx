@@ -48,10 +48,10 @@ export const plans: Plan[] = [
     eyebrow: 'Solo operators',
     name: 'Essentials',
     description:
-      'Full Method for a single user. Perfect for independent operators who want power without complexity.',
+      'Full Method for one user. All core apps, QuickBooks sync, and customer management — no team complexity. Upgrade to Build when you\'re ready to grow.',
     monthlyPrice: 50,
     seats: 1,
-    seatsNote: 'Upgrade to Build for more seats',
+    seatsNote: 'Single-user plan — upgrade to Build to add your team',
     includedLabel: "What's included",
     features: [
       'All stock apps — CRM, invoicing, proposals, cases',
@@ -73,7 +73,7 @@ export const plans: Plan[] = [
     monthlyPrice: 200,
     seats: 3,
     extraSeatPrice: 59,
-    seatsNote: 'Additional seats: $59/user',
+    seatsNote: 'Additional full seats: $59/user · Field crew: $18/user',
     includedLabel: 'Everything in Essentials, plus',
     features: [
       'Full screen & workflow designer',
@@ -126,9 +126,10 @@ const FEATURE_COMPARISON: { title: string; rows: { label: string; values: Compar
       { label: 'Method Pay', values: [true, true, true] },
       { label: 'Customer portal branding', values: [true, true, true] },
       { label: 'Custom fields', values: [true, true, true] },
-      { label: 'Included seats', values: ['1 seat', '3 seats', '8 seats'] },
+      { label: 'Included seats', values: ['1 seat (solo only)', '3 seats', '8 seats'] },
       { label: 'Additional full seats', values: [false, '$59/user', '$79/user'] },
       { label: 'Field crew seats', values: [false, '$18/user', '$18/user'] },
+      { label: 'View-only seats (free)', values: [false, 'Free', 'Free'] },
     ],
   },
   {

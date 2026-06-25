@@ -339,12 +339,14 @@ function RoleSelect({
   seatsAvailableForThisSlot,
   isTrial,
   essentialsOnly,
+  showViewOnly = true,
 }: {
   value: UserRole;
   onChange: (role: UserRole) => void;
   seatsAvailableForThisSlot: number;
   isTrial: boolean;
   essentialsOnly?: boolean;
+  showViewOnly?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [panelStyle, setPanelStyle] = useState<React.CSSProperties>({});
@@ -374,7 +376,7 @@ function RoleSelect({
   const selected = ROLE_OPTIONS.find((o) => o.role === value) ?? ROLE_OPTIONS[2];
   const selectedPricing = getPricingInfo(selected.seatType, seatsAvailableForThisSlot, isTrial);
 
-  const visibleOptions = ROLE_OPTIONS;
+  const visibleOptions = showViewOnly ? ROLE_OPTIONS : ROLE_OPTIONS.filter(o => o.seatType !== 'view-only');
 
   return (
     <div className="relative">
@@ -991,19 +993,19 @@ export function InviteModal({
   multiEntityEnabled?: boolean;
 }) {
   const isEssentials = subscription?.planId === 'essentials';
-  const defaultRole: UserRole = isEssentials ? 'View-only' : 'Regular';
+  const defaultRole: UserRole = (isEssentials && phase >= 3) ? 'View-only' : 'Regular';
 
   const [rows, setRows] = useState<InviteRow[]>(() => [newInviteRow(defaultRole)]);
   const [showAllNames, setShowAllNames] = useState(false);
 
-  // If subscription changes to Essentials after mount, clamp all rows to View-only
+  // If subscription changes to Essentials (and View-only is available at this phase), clamp rows
   useEffect(() => {
-    if (isEssentials) {
+    if (isEssentials && phase >= 3) {
       setRows((prev) => prev.map((r) =>
         ROLE_SEAT_TYPE[r.role] !== 'view-only' ? { ...r, role: 'View-only' } : r
       ));
     }
-  }, [isEssentials]);
+  }, [isEssentials, phase]);
   const [sent, setSent] = useState(false);
   const [copyFromUserId, setCopyFromUserId] = useState<string>('');
   const [copyRoleOpen, setCopyRoleOpen] = useState(false);
@@ -1035,7 +1037,8 @@ export function InviteModal({
   };
 
   const handleRoleChange = (id: string, role: UserRole) => {
-    if (isEssentials && ROLE_SEAT_TYPE[role] !== 'view-only') return;
+    if (isEssentials && phase >= 3 && ROLE_SEAT_TYPE[role] !== 'view-only') return;
+    if (phase < 3 && role === 'View-only') return;
     setRows((prev) => prev.map((r) => (r.id === id ? { ...r, role } : r)));
   };
 
@@ -1100,7 +1103,8 @@ export function InviteModal({
     if (!userId) return;
     const sourceUser = ALL_MOCK_USERS.find((u) => u.id === userId);
     if (!sourceUser) return;
-    const safeRole: UserRole = isEssentials && ROLE_SEAT_TYPE[sourceUser.role] !== 'view-only' ? 'View-only' : sourceUser.role;
+    const baseRole: UserRole = (isEssentials && phase >= 3) && ROLE_SEAT_TYPE[sourceUser.role] !== 'view-only' ? 'View-only' : sourceUser.role;
+    const safeRole: UserRole = (phase < 3 && baseRole === 'View-only') ? 'Regular' : baseRole;
     setRows((prev) => prev.map((r) => ({ ...r, role: safeRole })));
   };
 
@@ -1126,7 +1130,27 @@ export function InviteModal({
           </button>
         </div>
 
-        {/* Rows */}
+        {/* Body */}
+        {isEssentials && phase < 3 ? (
+          <div className="px-6 py-12 flex flex-col items-center text-center gap-5 flex-1">
+            <div className="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center">
+              <TrendingUp className="w-6 h-6 text-blue-500" />
+            </div>
+            <div className="space-y-2 max-w-sm">
+              <p className="text-base font-semibold text-gray-900">Essentials is a single-user plan</p>
+              <p className="text-sm text-gray-500 leading-relaxed">
+                To invite team members, upgrade to Build — it includes 3 seats with additional seats from $59/month.
+              </p>
+            </div>
+            <button
+              onClick={() => { onClose(); onNavigate('subscription-upgrade'); }}
+              className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-5 py-2.5 text-sm font-semibold transition-colors"
+            >
+              <TrendingUp className="w-4 h-4" />
+              Upgrade to Build
+            </button>
+          </div>
+        ) : (
         <div className="px-6 py-5 overflow-y-auto flex-1">
           {/* Column headers */}
           <div className="flex gap-2 mb-2 px-0.5">
@@ -1186,7 +1210,8 @@ export function InviteModal({
                         onChange={(role) => handleRoleChange(row.id, role)}
                         seatsAvailableForThisSlot={seatsForSlot}
                         isTrial={isTrial}
-                        essentialsOnly={isEssentials}
+                        essentialsOnly={isEssentials && phase >= 3}
+                        showViewOnly={phase >= 3}
                       />
                     </div>
 
@@ -1244,12 +1269,12 @@ export function InviteModal({
             );
           })()}
 
-          {/* Essentials notice */}
-          {isEssentials && (
+          {/* Essentials notice — only shown in P3+ where View-only invites are possible */}
+          {isEssentials && phase >= 3 && (
             <div className="flex items-center gap-2 rounded-lg bg-blue-50 border border-blue-100 px-3 py-2">
               <Info className="w-3.5 h-3.5 text-blue-400 flex-shrink-0" />
               <p className="text-xs text-blue-700 flex-1">
-                On Essentials, all invites are view-only.{' '}
+                On Essentials, new team members can only be invited as View-only.{' '}
                 <button
                   onClick={() => { onClose(); onNavigate('subscription-upgrade'); }}
                   className="font-semibold underline underline-offset-2 hover:text-blue-900"
@@ -1315,24 +1340,27 @@ export function InviteModal({
 
           </div>
         </div>
+        )} {/* end of form conditional */}
 
         {/* Fixed CTAs */}
         <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-100 flex-shrink-0">
           <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors">
-            Cancel
+            {isEssentials && phase < 3 ? 'Close' : 'Cancel'}
           </button>
-          <button
-            onClick={handleSend}
-            disabled={!canSend || sent}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            {sent ? 'Invites sent!' : (
-              <>
-                <Mail className="w-4 h-4" />
-                Send {filledRows.length > 1 ? `${filledRows.length} invites` : 'invite'}
-              </>
-            )}
-          </button>
+          {!(isEssentials && phase < 3) && (
+            <button
+              onClick={handleSend}
+              disabled={!canSend || sent}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {sent ? 'Invites sent!' : (
+                <>
+                  <Mail className="w-4 h-4" />
+                  Send {filledRows.length > 1 ? `${filledRows.length} invites` : 'invite'}
+                </>
+              )}
+            </button>
+          )}
         </div>
       </div>
 
