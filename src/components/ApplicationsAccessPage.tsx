@@ -730,9 +730,10 @@ export function ApplicationsAccessPage({
               <button
                 type="button"
                 onClick={() => setCopyFromOpen((o) => !o)}
-                className="text-xs text-blue-600 font-medium hover:text-blue-800 transition-colors"
+                className="inline-flex items-center gap-1 text-xs text-blue-600 font-medium hover:text-blue-800 transition-colors"
               >
                 Or copy all permissions from an existing user
+                <ChevronRight className={`w-3 h-3 transition-transform ${copyFromOpen ? 'rotate-90' : ''}`} />
               </button>
               {copyFromOpen && (
                 <div className="mt-2">
