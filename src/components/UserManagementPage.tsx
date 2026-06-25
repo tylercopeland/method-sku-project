@@ -28,6 +28,8 @@ import {
   ShieldCheck,
 } from 'lucide-react';
 import { ApplicationsAccessPage } from './ApplicationsAccessPage';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { appTiles } from '@/components/AppsGrid';
 import type { ActiveSubscription } from './SubscriptionPage';
 import { plans } from './SubscriptionPage';
 import { PLAN_ORDER, nextPlanId as getNextPlanId } from '@/lib/plans';
@@ -733,6 +735,184 @@ function SeatMeter({
   );
 }
 
+// ── Invite App Access Modal ───────────────────────────────────────────────────
+
+type InvitePermission = 'view' | 'edit' | 'customize';
+const INVITE_PERM_LABELS: Record<InvitePermission, string> = { view: 'View only', edit: 'Edit', customize: 'Edit & customize' };
+
+function InvitePermControl({ value, onChange, disabled }: { value: InvitePermission; onChange: (p: InvitePermission) => void; disabled?: boolean }) {
+  const perms: InvitePermission[] = ['view', 'edit', 'customize'];
+  return (
+    <div className={`flex items-center rounded-md border border-gray-200 overflow-hidden text-xs font-medium select-none ${disabled ? 'opacity-30 pointer-events-none' : ''}`}>
+      {perms.map((p, i) => (
+        <button key={p} type="button" onClick={(e) => { e.stopPropagation(); onChange(p); }}
+          className={`px-2 py-1 transition-colors ${value === p ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'} ${i > 0 ? 'border-l border-gray-200' : ''}`}>
+          {INVITE_PERM_LABELS[p]}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function InviteToggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <button type="button" role="switch" aria-checked={checked} onClick={(e) => { e.stopPropagation(); onChange(!checked); }}
+      className={`relative inline-flex h-5 w-9 flex-shrink-0 rounded-full transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 ${checked ? 'bg-blue-600' : 'bg-gray-200'}`}>
+      <span className={`pointer-events-none inline-block h-3.5 w-3.5 rounded-full bg-white shadow-sm transition-transform mt-[3px] ${checked ? 'translate-x-[18px]' : 'translate-x-[3px]'}`} />
+    </button>
+  );
+}
+
+export interface InviteAppPerms {
+  access: Record<string, boolean>;
+  permission: Record<string, InvitePermission>;
+}
+
+function AppInfoTooltip({ content }: { content: string }) {
+  return (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button type="button"
+            className="flex-shrink-0 w-3.5 h-3.5 rounded-full border border-gray-300 text-gray-400 text-[9px] font-bold flex items-center justify-center hover:border-gray-500 hover:text-gray-600 transition-colors select-none leading-none">
+            ?
+          </button>
+        </TooltipTrigger>
+        <TooltipContent side="top" className="max-w-56 text-xs leading-relaxed">
+          {content}
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
+
+function InviteAppAccessModal({ inviteCount, initial, onClose, onApply }: {
+  inviteCount: number;
+  initial: InviteAppPerms | null;
+  onClose: () => void;
+  onApply: (perms: InviteAppPerms) => void;
+}) {
+  const allApps = appTiles.map((a) => ({ name: a.name, icon: a.icon, description: a.description ?? '' }));
+
+  const [appAccess, setAppAccess] = useState<Record<string, boolean>>(() => {
+    if (initial) return { ...initial.access };
+    const m: Record<string, boolean> = {};
+    allApps.forEach((a) => { m[a.name] = true; });
+    return m;
+  });
+  const [appPermission, setAppPermission] = useState<Record<string, InvitePermission>>(() => {
+    if (initial) return { ...initial.permission };
+    const m: Record<string, InvitePermission> = {};
+    allApps.forEach((a) => { m[a.name] = 'customize'; });
+    return m;
+  });
+  const [query, setQuery] = useState('');
+
+  const filtered = query.trim()
+    ? allApps.filter((a) => a.name.toLowerCase().includes(query.trim().toLowerCase()))
+    : allApps;
+
+  function setAllPermission(p: InvitePermission) {
+    const nextPerm: Record<string, InvitePermission> = {};
+    const nextAccess: Record<string, boolean> = {};
+    allApps.forEach((a) => { nextPerm[a.name] = p; nextAccess[a.name] = true; });
+    setAppPermission(nextPerm);
+    setAppAccess(nextAccess);
+  }
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-[620px] flex flex-col max-h-[85vh]">
+
+        {/* Header */}
+        <div className="flex items-start justify-between px-6 py-5 border-b border-gray-100 flex-shrink-0">
+          <div>
+            <h2 className="text-base font-semibold text-gray-900">Specify app access</h2>
+            <p className="text-xs text-gray-500 mt-0.5">
+              These permissions will apply to {inviteCount > 1 ? `all ${inviteCount} users` : 'the user'} you're inviting.
+            </p>
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors ml-4">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Scrollable body */}
+        <div className="overflow-y-auto flex-1 px-6 py-4 space-y-4">
+
+          {/* Quick overrides */}
+          <div>
+            <p className="text-xs font-semibold text-gray-500 mb-2">Quick overrides</p>
+            <div className="flex flex-wrap gap-2">
+              {([
+                { label: 'View only — all apps', p: 'view' as InvitePermission },
+                { label: 'Edit — all apps', p: 'edit' as InvitePermission },
+                { label: 'Full access — all apps', p: 'customize' as InvitePermission },
+              ]).map(({ label, p }) => (
+                <button key={p} type="button" onClick={() => setAllPermission(p)}
+                  className="px-3 py-1.5 rounded-lg border border-blue-300 text-xs text-blue-600 hover:bg-blue-50 hover:border-blue-400 transition-colors font-medium">
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* App list */}
+          <div className="rounded-xl border border-gray-200 overflow-hidden">
+            {/* Search */}
+            <div className="flex items-center gap-2 px-3 py-2.5 border-b border-gray-100 bg-gray-50">
+              <Search className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+              <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search apps"
+                className="flex-1 text-xs bg-transparent outline-none text-gray-900 placeholder:text-gray-400" />
+            </div>
+
+            {/* Column headers */}
+            <div className="flex items-center gap-3 px-4 py-2 bg-gray-50/60 border-b border-gray-100">
+              <span className="flex-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wide">App</span>
+              <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mr-[40px]">Permission</span>
+              <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide w-12 text-right">Access</span>
+            </div>
+
+            {/* Rows */}
+            {filtered.length === 0 ? (
+              <p className="text-xs text-gray-400 py-8 text-center">No apps match "{query}".</p>
+            ) : (
+              filtered.map((app) => {
+                const Icon = app.icon;
+                const access = appAccess[app.name] ?? true;
+                const perm = appPermission[app.name] ?? 'customize';
+                return (
+                  <div key={app.name} className="flex items-center gap-3 px-4 py-2.5 border-b border-gray-100 last:border-0 hover:bg-gray-50/60 transition-colors">
+                    <Icon className={`w-4 h-4 flex-shrink-0 ${access ? 'text-blue-500' : 'text-gray-300'}`} />
+                    <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                      <span className={`text-sm font-medium truncate ${access ? 'text-gray-900' : 'text-gray-400'}`}>{app.name}</span>
+                      {app.description && <AppInfoTooltip content={app.description} />}
+                    </div>
+                    <InvitePermControl value={perm} onChange={(p) => setAppPermission((prev) => ({ ...prev, [app.name]: p }))} disabled={!access} />
+                    <InviteToggle checked={access} onChange={(v) => setAppAccess((prev) => ({ ...prev, [app.name]: v }))} />
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+
+        {/* Footer CTAs */}
+        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-100 flex-shrink-0">
+          <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors">
+            Cancel
+          </button>
+          <button onClick={() => onApply({ access: appAccess, permission: appPermission })}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors">
+            <Check className="w-4 h-4" />
+            Apply permissions
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Invite Modal ──────────────────────────────────────────────────────────────
 
 export function InviteModal({
@@ -752,9 +932,21 @@ export function InviteModal({
   const defaultRole: UserRole = isEssentials ? 'View-only' : 'Regular';
 
   const [rows, setRows] = useState<InviteRow[]>(() => [newInviteRow(defaultRole)]);
+  const [showAllNames, setShowAllNames] = useState(false);
+
+  // If subscription changes to Essentials after mount, clamp all rows to View-only
+  useEffect(() => {
+    if (isEssentials) {
+      setRows((prev) => prev.map((r) =>
+        ROLE_SEAT_TYPE[r.role] !== 'view-only' ? { ...r, role: 'View-only' } : r
+      ));
+    }
+  }, [isEssentials]);
   const [sent, setSent] = useState(false);
   const [copyFromUserId, setCopyFromUserId] = useState<string>('');
   const [copyRoleOpen, setCopyRoleOpen] = useState(false);
+  const [showAppAccessModal, setShowAppAccessModal] = useState(false);
+  const [savedAppPerms, setSavedAppPerms] = useState<InviteAppPerms | null>(null);
 
   const handleEmailChange = (id: string, value: string) => {
     setRows((prev) => {
@@ -781,6 +973,7 @@ export function InviteModal({
   };
 
   const handleRoleChange = (id: string, role: UserRole) => {
+    if (isEssentials && ROLE_SEAT_TYPE[role] !== 'view-only') return;
     setRows((prev) => prev.map((r) => (r.id === id ? { ...r, role } : r)));
   };
 
@@ -839,7 +1032,8 @@ export function InviteModal({
     if (!userId) return;
     const sourceUser = ALL_MOCK_USERS.find((u) => u.id === userId);
     if (!sourceUser) return;
-    setRows((prev) => prev.map((r) => ({ ...r, role: sourceUser.role })));
+    const safeRole: UserRole = isEssentials && ROLE_SEAT_TYPE[sourceUser.role] !== 'view-only' ? 'View-only' : sourceUser.role;
+    setRows((prev) => prev.map((r) => ({ ...r, role: safeRole })));
   };
 
   const handleSend = () => {
@@ -864,24 +1058,6 @@ export function InviteModal({
 
         {/* Rows */}
         <div className="px-6 py-5 overflow-y-auto flex-1">
-          {/* Trial disclaimer */}
-          {isTrial && (
-            <div className="rounded-xl bg-blue-50 border border-blue-100 px-4 py-3 flex items-center gap-2.5 mb-4">
-              <Info className="w-4 h-4 text-blue-500 flex-shrink-0" />
-              <p className="text-xs text-blue-700">
-                No limits during trial. Seat limits apply once it ends —{' '}
-                <a
-                  href="/pricing"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-0.5 font-semibold underline underline-offset-2 hover:text-blue-900"
-                >
-                  view details <ExternalLink className="w-3 h-3" />
-                </a>
-              </p>
-            </div>
-          )}
-
           {/* Column headers */}
           <div className="flex gap-2 mb-2 px-0.5">
             <span className="flex-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Email address</span>
@@ -921,34 +1097,29 @@ export function InviteModal({
                       />
                     </div>
 
-                    {/* Name toggle — always visible on every row */}
+                    {/* Remove row */}
                     <button
                       type="button"
-                      onClick={() => toggleName(row.id)}
-                      title="Set display name"
-                      className={`flex-shrink-0 flex items-center justify-center w-7 h-7 rounded-md transition-colors ${
-                        row.showName
-                          ? 'text-blue-600 bg-blue-50 hover:bg-blue-100'
-                          : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
-                      }`}
+                      onClick={() => removeRow(row.id)}
+                      className="flex-shrink-0 flex items-center justify-center w-7 h-7 rounded-md text-gray-300 hover:text-red-400 hover:bg-red-50 transition-colors"
                     >
-                      <ChevronDown className={`w-4 h-4 transition-transform ${row.showName ? 'rotate-180' : ''}`} />
+                      <X className="w-3.5 h-3.5" />
                     </button>
                   </div>
 
-                  {/* Name field — revealed by chevron toggle */}
-                  {row.showName && (
+                  {/* Name field — revealed by global Names toggle */}
+                  {showAllNames && (
                     <div className="flex gap-1.5 mt-1.5 pl-1 pb-2">
                       <CornerDownRight className="w-3.5 h-3.5 text-gray-300 flex-shrink-0 ml-1 mt-6" />
                       <div className="flex-1 min-w-0 pr-9">
                         <label className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1">
-                          Full name
+                          Username
                         </label>
                         <input
                           type="text"
                           value={row.name}
                           onChange={(e) => handleNameChange(row.id, e.target.value)}
-                          placeholder="User's full name"
+                          placeholder="Username"
                           disabled={isEmptyRow}
                           className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm text-gray-900 placeholder-gray-400 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-40 disabled:cursor-not-allowed"
                         />
@@ -959,10 +1130,25 @@ export function InviteModal({
               );
             })}
           </div>
-        </div>
 
-        {/* Footer area */}
-        <div className="px-6 pb-5 flex-shrink-0 space-y-3">
+          <div className="space-y-3 mt-3">
+          {/* Trial disclaimer */}
+          {isTrial && (
+            <div className="rounded-xl bg-blue-50 border border-blue-100 px-4 py-3 flex items-center gap-2.5">
+              <Info className="w-4 h-4 text-blue-500 flex-shrink-0" />
+              <p className="text-xs text-blue-700">
+                No limits during trial. Seat limits apply once it ends —{' '}
+                <a
+                  href="/pricing"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-0.5 font-semibold underline underline-offset-2 hover:text-blue-900"
+                >
+                  view details <ExternalLink className="w-3 h-3" />
+                </a>
+              </p>
+            </div>
+          )}
           {/* Extra cost summary */}
           {inviteSummary && (() => {
             const nextId = subscription ? getNextPlanId(subscription.planId) : null;
@@ -1005,92 +1191,106 @@ export function InviteModal({
             );
           })()}
 
-          {/* Essentials warning */}
+          {/* Essentials notice */}
           {isEssentials && (
-            <div className="rounded-xl bg-amber-50 border border-amber-200 p-4">
-              <div className="flex items-start gap-3">
-                <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
-                <div className="flex-1">
-                  <p className="text-sm font-semibold text-amber-900">Essentials plan: View-only invites only</p>
-                  <p className="text-xs text-amber-700 mt-1">
-                    Your plan includes 1 seat (yours). All other users can only be invited as View-only at no charge. To add Admin, Customizer, Regular, or Field Crew users, upgrade to Build.
-                  </p>
-                  <button
-                    onClick={() => { onClose(); onNavigate('subscription-upgrade'); }}
-                    className="mt-2.5 inline-flex items-center gap-1 text-xs font-semibold text-amber-800 underline underline-offset-2 hover:text-amber-900"
-                  >
-                    Upgrade to Build <ArrowRight className="w-3 h-3" />
-                  </button>
-                </div>
-              </div>
+            <div className="flex items-center gap-2 rounded-lg bg-blue-50 border border-blue-100 px-3 py-2">
+              <Info className="w-3.5 h-3.5 text-blue-400 flex-shrink-0" />
+              <p className="text-xs text-blue-700 flex-1">
+                On Essentials, all invites are view-only.{' '}
+                <button
+                  onClick={() => { onClose(); onNavigate('subscription-upgrade'); }}
+                  className="font-semibold underline underline-offset-2 hover:text-blue-900"
+                >
+                  Upgrade to Build
+                </button>
+                {' '}to add paid seats.
+              </p>
             </div>
           )}
 
           {/* Divider separating the invite form from secondary options */}
-          <div className="border-t border-gray-100 pt-3 space-y-1">
-            {/* All apps note */}
-            <div className="flex items-center gap-2">
-              <Info className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
-              <p className="text-xs text-gray-500">
-                Newly invited users will have access to all apps.{' '}
-                <span
-                  className="opacity-40 cursor-not-allowed select-none underline underline-offset-2 text-blue-600"
-                  title="App-specific permissions coming soon"
-                >
-                  Specify which apps
-                </span>
-              </p>
+          <div className="border-t border-gray-100 pt-3">
+            <div className="space-y-0.5">
+              <button
+                type="button"
+                onClick={() => setShowAllNames((o) => !o)}
+                className="flex items-center gap-2.5 w-full rounded-lg pr-2 py-2 hover:bg-gray-50 text-left transition-colors"
+              >
+                <User className="w-3.5 h-3.5 text-blue-600 flex-shrink-0" />
+                <span className="flex-1 text-xs text-blue-600 font-medium">{showAllNames ? 'Hide username field' : 'Show username field'}</span>
+                {!showAllNames && <span className="text-xs text-gray-400 mr-1">Assigned from email by default</span>}
+                <ChevronRight className="w-3.5 h-3.5 flex-shrink-0 text-gray-300" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowAppAccessModal(true)}
+                className="flex items-center gap-2.5 w-full rounded-lg pr-2 py-2 hover:bg-gray-50 text-left transition-colors"
+              >
+                <SlidersHorizontal className="w-3.5 h-3.5 text-blue-600 flex-shrink-0" />
+                <span className="flex-1 text-xs text-blue-600 font-medium">Specify app access</span>
+                {savedAppPerms ? (
+                  <span className="flex items-center gap-1 text-xs text-emerald-600 mr-1 font-medium">
+                    <Check className="w-3 h-3" /> Permissions set
+                  </span>
+                ) : (
+                  <span className="text-xs text-gray-400 mr-1">All apps by default</span>
+                )}
+                <ChevronRight className="w-3.5 h-3.5 text-gray-300 flex-shrink-0" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setCopyRoleOpen((o) => !o)}
+                className="flex items-center gap-2.5 w-full rounded-lg pr-2 py-2 hover:bg-gray-50 text-left transition-colors"
+              >
+                <Users className="w-3.5 h-3.5 text-blue-600 flex-shrink-0" />
+                <span className="flex-1 text-xs text-blue-600 font-medium">Copy role and permissions from an existing user</span>
+                <ChevronRight className={`w-3.5 h-3.5 flex-shrink-0 transition-transform ${copyRoleOpen ? 'rotate-90 text-blue-400' : 'text-gray-300'}`} />
+              </button>
             </div>
-
-            {/* Copy role from existing user */}
-            <div>
-              <div className="flex items-center gap-2">
-                <Info className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
-                <p className="text-xs text-gray-500">
-                  Or{' '}
-                  <button
-                    type="button"
-                    onClick={() => setCopyRoleOpen((o) => !o)}
-                    className="text-blue-600 underline underline-offset-2 hover:text-blue-800 transition-colors"
-                  >
-                    copy role and permissions from an existing user
-                  </button>
-                </p>
+            {copyRoleOpen && (
+              <div className="mt-2">
+                <UserDropdownSelect
+                  value={copyFromUserId}
+                  onChange={handleCopyFromUser}
+                  options={ALL_MOCK_USERS}
+                  placeholder="Select a user..."
+                  onClear={() => { setCopyFromUserId(''); setCopyRoleOpen(false); }}
+                />
               </div>
-              {copyRoleOpen && (
-                <div className="mt-2.5">
-                  <UserDropdownSelect
-                    value={copyFromUserId}
-                    onChange={handleCopyFromUser}
-                    options={ALL_MOCK_USERS}
-                    placeholder="Select a user..."
-                    onClear={() => { setCopyFromUserId(''); setCopyRoleOpen(false); }}
-                  />
-                </div>
-              )}
-            </div>
+            )}
           </div>
 
-          {/* Actions */}
-          <div className="flex items-center justify-end gap-3">
-            <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors">
-              Cancel
-            </button>
-            <button
-              onClick={handleSend}
-              disabled={!canSend || sent}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              {sent ? 'Invites sent!' : (
-                <>
-                  <Mail className="w-4 h-4" />
-                  Send {filledRows.length > 1 ? `${filledRows.length} invites` : 'invite'}
-                </>
-              )}
-            </button>
           </div>
         </div>
+
+        {/* Fixed CTAs */}
+        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-100 flex-shrink-0">
+          <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors">
+            Cancel
+          </button>
+          <button
+            onClick={handleSend}
+            disabled={!canSend || sent}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            {sent ? 'Invites sent!' : (
+              <>
+                <Mail className="w-4 h-4" />
+                Send {filledRows.length > 1 ? `${filledRows.length} invites` : 'invite'}
+              </>
+            )}
+          </button>
+        </div>
       </div>
+
+      {showAppAccessModal && (
+        <InviteAppAccessModal
+          inviteCount={filledRows.length}
+          initial={savedAppPerms}
+          onClose={() => setShowAppAccessModal(false)}
+          onApply={(perms) => { setSavedAppPerms(perms); setShowAppAccessModal(false); }}
+        />
+      )}
     </div>
   );
 }
