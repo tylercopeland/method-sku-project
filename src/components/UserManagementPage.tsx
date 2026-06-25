@@ -737,11 +737,33 @@ function SeatMeter({
 
 // ── Invite App Access Modal ───────────────────────────────────────────────────
 
-type InvitePermission = 'view' | 'edit' | 'customize';
-const INVITE_PERM_LABELS: Record<InvitePermission, string> = { view: 'View only', edit: 'Edit', customize: 'Edit & customize' };
+type InvitePermission = 'view' | 'edit' | 'customize' | 'custom';
+const INVITE_PERM_LABELS: Record<InvitePermission, string> = { view: 'View only', edit: 'Edit', customize: 'Edit & customize', custom: 'Custom' };
+
+interface CustomPerm {
+  create: boolean;
+  edit: boolean;
+  delete: boolean;
+  approve: boolean;
+  customize: boolean;
+  manage: boolean;
+}
+
+const DEFAULT_CUSTOM_PERM: CustomPerm = {
+  create: false, edit: false, delete: false, approve: false, customize: false, manage: false,
+};
+
+const CUSTOM_PERM_OPTIONS: { key: keyof CustomPerm; label: string; tooltip: string }[] = [
+  { key: 'create',    label: 'Create',        tooltip: 'Create new records in this app' },
+  { key: 'edit',      label: 'Edit',          tooltip: 'Modify existing records and data' },
+  { key: 'delete',    label: 'Delete',        tooltip: 'Permanently remove records from this app' },
+  { key: 'approve',   label: 'Approve',       tooltip: 'Approve submitted changes, requests, or workflows' },
+  { key: 'customize', label: 'Customize app', tooltip: 'Modify app layout, custom fields, and display settings' },
+  { key: 'manage',    label: 'Manage app',    tooltip: 'Control app-level settings, integrations, and access rules' },
+];
 
 function InvitePermControl({ value, onChange, disabled }: { value: InvitePermission; onChange: (p: InvitePermission) => void; disabled?: boolean }) {
-  const perms: InvitePermission[] = ['view', 'edit', 'customize'];
+  const perms: InvitePermission[] = ['view', 'edit', 'customize', 'custom'];
   return (
     <div className={`flex items-center rounded-md border border-gray-200 overflow-hidden text-xs font-medium select-none ${disabled ? 'opacity-30 pointer-events-none' : ''}`}>
       {perms.map((p, i) => (
@@ -766,6 +788,7 @@ function InviteToggle({ checked, onChange }: { checked: boolean; onChange: (v: b
 export interface InviteAppPerms {
   access: Record<string, boolean>;
   permission: Record<string, InvitePermission>;
+  customPerm: Record<string, CustomPerm>;
 }
 
 function AppInfoTooltip({ content }: { content: string }) {
@@ -804,6 +827,12 @@ function InviteAppAccessModal({ inviteCount, initial, onClose, onApply }: {
     if (initial) return { ...initial.permission };
     const m: Record<string, InvitePermission> = {};
     allApps.forEach((a) => { m[a.name] = 'customize'; });
+    return m;
+  });
+  const [appCustomPermissions, setAppCustomPermissions] = useState<Record<string, CustomPerm>>(() => {
+    if (initial) return { ...initial.customPerm };
+    const m: Record<string, CustomPerm> = {};
+    allApps.forEach((a) => { m[a.name] = { ...DEFAULT_CUSTOM_PERM }; });
     return m;
   });
   const [query, setQuery] = useState('');
@@ -881,16 +910,43 @@ function InviteAppAccessModal({ inviteCount, initial, onClose, onApply }: {
                 const Icon = app.icon;
                 const access = appAccess[app.name] ?? true;
                 const perm = appPermission[app.name] ?? 'customize';
+                const customPerm = appCustomPermissions[app.name] ?? { ...DEFAULT_CUSTOM_PERM };
                 return (
-                  <div key={app.name} className="flex items-center gap-3 px-4 py-2.5 border-b border-gray-100 last:border-0 hover:bg-gray-50/60 transition-colors">
-                    <Icon className={`w-4 h-4 flex-shrink-0 ${access ? 'text-blue-500' : 'text-gray-300'}`} />
-                    <div className="flex items-center gap-1.5 flex-1 min-w-0">
-                      <span className={`text-sm font-medium truncate ${access ? 'text-gray-900' : 'text-gray-400'}`}>{app.name}</span>
-                      {app.description && <AppInfoTooltip content={app.description} />}
+                  <React.Fragment key={app.name}>
+                    <div className={`flex items-center gap-3 px-4 py-2.5 border-b border-gray-100 hover:bg-gray-50/60 transition-colors ${perm === 'custom' && access ? 'border-b-0' : ''}`}>
+                      <Icon className={`w-4 h-4 flex-shrink-0 ${access ? 'text-blue-500' : 'text-gray-300'}`} />
+                      <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                        <span className={`text-sm font-medium truncate ${access ? 'text-gray-900' : 'text-gray-400'}`}>{app.name}</span>
+                        {app.description && <AppInfoTooltip content={app.description} />}
+                      </div>
+                      <InvitePermControl value={perm} onChange={(p) => setAppPermission((prev) => ({ ...prev, [app.name]: p }))} disabled={!access} />
+                      <InviteToggle checked={access} onChange={(v) => setAppAccess((prev) => ({ ...prev, [app.name]: v }))} />
                     </div>
-                    <InvitePermControl value={perm} onChange={(p) => setAppPermission((prev) => ({ ...prev, [app.name]: p }))} disabled={!access} />
-                    <InviteToggle checked={access} onChange={(v) => setAppAccess((prev) => ({ ...prev, [app.name]: v }))} />
-                  </div>
+                    {perm === 'custom' && access && (
+                      <div className="px-4 pb-3 border-b border-gray-100">
+                        <div className="ml-[calc(1rem+0.75rem)] bg-gray-50 rounded-xl border border-gray-200 px-4 py-3">
+                          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-2.5">Custom permissions</p>
+                          <div className="grid grid-cols-3 gap-x-6 gap-y-2">
+                            {CUSTOM_PERM_OPTIONS.map(opt => (
+                              <label key={opt.key} className="flex items-center gap-2 cursor-pointer group">
+                                <input
+                                  type="checkbox"
+                                  checked={customPerm[opt.key]}
+                                  onChange={e => setAppCustomPermissions(prev => ({
+                                    ...prev,
+                                    [app.name]: { ...customPerm, [opt.key]: e.target.checked },
+                                  }))}
+                                  className="w-3.5 h-3.5 rounded border-gray-300 text-purple-600 focus:ring-purple-500 cursor-pointer"
+                                />
+                                <span className="text-xs text-gray-700 font-medium">{opt.label}</span>
+                                <AppInfoTooltip content={opt.tooltip} />
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </React.Fragment>
                 );
               })
             )}
@@ -902,7 +958,7 @@ function InviteAppAccessModal({ inviteCount, initial, onClose, onApply }: {
           <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors">
             Cancel
           </button>
-          <button onClick={() => onApply({ access: appAccess, permission: appPermission })}
+          <button onClick={() => onApply({ access: appAccess, permission: appPermission, customPerm: appCustomPermissions })}
             className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors">
             <Check className="w-4 h-4" />
             Apply permissions
@@ -1044,7 +1100,7 @@ export function InviteModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-[600px] flex flex-col max-h-[90vh]">
+      <div className={`bg-white rounded-2xl shadow-2xl w-full flex flex-col max-h-[90vh] transition-all duration-200 ${showAllNames ? 'max-w-[820px]' : 'max-w-[600px]'}`}>
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100 flex-shrink-0">
           <div>
@@ -1061,6 +1117,7 @@ export function InviteModal({
           {/* Column headers */}
           <div className="flex gap-2 mb-2 px-0.5">
             <span className="flex-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Email address</span>
+            {showAllNames && <span className="flex-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Username</span>}
             <span className="flex-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Role</span>
             <div className="w-7 flex-shrink-0" />
           </div>
@@ -1086,6 +1143,18 @@ export function InviteModal({
                       />
                     </div>
 
+                    {/* Username — inline third column */}
+                    {showAllNames && (
+                      <input
+                        type="text"
+                        value={row.name}
+                        onChange={(e) => handleNameChange(row.id, e.target.value)}
+                        placeholder="Username"
+                        disabled={isEmptyRow}
+                        className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 placeholder-gray-400 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-40 disabled:cursor-not-allowed h-[44px]"
+                      />
+                    )}
+
                     {/* Role */}
                     <div className="flex-1">
                       <RoleSelect
@@ -1106,26 +1175,6 @@ export function InviteModal({
                       <X className="w-3.5 h-3.5" />
                     </button>
                   </div>
-
-                  {/* Name field — revealed by global Names toggle */}
-                  {showAllNames && (
-                    <div className="flex gap-1.5 mt-1.5 pl-1 pb-2">
-                      <CornerDownRight className="w-3.5 h-3.5 text-gray-300 flex-shrink-0 ml-1 mt-6" />
-                      <div className="flex-1 min-w-0 pr-9">
-                        <label className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1">
-                          Username
-                        </label>
-                        <input
-                          type="text"
-                          value={row.name}
-                          onChange={(e) => handleNameChange(row.id, e.target.value)}
-                          placeholder="Username"
-                          disabled={isEmptyRow}
-                          className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm text-gray-900 placeholder-gray-400 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-40 disabled:cursor-not-allowed"
-                        />
-                      </div>
-                    </div>
-                  )}
                 </div>
               );
             })}
@@ -1154,38 +1203,18 @@ export function InviteModal({
             const nextId = subscription ? getNextPlanId(subscription.planId) : null;
             const nextPlan = nextId ? plans.find(p => p.id === nextId) : null;
             return (
-              <div className="rounded-xl bg-amber-50 border border-amber-200 p-4">
-                <p className="text-xs font-semibold text-amber-900 mb-2 flex items-center gap-1.5">
-                  <AlertTriangle className="w-3.5 h-3.5" /> Additional monthly charges
+              <div className="flex items-center gap-2.5 rounded-lg bg-blue-50 border border-blue-100 px-3 py-2">
+                <Info className="w-3.5 h-3.5 text-blue-400 flex-shrink-0" />
+                <p className="flex-1 text-xs text-blue-700">
+                  Included seat limit reached — some users will be charged extra.
                 </p>
-                <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-xs mb-3">
-                  {inviteSummary.extraFull > 0 && (
-                    <>
-                      <span className="text-amber-700">{inviteSummary.extraFull} extra full {inviteSummary.extraFull === 1 ? 'seat' : 'seats'} × ${EXTRA_FULL_SEAT_PRICE}</span>
-                      <span className="text-amber-900 font-semibold">${inviteSummary.extraFullCost}/mo</span>
-                    </>
-                  )}
-                  {inviteSummary.extraFieldCrew > 0 && (
-                    <>
-                      <span className="text-amber-700">{inviteSummary.extraFieldCrew} extra field crew × ${EXTRA_FIELD_CREW_PRICE}</span>
-                      <span className="text-amber-900 font-semibold">${inviteSummary.extraFieldCrewCost}/mo</span>
-                    </>
-                  )}
-                  <span className="text-amber-900 font-bold pt-1 border-t border-amber-200">Total added to bill</span>
-                  <span className="text-amber-900 font-bold pt-1 border-t border-amber-200">${inviteSummary.totalExtra}/mo</span>
-                </div>
                 {nextPlan && (
-                  <div className="border-t border-amber-200 pt-3 flex items-center justify-between gap-3">
-                    <p className="text-xs text-amber-800">
-                      <span className="font-semibold">{nextPlan.name}</span> includes {nextPlan.seats} paid seats — it may be worth upgrading instead.
-                    </p>
-                    <button
-                      onClick={() => { onClose(); onNavigate('subscription-upgrade'); }}
-                      className="flex-shrink-0 inline-flex items-center gap-1 text-xs font-semibold text-amber-900 underline underline-offset-2 hover:text-amber-950 whitespace-nowrap"
-                    >
-                      View plans <ArrowRight className="w-3 h-3" />
-                    </button>
-                  </div>
+                  <button
+                    onClick={() => { onClose(); onNavigate('subscription-upgrade'); }}
+                    className="flex-shrink-0 text-xs font-semibold text-blue-600 hover:text-blue-800 whitespace-nowrap inline-flex items-center gap-0.5"
+                  >
+                    View plans <ArrowRight className="w-3 h-3" />
+                  </button>
                 )}
               </div>
             );
@@ -1786,6 +1815,7 @@ function UserDetailPage({
   onInviteAdmin,
   highlightRole,
   onRoleHighlightDone,
+  multiEntityEnabled = false,
 }: {
   user: MockUser;
   allUsers: MockUser[];
@@ -1796,6 +1826,7 @@ function UserDetailPage({
   highlightRole?: boolean;
   onRoleHighlightDone?: () => void;
   onInviteAdmin: () => void;
+  multiEntityEnabled?: boolean;
 }) {
   const [username, setUsername] = useState(user.name);
   const [role, setRole] = useState<UserRole>(user.role);
@@ -2058,8 +2089,8 @@ function UserDetailPage({
 
           <hr className="mx-6 border-gray-100" />
 
-          {/* Entity access — Scale plan only */}
-          {isScale && (
+          {/* Entity access — Scale plan + multi-entity enabled only */}
+          {isScale && multiEntityEnabled && (
             <div className="grid grid-cols-1 md:grid-cols-[220px_1fr] gap-8 py-7 px-6">
               <div>
                 <div className="flex items-center gap-2 mb-1">
@@ -2344,6 +2375,7 @@ export function UserManagementPage({
         onInviteAdmin={() => { setSelectedUser(null); setShowInviteModal(true); }}
         highlightRole={roleHighlight}
         onRoleHighlightDone={() => setRoleHighlight(false)}
+        multiEntityEnabled={multiEntityEnabled}
       />
     );
   }

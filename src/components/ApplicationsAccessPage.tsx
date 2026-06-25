@@ -379,7 +379,7 @@ function PermissionControl({
           onClick={(e) => { e.stopPropagation(); onChange(p); }}
           className={`px-2.5 py-1 transition-colors ${
             value === p
-              ? p === 'custom' ? 'bg-purple-600 text-white' : 'bg-blue-600 text-white'
+              ? 'bg-blue-600 text-white'
               : 'bg-white text-gray-600 hover:bg-gray-50'
           } ${i > 0 ? 'border-l border-gray-200' : ''}`}
         >
