@@ -160,7 +160,7 @@ function App() {
     setAppStudioEnabled(phase >= 2 && ent.appStudioAccess);
     setAiFieldsEnabled(phase >= 1 && ent.aiCustomFields);
     setNavFoldersEnabled(phase >= 2);
-    if (phase < 4 || !ent.multiEntity) setMultiEntityEnabled(false);
+    if (!ent.multiEntity) setMultiEntityEnabled(false);
     // Discounted price is trial-only on every phase (and picks a promo); off on paid plans.
     handleDiscountToggle(planTier === 'trial');
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -816,12 +816,11 @@ function App() {
             <Switch disabled={phase < 2} checked={navFoldersEnabled} onCheckedChange={setNavFoldersEnabled} />
           </div>
           <div className="flex items-center justify-between border-t border-gray-100 pt-2 mt-2">
-            <span className={phase < 4 ? 'text-gray-300' : 'text-gray-500'}>
+            <span className="text-gray-500">
               Multi-entity
-              <span className="ml-1 rounded bg-gray-100 px-1 text-[9px] font-medium text-gray-400">P4</span>
+              <span className="ml-1 rounded bg-gray-100 px-1 text-[9px] font-medium text-gray-400">P1</span>
             </span>
             <Switch
-              disabled={phase < 4}
               checked={multiEntityEnabled}
               onCheckedChange={(v) => {
                 setMultiEntityEnabled(v);
