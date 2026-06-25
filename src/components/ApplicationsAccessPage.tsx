@@ -153,7 +153,7 @@ function ViewOnlyUpgradeModal({
   );
 }
 
-type Permission = 'view' | 'edit' | 'customize';
+type Permission = 'view' | 'edit' | 'customize' | 'custom';
 
 interface AppDef {
   name: string;
@@ -174,7 +174,29 @@ const CUSTOM_APPS: AppDef[] = [
   },
 ];
 
-const PERM_LABELS: Record<Permission, string> = { view: 'View only', edit: 'Edit', customize: 'Edit & customize' };
+const PERM_LABELS: Record<Permission, string> = { view: 'View only', edit: 'Edit', customize: 'Edit & customize', custom: 'Custom' };
+
+interface CustomPerm {
+  create: boolean;
+  edit: boolean;
+  delete: boolean;
+  approve: boolean;
+  customize: boolean;
+  manage: boolean;
+}
+
+const DEFAULT_CUSTOM_PERM: CustomPerm = {
+  create: false, edit: false, delete: false, approve: false, customize: false, manage: false,
+};
+
+const CUSTOM_PERM_OPTIONS: { key: keyof CustomPerm; label: string; tooltip: string }[] = [
+  { key: 'create',    label: 'Create',        tooltip: 'Create new records in this app' },
+  { key: 'edit',      label: 'Edit',          tooltip: 'Modify existing records and data' },
+  { key: 'delete',    label: 'Delete',        tooltip: 'Permanently remove records from this app' },
+  { key: 'approve',   label: 'Approve',       tooltip: 'Approve submitted changes, requests, or workflows' },
+  { key: 'customize', label: 'Customize app', tooltip: 'Modify app layout, custom fields, and display settings' },
+  { key: 'manage',    label: 'Manage app',    tooltip: 'Control app-level settings, integrations, and access rules' },
+];
 
 // ── Fixed-position hover tooltip ───────────────────────────────────────────────
 
@@ -224,6 +246,7 @@ const PERMISSION_TOOLTIP = (
     <div><span className="font-semibold text-white">View only</span><span className="text-gray-300"> — Can see records and data. Cannot make changes.</span></div>
     <div><span className="font-semibold text-white">Edit</span><span className="text-gray-300"> — Can create, modify, and delete records.</span></div>
     <div><span className="font-semibold text-white">Edit & customize</span><span className="text-gray-300"> — Full access including app layout, fields, and settings.</span></div>
+    <div><span className="font-semibold text-white">Custom</span><span className="text-gray-300"> — Pick exactly which actions this user can perform.</span></div>
   </div>
 );
 
@@ -342,7 +365,7 @@ function PermissionControl({
   onChange: (p: Permission) => void;
   disabled?: boolean;
 }) {
-  const perms: Permission[] = ['view', 'edit', 'customize'];
+  const perms: Permission[] = ['view', 'edit', 'customize', 'custom'];
   return (
     <div
       className={`flex items-center rounded-md border border-gray-200 overflow-hidden text-xs font-medium select-none ${
@@ -356,7 +379,7 @@ function PermissionControl({
           onClick={(e) => { e.stopPropagation(); onChange(p); }}
           className={`px-2.5 py-1 transition-colors ${
             value === p
-              ? 'bg-blue-600 text-white'
+              ? p === 'custom' ? 'bg-purple-600 text-white' : 'bg-blue-600 text-white'
               : 'bg-white text-gray-600 hover:bg-gray-50'
           } ${i > 0 ? 'border-l border-gray-200' : ''}`}
         >
@@ -380,6 +403,8 @@ function AppRow({
   onToggleAccess,
   onPermissionChange,
   onToggleSelect,
+  customPerm,
+  onCustomPermChange,
 }: {
   app: AppDef;
   access: boolean;
@@ -391,51 +416,76 @@ function AppRow({
   onToggleAccess: () => void;
   onPermissionChange: (p: Permission) => void;
   onToggleSelect: () => void;
+  customPerm: CustomPerm;
+  onCustomPermChange: (p: CustomPerm) => void;
 }) {
   const Icon = app.icon;
   return (
-    <div
-      className={`flex items-center gap-3 px-5 py-3 border-b border-gray-100 last:border-0 transition-colors ${
-        highlighted ? 'bg-blue-50' : isSelected ? 'bg-blue-50/50' : 'hover:bg-gray-50/60'
-      }`}
-    >
-      {multiSelectMode && (
-        <button
-          type="button"
-          onClick={(e) => { e.stopPropagation(); onToggleSelect(); }}
-          className={`flex-shrink-0 w-4 h-4 rounded border flex items-center justify-center transition-colors ${
-            isSelected ? 'bg-blue-600 border-blue-600' : 'border-gray-300 hover:border-blue-400 bg-white'
-          }`}
-        >
-          {isSelected && <Check className="w-2.5 h-2.5 text-white" />}
-        </button>
-      )}
-      <Icon
-        className={`w-4 h-4 flex-shrink-0 transition-colors ${
-          access ? 'text-blue-500' : 'text-gray-300'
-        }`}
-      />
-      <div className="flex items-center gap-1.5 flex-1 min-w-0">
-        <span
-          className={`text-sm font-medium truncate transition-colors ${
-            access ? 'text-gray-900' : 'text-gray-400'
-          }`}
-        >
-          {app.name}
-        </span>
-        {app.description && (
-          <InfoTooltip content={<span className="text-gray-300 leading-relaxed">{app.description}</span>} />
+    <>
+      <div
+        className={`flex items-center gap-3 px-5 py-3 border-b border-gray-100 transition-colors ${
+          highlighted ? 'bg-blue-50' : isSelected ? 'bg-blue-50/50' : 'hover:bg-gray-50/60'
+        } ${permission === 'custom' && access && !disabled ? 'border-b-0' : ''}`}
+      >
+        {multiSelectMode && (
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); onToggleSelect(); }}
+            className={`flex-shrink-0 w-4 h-4 rounded border flex items-center justify-center transition-colors ${
+              isSelected ? 'bg-blue-600 border-blue-600' : 'border-gray-300 hover:border-blue-400 bg-white'
+            }`}
+          >
+            {isSelected && <Check className="w-2.5 h-2.5 text-white" />}
+          </button>
         )}
-      </div>
-      <div className="flex items-center gap-3 flex-shrink-0">
-        <PermissionControl
-          value={permission}
-          onChange={onPermissionChange}
-          disabled={disabled || !access}
+        <Icon
+          className={`w-4 h-4 flex-shrink-0 transition-colors ${
+            access ? 'text-blue-500' : 'text-gray-300'
+          }`}
         />
-        <Toggle checked={access} onChange={onToggleAccess} disabled={disabled} />
+        <div className="flex items-center gap-1.5 flex-1 min-w-0">
+          <span
+            className={`text-sm font-medium truncate transition-colors ${
+              access ? 'text-gray-900' : 'text-gray-400'
+            }`}
+          >
+            {app.name}
+          </span>
+          {app.description && (
+            <InfoTooltip content={<span className="text-gray-300 leading-relaxed">{app.description}</span>} />
+          )}
+        </div>
+        <div className="flex items-center gap-3 flex-shrink-0">
+          <PermissionControl
+            value={permission}
+            onChange={onPermissionChange}
+            disabled={disabled || !access}
+          />
+          <Toggle checked={access} onChange={onToggleAccess} disabled={disabled} />
+        </div>
       </div>
-    </div>
+      {permission === 'custom' && access && !disabled && (
+        <div className="px-5 pb-3 border-b border-gray-100">
+          <div className="bg-gray-50 rounded-xl border border-gray-200 px-4 py-3">
+            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-2.5">Custom permissions</p>
+            <div className="grid grid-cols-3 gap-x-6 gap-y-2">
+              {CUSTOM_PERM_OPTIONS.map(opt => (
+                <label key={opt.key} className="flex items-center gap-2 cursor-pointer group">
+                  <input
+                    type="checkbox"
+                    checked={customPerm[opt.key]}
+                    onChange={e => onCustomPermChange({ ...customPerm, [opt.key]: e.target.checked })}
+                    className="w-3.5 h-3.5 rounded border-gray-300 text-purple-600 focus:ring-purple-500 cursor-pointer"
+                  />
+                  <span className="text-xs text-gray-700 font-medium">{opt.label}</span>
+                  <InfoTooltip content={opt.tooltip} />
+                </label>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 
@@ -483,6 +533,11 @@ export function ApplicationsAccessPage({
     initPerm.current = { ...m };
     return m;
   });
+  const [appCustomPermissions, setAppCustomPermissions] = useState<Record<string, CustomPerm>>(() => {
+    const m: Record<string, CustomPerm> = {};
+    allApps.forEach(a => { m[a.name] = { ...DEFAULT_CUSTOM_PERM }; });
+    return m;
+  });
 
   // Multi-select
   const [multiSelectMode, setMultiSelectMode] = useState(false);
@@ -496,6 +551,9 @@ export function ApplicationsAccessPage({
   const [billingAccess, setBillingAccess] = useState(false);
   const [userMgmtAccess, setUserMgmtAccess] = useState(false);
   const [exportAccess, setExportAccess] = useState(false);
+
+  // Copy-from-user reveal
+  const [copyFromOpen, setCopyFromOpen] = useState(false);
 
   // Save feedback
   const [savedAll, setSavedAll] = useState(false);
@@ -611,22 +669,16 @@ export function ApplicationsAccessPage({
             </p>
           </div>
 
-          {/* ── Admin locked banner ── */}
+          {/* ── Admin info banner ── */}
           {isAdmin && (
             <div className="flex items-start gap-3 bg-blue-50 border border-blue-200 rounded-xl px-5 py-4">
               <ShieldCheck className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" />
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-blue-900">Admins have full access to everything</p>
+                <p className="text-sm font-medium text-blue-900">This user is an Admin</p>
                 <p className="text-sm text-blue-700 mt-0.5">
-                  All app permissions are automatically granted to admins and cannot be restricted individually. To limit access, change this user's role first.
+                  App permissions can still be customized individually. Extra permissions are always enabled for admins and cannot be changed.
                 </p>
               </div>
-              <button
-                onClick={onChangeRole}
-                className="flex items-center gap-1 text-sm font-medium text-blue-600 hover:text-blue-800 whitespace-nowrap transition-colors flex-shrink-0 mt-0.5"
-              >
-                Change role <ArrowRight className="w-3.5 h-3.5" />
-              </button>
             </div>
           )}
 
@@ -650,8 +702,8 @@ export function ApplicationsAccessPage({
             </div>
           )}
 
-          {/* ── Quick overrides (hidden for admins and view-only) ── */}
-          {!isAdmin && !isViewOnly && <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+          {/* ── Quick overrides (hidden for view-only) ── */}
+          {!isViewOnly && <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
             <h2 className="text-sm font-semibold text-gray-700 mb-0.5">Quick overrides</h2>
             <p className="text-xs text-gray-500 mb-4">
               Apply a permission level to all apps at once. Individual settings can be adjusted after.
@@ -675,12 +727,23 @@ export function ApplicationsAccessPage({
               ))}
             </div>
             <div className="border-t border-gray-100 pt-4">
-              <p className="text-xs text-gray-400 mb-2">Or copy all permissions from an existing user:</p>
-              <CopyFromUserPicker onCopyFrom={(perm) => {
-                const nextPerm: Record<string, Permission> = {};
-                allApps.forEach((a) => { nextPerm[a.name] = perm; });
-                setAppPermission(nextPerm);
-              }} />
+              <button
+                type="button"
+                onClick={() => setCopyFromOpen((o) => !o)}
+                className="text-xs text-blue-600 font-medium hover:text-blue-800 transition-colors"
+              >
+                Or copy all permissions from an existing user
+              </button>
+              {copyFromOpen && (
+                <div className="mt-2">
+                  <CopyFromUserPicker onCopyFrom={(perm) => {
+                    const nextPerm: Record<string, Permission> = {};
+                    allApps.forEach((a) => { nextPerm[a.name] = perm; });
+                    setAppPermission(nextPerm);
+                    setCopyFromOpen(false);
+                  }} />
+                </div>
+              )}
             </div>
           </div>}
 
@@ -691,20 +754,18 @@ export function ApplicationsAccessPage({
             <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-100">
               <h2 className="text-sm font-semibold text-gray-700">Apps</h2>
               <div className="flex items-center gap-2">
-                {!isAdmin && (
-                  <button
-                    type="button"
-                    onClick={() => { setMultiSelectMode((m) => !m); setSelected(new Set()); }}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                      multiSelectMode
-                        ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                        : 'text-gray-500 hover:bg-gray-100 border border-transparent'
-                    }`}
-                  >
-                    <SlidersHorizontal className="w-3.5 h-3.5" />
-                    Multi-select
-                  </button>
-                )}
+                <button
+                  type="button"
+                  onClick={() => { setMultiSelectMode((m) => !m); setSelected(new Set()); }}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                    multiSelectMode
+                      ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                      : 'text-gray-500 hover:bg-gray-100 border border-transparent'
+                  }`}
+                >
+                  <SlidersHorizontal className="w-3.5 h-3.5" />
+                  Multi-select
+                </button>
                 <div className="relative">
                   <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
                   <input
@@ -784,15 +845,16 @@ export function ApplicationsAccessPage({
                   <AppRow
                     key={app.name}
                     app={app}
-                    access={isAdmin ? true : (appAccess[app.name] ?? true)}
-                    permission={isAdmin ? 'customize' : (appPermission[app.name] ?? 'customize')}
-                    disabled={isAdmin}
-                    multiSelectMode={isAdmin ? false : multiSelectMode}
-                    isSelected={isAdmin ? false : selected.has(app.name)}
+                    access={appAccess[app.name] ?? true}
+                    permission={appPermission[app.name] ?? 'customize'}
+                    multiSelectMode={multiSelectMode}
+                    isSelected={selected.has(app.name)}
                     highlighted={highlighted === app.name}
                     onToggleAccess={() => toggleAccess(app.name)}
                     onPermissionChange={(p) => setPermission(app.name, p)}
                     onToggleSelect={() => toggleSelect(app.name)}
+                    customPerm={appCustomPermissions[app.name] ?? { ...DEFAULT_CUSTOM_PERM }}
+                    onCustomPermChange={(p) => setAppCustomPermissions(prev => ({ ...prev, [app.name]: p }))}
                   />
                 ))}
               </>
@@ -810,15 +872,16 @@ export function ApplicationsAccessPage({
                   <AppRow
                     key={app.name}
                     app={app}
-                    access={isAdmin ? true : (appAccess[app.name] ?? true)}
-                    permission={isAdmin ? 'customize' : (appPermission[app.name] ?? 'customize')}
-                    disabled={isAdmin}
-                    multiSelectMode={isAdmin ? false : multiSelectMode}
-                    isSelected={isAdmin ? false : selected.has(app.name)}
+                    access={appAccess[app.name] ?? true}
+                    permission={appPermission[app.name] ?? 'customize'}
+                    multiSelectMode={multiSelectMode}
+                    isSelected={selected.has(app.name)}
                     highlighted={false}
                     onToggleAccess={() => toggleAccess(app.name)}
                     onPermissionChange={(p) => setPermission(app.name, p)}
                     onToggleSelect={() => toggleSelect(app.name)}
+                    customPerm={appCustomPermissions[app.name] ?? { ...DEFAULT_CUSTOM_PERM }}
+                    onCustomPermChange={(p) => setAppCustomPermissions(prev => ({ ...prev, [app.name]: p }))}
                   />
                 ))}
               </>
@@ -873,7 +936,19 @@ export function ApplicationsAccessPage({
                   <p className="text-sm font-medium text-gray-900">{label}</p>
                   <p className="text-xs text-gray-500">{desc}</p>
                 </div>
-                <Toggle checked={isAdmin ? true : value} onChange={onChange} disabled={isAdmin} />
+                {isAdmin ? (
+                  <div className="relative group flex-shrink-0 pointer-events-auto cursor-default">
+                    <div className="pointer-events-none">
+                      <Toggle checked={true} onChange={() => {}} />
+                    </div>
+                    <div className="absolute right-0 bottom-full mb-1.5 z-50 opacity-0 group-hover:opacity-100 w-52 p-2.5 bg-gray-900 text-white text-xs rounded-lg shadow-xl pointer-events-none transition-opacity">
+                      Admins always have access to this and it cannot be changed.
+                      <div className="absolute top-full right-3 border-[5px] border-transparent border-t-gray-900" />
+                    </div>
+                  </div>
+                ) : (
+                  <Toggle checked={value} onChange={onChange} />
+                )}
               </div>
             ))}
           </div>
@@ -895,8 +970,8 @@ export function ApplicationsAccessPage({
         />
       )}
 
-      {/* Floating save bar (never for admins or view-only — their settings are read-only) */}
-      {!isAdmin && !isViewOnly && (hasChanges || savedAll) && (
+      {/* Floating save bar */}
+      {!isViewOnly && (hasChanges || savedAll) && (
         <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 bg-white rounded-xl shadow-2xl border border-gray-200 px-4 py-2.5">
           <span className="text-xs text-gray-400 mr-1">Unsaved changes</span>
           <button
