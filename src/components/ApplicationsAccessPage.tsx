@@ -1,7 +1,7 @@
 import React, { useState, useRef, useMemo } from 'react';
 import {
   Search, X, Check, Download, Users, CreditCard,
-  ChevronRight, SlidersHorizontal, LayoutDashboard, Kanban, RotateCcw, ShieldCheck, ArrowRight,
+  ChevronRight, ChevronDown, SlidersHorizontal, LayoutDashboard, Kanban, RotateCcw, ShieldCheck, ArrowRight,
   Lock, AlertTriangle, TrendingUp, Eye, Crown, Wrench, User,
 } from 'lucide-react';
 import { appTiles } from '@/components/AppsGrid';
@@ -733,7 +733,7 @@ export function ApplicationsAccessPage({
                 className="inline-flex items-center gap-1 text-xs text-blue-600 font-medium hover:text-blue-800 transition-colors"
               >
                 Or copy all permissions from an existing user
-                <ChevronRight className={`w-3 h-3 transition-transform ${copyFromOpen ? 'rotate-90' : ''}`} />
+                <ChevronDown className={`w-3 h-3 transition-transform ${copyFromOpen ? 'rotate-180' : ''}`} />
               </button>
               {copyFromOpen && (
                 <div className="mt-2">
