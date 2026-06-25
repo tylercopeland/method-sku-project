@@ -510,6 +510,7 @@ function App() {
             isTrial={isInTrial && !subscription}
             onUpgrade={(planId) => openUpgradeModal(planId ?? undefined)}
             multiEntityEnabled={multiEntityEnabled}
+            phase={phase}
           />
         ) : currentPage === 'multi-entity' ? (
           multiEntityEnabled ? (

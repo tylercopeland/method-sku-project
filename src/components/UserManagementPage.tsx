@@ -65,6 +65,7 @@ interface InviteRow {
   name: string;
   nameManuallyEdited: boolean;
   showName: boolean;
+  entities: string[];
 }
 
 // ── Constants ──────────────────────────────────────────────────────────────────
@@ -208,6 +209,7 @@ function newInviteRow(defaultRole: UserRole = 'Regular'): InviteRow {
     name: '',
     nameManuallyEdited: false,
     showName: false,
+    entities: [],
   };
 }
 
@@ -977,12 +979,16 @@ export function InviteModal({
   subscription,
   isTrial,
   onNavigate,
+  phase = 1,
+  multiEntityEnabled = false,
 }: {
   onClose: () => void;
   seatsAvailable: number;
   subscription: ActiveSubscription | null;
   isTrial: boolean;
   onNavigate: (page: string) => void;
+  phase?: 1 | 2 | 3 | 4;
+  multiEntityEnabled?: boolean;
 }) {
   const isEssentials = subscription?.planId === 'essentials';
   const defaultRole: UserRole = isEssentials ? 'View-only' : 'Regular';
@@ -1054,6 +1060,12 @@ export function InviteModal({
     setRows((prev) => prev.map((r) => (r.id === id ? { ...r, showName: !r.showName } : r)));
   };
 
+  const handleEntityChange = (id: string, entities: string[]) => {
+    setRows((prev) => prev.map((r) => (r.id === id ? { ...r, entities } : r)));
+  };
+
+  const showEntities = phase === 4 && multiEntityEnabled;
+
   const filledRows = rows.filter((r) => r.email.trim());
   const canSend = filledRows.length > 0;
 
@@ -1100,7 +1112,9 @@ export function InviteModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-      <div className={`bg-white rounded-2xl shadow-2xl w-full flex flex-col max-h-[90vh] transition-all duration-200 ${showAllNames ? 'max-w-[820px]' : 'max-w-[600px]'}`}>
+      <div className={`bg-white rounded-2xl shadow-2xl w-full flex flex-col max-h-[90vh] transition-all duration-200 ${
+        showAllNames && showEntities ? 'max-w-[1060px]' : (showAllNames || showEntities) ? 'max-w-[820px]' : 'max-w-[600px]'
+      }`}>
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100 flex-shrink-0">
           <div>
@@ -1118,6 +1132,7 @@ export function InviteModal({
           <div className="flex gap-2 mb-2 px-0.5">
             <span className="flex-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Email address</span>
             {showAllNames && <span className="flex-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Username</span>}
+            {showEntities && <span className="flex-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Entities</span>}
             <span className="flex-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Role</span>
             <div className="w-7 flex-shrink-0" />
           </div>
@@ -1152,6 +1167,15 @@ export function InviteModal({
                         placeholder="Username"
                         disabled={isEmptyRow}
                         className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 placeholder-gray-400 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-40 disabled:cursor-not-allowed h-[44px]"
+                      />
+                    )}
+
+                    {/* Entities — P4 + multi-entity only */}
+                    {showEntities && (
+                      <EntityTagSelect
+                        value={row.entities}
+                        onChange={(entities) => handleEntityChange(row.id, entities)}
+                        disabled={isEmptyRow}
                       />
                     )}
 
@@ -1359,6 +1383,92 @@ const QB_EMPLOYEES = [
 ];
 
 const MOCK_ENTITIES = ['Method HQ', 'Method NYC', 'Method LA', 'Method UK', 'Method Canada'];
+
+function EntityTagSelect({
+  value,
+  onChange,
+  disabled = false,
+}: {
+  value: string[];
+  onChange: (v: string[]) => void;
+  disabled?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handler(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  function toggle(entity: string) {
+    onChange(value.includes(entity) ? value.filter((x) => x !== entity) : [...value, entity]);
+  }
+
+  const displayTags = value.slice(0, 2);
+  const overflow = value.length - 2;
+
+  return (
+    <div className="flex-1 relative" ref={ref}>
+      <button
+        type="button"
+        onClick={() => !disabled && setOpen((o) => !o)}
+        className={`w-full h-[44px] border border-gray-300 rounded-lg px-2.5 flex items-center gap-1.5 bg-white text-left focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+          disabled ? 'opacity-40 cursor-not-allowed' : 'hover:border-gray-400 cursor-pointer'
+        }`}
+      >
+        <Building2 className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+        <div className="flex-1 flex items-center gap-1 overflow-hidden min-w-0">
+          {value.length === 0 ? (
+            <span className="text-sm text-gray-400 truncate">Select entities…</span>
+          ) : (
+            <>
+              {displayTags.map((e) => (
+                <span
+                  key={e}
+                  className="inline-flex items-center text-[11px] font-medium bg-blue-50 text-blue-700 rounded px-1.5 py-0.5 flex-shrink-0 max-w-[80px] truncate"
+                >
+                  {e.replace('Method ', '')}
+                </span>
+              ))}
+              {overflow > 0 && (
+                <span className="text-[11px] text-gray-500 flex-shrink-0">+{overflow}</span>
+              )}
+            </>
+          )}
+        </div>
+        <ChevronDown className={`w-3 h-3 text-gray-400 flex-shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+
+      {open && (
+        <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-xl z-50 overflow-hidden">
+          {MOCK_ENTITIES.map((entity) => (
+            <button
+              key={entity}
+              type="button"
+              onClick={(e) => { e.stopPropagation(); toggle(entity); }}
+              className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-left hover:bg-gray-50 transition-colors"
+            >
+              <div
+                className={`w-3.5 h-3.5 rounded border flex items-center justify-center flex-shrink-0 transition-colors ${
+                  value.includes(entity) ? 'bg-blue-600 border-blue-600' : 'border-gray-300'
+                }`}
+              >
+                {value.includes(entity) && <Check className="w-2.5 h-2.5 text-white" />}
+              </div>
+              <span className={value.includes(entity) ? 'text-gray-900 font-medium' : 'text-gray-600'}>
+                {entity}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function EmpSelect({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   const [open, setOpen] = useState(false);
@@ -2254,6 +2364,7 @@ interface UserManagementPageProps {
   isTrial?: boolean;
   onUpgrade?: (planId: string) => void;
   multiEntityEnabled?: boolean;
+  phase?: 1 | 2 | 3 | 4;
 }
 
 export function UserManagementPage({
@@ -2264,6 +2375,7 @@ export function UserManagementPage({
   isTrial = false,
   onUpgrade,
   multiEntityEnabled = false,
+  phase = 1,
 }: UserManagementPageProps) {
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState<'All' | 'Active' | 'Invited' | 'Deactivated'>('All');
@@ -2514,6 +2626,8 @@ export function UserManagementPage({
           isTrial={isTrial}
           onClose={() => setShowInviteModal(false)}
           onNavigate={onNavigate}
+          phase={phase}
+          multiEntityEnabled={multiEntityEnabled}
         />
       )}
 
