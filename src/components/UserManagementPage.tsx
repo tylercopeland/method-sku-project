@@ -28,6 +28,7 @@ import {
   ShieldCheck,
 } from 'lucide-react';
 import { ApplicationsAccessPage } from './ApplicationsAccessPage';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { appTiles } from '@/components/AppsGrid';
 import type { ActiveSubscription } from './SubscriptionPage';
 import { plans } from './SubscriptionPage';
@@ -768,24 +769,20 @@ export interface InviteAppPerms {
 }
 
 function AppInfoTooltip({ content }: { content: string }) {
-  const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
-  const btnRef = useRef<HTMLButtonElement>(null);
   return (
-    <>
-      <button ref={btnRef} type="button"
-        onMouseEnter={() => { if (btnRef.current) { const r = btnRef.current.getBoundingClientRect(); setPos({ x: r.left + r.width / 2, y: r.top - 6 }); } }}
-        onMouseLeave={() => setPos(null)}
-        className="flex-shrink-0 w-3.5 h-3.5 rounded-full border border-gray-300 text-gray-400 text-[9px] font-bold flex items-center justify-center hover:border-gray-500 hover:text-gray-600 transition-colors select-none leading-none">
-        ?
-      </button>
-      {pos && (
-        <div style={{ position: 'fixed', left: pos.x, top: pos.y, transform: 'translate(-50%, -100%)', zIndex: 9999 }}
-          className="w-56 p-2.5 bg-gray-900 text-white text-xs rounded-lg shadow-xl pointer-events-none leading-relaxed">
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button type="button"
+            className="flex-shrink-0 w-3.5 h-3.5 rounded-full border border-gray-300 text-gray-400 text-[9px] font-bold flex items-center justify-center hover:border-gray-500 hover:text-gray-600 transition-colors select-none leading-none">
+            ?
+          </button>
+        </TooltipTrigger>
+        <TooltipContent side="top" className="max-w-56 text-xs leading-relaxed">
           {content}
-          <div className="absolute top-full left-1/2 -translate-x-1/2 border-[5px] border-transparent border-t-gray-900" />
-        </div>
-      )}
-    </>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 }
 
