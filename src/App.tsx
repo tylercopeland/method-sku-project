@@ -268,8 +268,7 @@ function App() {
   const selectPhase = (n: 1 | 2 | 3 | 4) => {
     setPhase(n);
     if (n >= 4) {
-      // Multi-entity requires Scale, so entering P4 forces the Scale plan + enables it.
-      setMultiEntityEnabled(true);
+      // Multi-entity requires Scale — force Scale plan, but leave the toggle to the user.
       setSubscription({ planId: 'scale', billingCycle: 'annual', cardLast4: subscription?.cardLast4 ?? '4242' });
     } else {
       setMultiEntityEnabled(false);

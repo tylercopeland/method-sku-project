@@ -1189,8 +1189,7 @@ export function InviteModal({
                         value={row.name}
                         onChange={(e) => handleNameChange(row.id, e.target.value)}
                         placeholder="Username"
-                        disabled={isEmptyRow}
-                        className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 placeholder-gray-400 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-40 disabled:cursor-not-allowed h-[44px]"
+                        className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 placeholder-gray-400 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent h-[44px]"
                       />
                     )}
 
@@ -1199,7 +1198,6 @@ export function InviteModal({
                       <EntityTagSelect
                         value={row.entities}
                         onChange={(entities) => handleEntityChange(row.id, entities)}
-                        disabled={isEmptyRow}
                       />
                     )}
 
