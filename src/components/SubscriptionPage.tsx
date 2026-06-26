@@ -190,8 +190,26 @@ function ComparisonValue({ value }: { value: ComparisonCell }) {
 }
 
 // The "Full feature comparison" table shown beneath the plan cards.
-function FeatureComparison({ planNames, highlightIndex }: { planNames: string[]; highlightIndex: number }) {
+function FeatureComparison({ planNames, highlightIndex, phase = 1 }: { planNames: string[]; highlightIndex: number; phase?: number }) {
   const colCount = planNames.length + 1;
+
+  // Build a phase-aware version of the comparison data, overriding the view-only row
+  const comparisonData = FEATURE_COMPARISON.map((section) => {
+    if (section.title !== 'Core') return section;
+    return {
+      ...section,
+      rows: section.rows.map((row) => {
+        if (row.label !== 'View-only seats (free)') return row;
+        // P1-P2: no view-only seats on any plan
+        // P3-P4: unlimited free on Build + Scale; Essentials also gets unlimited (can invite view-only)
+        const viewOnlyValues: ComparisonCell[] = phase >= 3
+          ? ['Unlimited', 'Unlimited', 'Unlimited']
+          : [false, false, false];
+        return { ...row, values: viewOnlyValues };
+      }),
+    };
+  });
+
   return (
     <div className="mt-16">
       <h2 className="text-2xl font-semibold text-gray-900 text-center mb-6">Full feature comparison</h2>
@@ -213,7 +231,7 @@ function FeatureComparison({ planNames, highlightIndex }: { planNames: string[];
             </tr>
           </thead>
           <tbody>
-            {FEATURE_COMPARISON.map((section) => (
+            {comparisonData.map((section) => (
               <Fragment key={section.title}>
                 <tr>
                   <td
@@ -332,6 +350,8 @@ interface SubscriptionPageProps {
   onUpgrade?: (planId: string) => void;
   /** When true, multi-entity is enabled and the plan is locked to Scale permanently. */
   multiEntityEnabled?: boolean;
+  /** Delivery phase (1–4) — gates which features exist in the prototype. */
+  phase?: 1 | 2 | 3 | 4;
 }
 
 export function SubscriptionPage({
@@ -355,6 +375,7 @@ export function SubscriptionPage({
   upgradeFromPlanId,
   onUpgrade,
   multiEntityEnabled = false,
+  phase = 1,
 }: SubscriptionPageProps) {
   const [billingCycle, setBillingCycle] = useState<BillingCycle>(
     upgradeFromPlanId ? 'monthly' : (activeSubscription?.billingCycle ?? 'monthly')
@@ -1221,15 +1242,33 @@ export function SubscriptionPage({
                 <div className="flex items-start gap-3">
                   <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
                   <div>
-                    <p className="text-sm font-semibold text-red-900">
-                      {teamSize - 1} {teamSize - 1 === 1 ? 'user' : 'users'} will become View-only
-                    </p>
-                    <p className="text-sm text-red-700 mt-1">
-                      Essentials includes 1 seat (yours). Your other {teamSize - 1}{' '}
-                      {teamSize - 1 === 1 ? 'user' : 'users'} will be switched to View-only access — they
-                      can still log in and read data, but can't edit. You can re-adjust their roles any time
-                      you upgrade back to Build or Scale.
-                    </p>
+                    {phase >= 3 ? (
+                      <>
+                        <p className="text-sm font-semibold text-red-900">
+                          {teamSize - 1} {teamSize - 1 === 1 ? 'user' : 'users'} will become View-only
+                        </p>
+                        <p className="text-sm text-red-700 mt-1">
+                          Essentials includes 1 paid seat (yours). Your other {teamSize - 1}{' '}
+                          {teamSize - 1 === 1 ? 'user' : 'users'} will be switched to View-only access — they
+                          can still log in and read data, but can't edit. You can re-adjust their roles any time
+                          you upgrade back to Build or Scale.
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <p className="text-sm font-semibold text-red-900">
+                          {teamSize - 1} {teamSize - 1 === 1 ? 'user' : 'users'} will be removed from your account
+                        </p>
+                        <p className="text-sm text-red-700 mt-1">
+                          Essentials is a single-user plan. Your other {teamSize - 1}{' '}
+                          {teamSize - 1 === 1 ? 'user' : 'users'} will lose access and be removed. You can invite them back
+                          if you upgrade to Build or Scale later.
+                        </p>
+                        <p className="text-sm text-red-700 mt-2 font-medium">
+                          All records currently assigned to those users will be reassigned to you as the sole admin.
+                        </p>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
@@ -1911,6 +1950,13 @@ export function SubscriptionPage({
                       {feature}
                     </li>
                   ))}
+                  {/* View-only seats line: on P1-P2 only Build+Scale show it; on P3-P4 all plans show it */}
+                  {((phase >= 3) || (phase < 3 && plan.id !== 'essentials')) && (
+                    <li className="flex items-start gap-2 text-xs text-gray-700">
+                      <Check className="w-3.5 h-3.5 text-green-600 flex-shrink-0 mt-0.5" />
+                      Unlimited view-only seats (free)
+                    </li>
+                  )}
                 </ul>
 
                 <Button
@@ -1956,6 +2002,7 @@ export function SubscriptionPage({
         <FeatureComparison
           planNames={plans.map((p) => p.name)}
           highlightIndex={plans.findIndex((p) => p.highlighted)}
+          phase={phase}
         />
 
         {/* Trial users: a quiet exit to close the account instead of subscribing */}

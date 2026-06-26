@@ -419,6 +419,7 @@ function App() {
             discountName={promoDiscount?.name}
             discountPct={promoDiscount?.pct}
             multiEntityEnabled={multiEntityEnabled}
+            phase={phase}
             onUpgrade={openUpgradeModal}
             onSubscribed={(sub) => {
               setSubscription(sub);
@@ -744,20 +745,31 @@ function App() {
           <div className="border-t border-gray-100 pt-2 mt-2">
             <p className="mb-1 text-gray-500">Users</p>
             <div className="flex gap-1">
-              {[1, 4, 8].map((n) => (
-                <button
-                  key={n}
-                  onClick={() => setTeamSize(n)}
-                  className={`flex-1 rounded border px-2 py-1 transition-colors ${
-                    teamSize === n
-                      ? 'border-blue-600 bg-blue-600 text-white'
-                      : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
-                  }`}
-                >
-                  {n}
-                </button>
-              ))}
+              {[1, 4, 8].map((n) => {
+                const isEssentialsP12 = phase <= 2 && subscription?.planId === 'essentials';
+                const isDisabled = isEssentialsP12 && n > 1;
+                return (
+                  <button
+                    key={n}
+                    onClick={() => !isDisabled && setTeamSize(n)}
+                    disabled={isDisabled}
+                    title={isDisabled ? 'Essentials is a single-user plan on P1–P2' : undefined}
+                    className={`flex-1 rounded border px-2 py-1 transition-colors ${
+                      isDisabled
+                        ? 'border-gray-100 bg-gray-50 text-gray-300 cursor-not-allowed'
+                        : teamSize === n
+                        ? 'border-blue-600 bg-blue-600 text-white'
+                        : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
+                    }`}
+                  >
+                    {n}
+                  </button>
+                );
+              })}
             </div>
+            {phase <= 2 && subscription?.planId === 'essentials' && (
+              <p className="text-[10px] text-gray-400 mt-1">Single-user on Essentials P1–P2</p>
+            )}
           </div>
           {/* Checkout mode toggle hidden from demo — defaulting to modal.
               To restore: uncomment this block and remove the useState default above.
@@ -892,6 +904,7 @@ function App() {
                   discountName={promoDiscount?.name}
                   discountPct={promoDiscount?.pct}
                   multiEntityEnabled={multiEntityEnabled}
+                  phase={phase}
                   onBack={() => setUpgradeModalOpen(false)}
                   onSubscribed={(sub) => {
                     setSubscription(sub);
