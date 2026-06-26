@@ -200,12 +200,12 @@ function FeatureComparison({ planNames, highlightIndex, phase = 1 }: { planNames
       ...section,
       rows: section.rows.map((row) => {
         if (row.label !== 'View-only seats (free)') return row;
-        // P1-P2: no view-only seats on any plan
-        // P3-P4: unlimited free on Build + Scale; Essentials also gets unlimited (can invite view-only)
-        const viewOnlyValues: ComparisonCell[] = phase >= 3
-          ? ['Unlimited', 'Unlimited', 'Unlimited']
-          : [false, false, false];
-        return { ...row, values: viewOnlyValues };
+        // P3-P4: unlimited free on all plans. P1-P2: row is filtered out below.
+        return { ...row, values: ['Unlimited', 'Unlimited', 'Unlimited'] as ComparisonCell[] };
+      }).filter((row) => {
+        // Hide view-only row entirely on P1-P2
+        if (row.label === 'View-only seats (free)' && phase < 3) return false;
+        return true;
       }),
     };
   });
@@ -1950,8 +1950,8 @@ export function SubscriptionPage({
                       {feature}
                     </li>
                   ))}
-                  {/* View-only seats line: on P1-P2 only Build+Scale show it; on P3-P4 all plans show it */}
-                  {((phase >= 3) || (phase < 3 && plan.id !== 'essentials')) && (
+                  {/* View-only seats line: P3-P4 only, all plans */}
+                  {phase >= 3 && (
                     <li className="flex items-start gap-2 text-xs text-gray-700">
                       <Check className="w-3.5 h-3.5 text-green-600 flex-shrink-0 mt-0.5" />
                       Unlimited view-only seats (free)
