@@ -933,6 +933,7 @@ function App() {
             seatsAvailable={navSeatsAvailable}
             onNavigate={handlePageNavigation}
             onClose={() => setShowNavbarInvite(false)}
+            phase={phase}
           />
         );
       })()}
