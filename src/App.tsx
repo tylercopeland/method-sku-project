@@ -947,6 +947,7 @@ function App() {
             onNavigate={handlePageNavigation}
             onClose={() => setShowNavbarInvite(false)}
             phase={phase}
+            multiEntityEnabled={multiEntityEnabled}
           />
         );
       })()}
