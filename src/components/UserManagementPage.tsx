@@ -1413,22 +1413,34 @@ const MOCK_ENTITIES = ['Method HQ', 'Method NYC', 'Method LA', 'Method UK', 'Met
 function EntityTagSelect({
   value,
   onChange,
-  disabled = false,
 }: {
   value: string[];
   onChange: (v: string[]) => void;
-  disabled?: boolean;
 }) {
   const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
+  const [panelStyle, setPanelStyle] = useState<React.CSSProperties>({});
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    if (!open) return;
     function handler(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      if (
+        panelRef.current && !panelRef.current.contains(e.target as Node) &&
+        triggerRef.current && !triggerRef.current.contains(e.target as Node)
+      ) setOpen(false);
     }
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
-  }, []);
+  }, [open]);
+
+  function handleOpen() {
+    if (triggerRef.current) {
+      const rect = triggerRef.current.getBoundingClientRect();
+      setPanelStyle({ position: 'fixed', top: rect.bottom + 6, left: rect.left, width: rect.width, zIndex: 9999 });
+    }
+    setOpen((o) => !o);
+  }
 
   function toggle(entity: string) {
     onChange(value.includes(entity) ? value.filter((x) => x !== entity) : [...value, entity]);
@@ -1438,13 +1450,12 @@ function EntityTagSelect({
   const overflow = value.length - 2;
 
   return (
-    <div className="flex-1 relative" ref={ref}>
+    <div className="flex-1">
       <button
+        ref={triggerRef}
         type="button"
-        onClick={() => !disabled && setOpen((o) => !o)}
-        className={`w-full h-[44px] border border-gray-300 rounded-lg px-2.5 flex items-center gap-1.5 bg-white text-left focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-          disabled ? 'opacity-40 cursor-not-allowed' : 'hover:border-gray-400 cursor-pointer'
-        }`}
+        onClick={handleOpen}
+        className="w-full h-[44px] border border-gray-300 rounded-lg px-2.5 flex items-center gap-1.5 bg-white text-left focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent hover:border-gray-400 cursor-pointer"
       >
         <Building2 className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
         <div className="flex-1 flex items-center gap-1 overflow-hidden min-w-0">
@@ -1470,7 +1481,7 @@ function EntityTagSelect({
       </button>
 
       {open && (
-        <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-xl z-50 overflow-hidden">
+        <div ref={panelRef} style={panelStyle} className="bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden">
           {MOCK_ENTITIES.map((entity) => (
             <button
               key={entity}
