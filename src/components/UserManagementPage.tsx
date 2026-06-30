@@ -758,8 +758,7 @@ const DEFAULT_CUSTOM_PERM: CustomPerm = {
 };
 
 const CUSTOM_PERM_OPTIONS: { key: keyof CustomPerm; label: string; tooltip: string }[] = [
-  { key: 'create',    label: 'Create',        tooltip: 'Create new records in this app' },
-  { key: 'edit',      label: 'Edit',          tooltip: 'Modify existing records and data' },
+  { key: 'create',    label: 'Create & Edit', tooltip: 'Create new records and modify existing data in this app' },
   { key: 'delete',    label: 'Delete',        tooltip: 'Permanently remove records from this app' },
   { key: 'approve',   label: 'Approve',       tooltip: 'Approve submitted changes, requests, or workflows' },
   { key: 'customize', label: 'Customize app', tooltip: 'Modify app layout, custom fields, and display settings' },
@@ -931,21 +930,46 @@ function InviteAppAccessModal({ inviteCount, initial, onClose, onApply }: {
                         <div className="ml-[calc(1rem+0.75rem)] bg-gray-50 rounded-xl border border-gray-200 px-4 py-3">
                           <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-2.5">Custom permissions</p>
                           <div className="grid grid-cols-3 gap-x-6 gap-y-2">
-                            {CUSTOM_PERM_OPTIONS.map(opt => (
-                              <label key={opt.key} className="flex items-center gap-2 cursor-pointer group">
-                                <input
-                                  type="checkbox"
-                                  checked={customPerm[opt.key]}
-                                  onChange={e => setAppCustomPermissions(prev => ({
-                                    ...prev,
-                                    [app.name]: { ...customPerm, [opt.key]: e.target.checked },
-                                  }))}
-                                  className="w-3.5 h-3.5 rounded border-gray-300 text-purple-600 focus:ring-purple-500 cursor-pointer"
-                                />
-                                <span className="text-xs text-gray-700 font-medium">{opt.label}</span>
-                                <AppInfoTooltip content={opt.tooltip} />
-                              </label>
-                            ))}
+                            {CUSTOM_PERM_OPTIONS.map(opt => {
+                              const approveDisabled = opt.key === 'approve' && app.name !== 'Time Tracking';
+                              const checkboxAndLabel = (
+                                <span className={`flex items-center gap-2 ${approveDisabled ? 'opacity-40' : ''}`}>
+                                  <input
+                                    type="checkbox"
+                                    checked={customPerm[opt.key]}
+                                    disabled={approveDisabled}
+                                    onChange={e => {
+                                      const val = e.target.checked;
+                                      setAppCustomPermissions(prev => ({
+                                        ...prev,
+                                        [app.name]: {
+                                          ...customPerm,
+                                          [opt.key]: val,
+                                          ...(opt.key === 'create' ? { edit: val } : {}),
+                                        },
+                                      }));
+                                    }}
+                                    className="w-3.5 h-3.5 rounded border-gray-300 text-purple-600 focus:ring-purple-500 cursor-pointer disabled:cursor-not-allowed"
+                                  />
+                                  <span className="text-xs text-gray-700 font-medium">{opt.label}</span>
+                                </span>
+                              );
+                              return (
+                                <label key={opt.key} className={`flex items-center gap-2 ${approveDisabled ? 'cursor-not-allowed' : 'cursor-pointer group'}`}>
+                                  {approveDisabled ? (
+                                    <TooltipProvider delayDuration={0}>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>{checkboxAndLabel}</TooltipTrigger>
+                                        <TooltipContent side="top" className="max-w-56 text-xs leading-relaxed">
+                                          Approve is exclusive to Time Tracking and custom apps
+                                        </TooltipContent>
+                                      </Tooltip>
+                                    </TooltipProvider>
+                                  ) : checkboxAndLabel}
+                                  <AppInfoTooltip content={opt.tooltip} />
+                                </label>
+                              );
+                            })}
                           </div>
                         </div>
                       </div>
