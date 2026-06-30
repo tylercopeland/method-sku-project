@@ -450,6 +450,7 @@ function App() {
                 setTrialCanceled(false);
               }
             }}
+            onNavigate={(page) => setCurrentPage(page as typeof currentPage)}
           />
         ) : premiumLocked && premiumApps.includes(currentPage) ? (
           <UpgradeRequiredPage

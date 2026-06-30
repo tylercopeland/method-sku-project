@@ -352,6 +352,8 @@ interface SubscriptionPageProps {
   multiEntityEnabled?: boolean;
   /** Delivery phase (1–4) — gates which features exist in the prototype. */
   phase?: 1 | 2 | 3 | 4;
+  /** Navigate to another page (e.g. 'users' for the user management screen). */
+  onNavigate?: (page: string) => void;
 }
 
 export function SubscriptionPage({
@@ -376,6 +378,7 @@ export function SubscriptionPage({
   onUpgrade,
   multiEntityEnabled = false,
   phase = 1,
+  onNavigate,
 }: SubscriptionPageProps) {
   const [billingCycle, setBillingCycle] = useState<BillingCycle>(
     upgradeFromPlanId ? 'monthly' : (activeSubscription?.billingCycle ?? 'monthly')
@@ -1138,11 +1141,10 @@ export function SubscriptionPage({
               <PhoneCall className="w-8 h-8 text-blue-600" />
             </div>
             <h1 className="text-2xl font-semibold text-gray-900 mb-2">
-              Downgrade request received
+              Call booked — we'll handle the rest
             </h1>
             <p className="text-gray-600 mb-5">
-              We'll process your downgrade from {currentPlan?.name} to {selectedPlan.name}. Someone from
-              our team may reach out via email if we need anything from you — no call required unless you want one.
+              Your CSM will walk you through the downgrade from {currentPlan?.name} to {selectedPlan.name} on the call.
             </p>
             {/* When the downgraded plan takes effect */}
             <div className="rounded-xl bg-blue-50 border border-blue-100 p-4 mb-6 text-left">
@@ -1195,8 +1197,7 @@ export function SubscriptionPage({
                 Request a downgrade to {selectedPlan.name}
               </h1>
               <p className="text-gray-600">
-                Submit your request and we'll take it from there. Someone from our team may reach out to
-                confirm a few details or help with the transition — but there's no call required.
+                Book a quick call with your CSM and we'll handle the transition together.
               </p>
             </div>
 
@@ -1274,52 +1275,9 @@ export function SubscriptionPage({
               </div>
             )}
 
-            {/* Contact form */}
+            {/* CSM booking CTA */}
             <div className="p-6 sm:p-8">
-              <p className="text-sm font-semibold text-gray-900 mb-4">
-                Where should we follow up?
-              </p>
-              <div className="space-y-4">
-                <div className="space-y-1.5">
-                  <Label htmlFor="dg-email">Work email</Label>
-                  <Input
-                    id="dg-email"
-                    type="email"
-                    placeholder="you@company.com"
-                    value={downgradeContact.email}
-                    onChange={(e) =>
-                      setDowngradeContact({ ...downgradeContact, email: e.target.value })
-                    }
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="dg-phone">Phone (optional)</Label>
-                  <Input
-                    id="dg-phone"
-                    type="tel"
-                    placeholder="(555) 000-0000"
-                    value={downgradeContact.phone}
-                    onChange={(e) =>
-                      setDowngradeContact({ ...downgradeContact, phone: e.target.value })
-                    }
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="dg-note">What's prompting the change? (optional)</Label>
-                  <textarea
-                    id="dg-note"
-                    value={downgradeContact.note}
-                    onChange={(e) =>
-                      setDowngradeContact({ ...downgradeContact, note: e.target.value })
-                    }
-                    placeholder="Tell us a bit about what you're looking for."
-                    rows={3}
-                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none"
-                  />
-                </div>
-              </div>
-
-              <div className="flex flex-col-reverse sm:flex-row sm:items-center gap-3 mt-6">
+              <div className="flex flex-col-reverse sm:flex-row sm:items-center gap-3">
                 <Button
                   variant="ghost"
                   onClick={() => setStep('manage')}
@@ -1329,14 +1287,12 @@ export function SubscriptionPage({
                 </Button>
                 <Button
                   onClick={() => {
-                    // Schedule the downgrade for period end; access stays put until then.
-                    if (selectedPlanId) onScheduleDowngrade?.(selectedPlanId, nextBillingLabel);
+                    window.open('https://method.youcanbook.me', '_blank', 'noopener,noreferrer');
                     setSalesRequested(true);
                   }}
-                  disabled={!downgradeContact.email.trim()}
-                  className="bg-blue-600 hover:bg-blue-700 text-white sm:ml-auto disabled:opacity-50"
+                  className="bg-blue-600 hover:bg-blue-700 text-white sm:ml-auto"
                 >
-                  Request downgrade
+                  Book a call with our team
                 </Button>
               </div>
             </div>
@@ -1605,8 +1561,8 @@ export function SubscriptionPage({
                   Order summary
                 </h3>
 
-                {/* Billing cycle toggle — always visible in checkout */}
-                {(
+                {/* Billing cycle toggle — hidden when changing an existing plan */}
+                {!isChangingPlan && (
                   <div className="flex items-center gap-1 rounded-lg border border-gray-200 p-0.5 mb-4 w-fit">
                     {(['monthly', 'annual'] as const).map((cycle) => (
                       <button
@@ -1908,7 +1864,18 @@ export function SubscriptionPage({
                     )}
                     {showTeamTotal ? (
                       <p className="text-xs font-medium text-blue-700 mb-3">
-                        {teamSize} users · ${teamMonthly.toLocaleString()}/mo
+                        {onNavigate ? (
+                          <button
+                            type="button"
+                            onClick={() => onNavigate('users')}
+                            className="underline underline-offset-2 hover:opacity-70 transition-opacity"
+                          >
+                            {teamSize} users
+                          </button>
+                        ) : (
+                          <>{teamSize} users</>
+                        )}
+                        {' '}· ${teamMonthly.toLocaleString()}/mo
                       </p>
                     ) : (
                       <div className="mb-2" />
